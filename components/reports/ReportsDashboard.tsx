@@ -624,21 +624,23 @@ export default function ReportsDashboard({ members, checkIns, payments }: Report
             </div>
 
             {/* Tabs */}
-            <div className="flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1 w-fit">
-                {TABS.map((tab) => {
-                    const Icon = tab.icon
-                    const active = activeTab === tab.id
-                    return (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-medium transition-all ${active ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                        >
-                            <Icon className={`h-3.5 w-3.5 ${active ? 'text-blue-600' : ''}`} />
-                            {tab.label}
-                        </button>
-                    )
-                })}
+            <div className="overflow-x-auto">
+                <div className="flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1 w-fit min-w-max">
+                    {TABS.map((tab) => {
+                        const Icon = tab.icon
+                        const active = activeTab === tab.id
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-medium transition-all ${active ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                            >
+                                <Icon className={`h-3.5 w-3.5 ${active ? 'text-blue-600' : ''}`} />
+                                {tab.label}
+                            </button>
+                        )
+                    })}
+                </div>
             </div>
 
             {/* Tab content */}
@@ -649,3 +651,4 @@ export default function ReportsDashboard({ members, checkIns, payments }: Report
         </div>
     )
 }
+
