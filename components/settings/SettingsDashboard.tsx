@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { User, Lock, ShieldCheck, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { updateProfile, updatePassword } from '@/app/admin/settings/actions'
+import { createClient } from '@/lib/supabase/client'
+import { updateProfile } from '@/app/admin/settings/actions'
 
 interface Profile {
     id: string
@@ -29,8 +30,42 @@ export default function SettingsDashboard({ profile, email }: SettingsDashboardP
 
     const [fullName, setFullName] = useState(profile.full_name)
     const [phone, setPhone] = useState(profile.phone ?? '')
+    const [oldPassword, setOldPassword] = useState('')
     const [password, setPassword] = useState('')
     const [confirmPassword, setConfirmPassword] = useState('')
+    const [oldPasswordTouched, setOldPasswordTouched] = useState(false)
+    const [passwordTouched, setPasswordTouched] = useState(false)
+    const [confirmTouched, setConfirmTouched] = useState(false)
+
+    // Password strength: 0 = empty, 1 = weak, 2 = fair, 3 = good, 4 = strong
+    const getStrength = (pw: string): number => {
+        if (!pw) return 0
+        let score = 0
+        if (pw.length >= 6) score++
+        if (pw.length >= 10) score++
+        if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++
+        if (/[0-9]/.test(pw) && /[^A-Za-z0-9]/.test(pw)) score++
+        return score
+    }
+    const strength = getStrength(password)
+    const strengthLabel = ['', 'Weak', 'Fair', 'Good', 'Strong'][strength]
+    const strengthColor = [
+        '',
+        'bg-red-500',
+        'bg-amber-400',
+        'bg-blue-500',
+        'bg-emerald-500',
+    ][strength]
+
+    const oldPasswordError = oldPasswordTouched && oldPassword.length === 0
+        ? 'Current password is required'
+        : null
+    const passwordError = passwordTouched && password.length > 0 && password.length < 6
+        ? 'Minimum 6 characters required'
+        : null
+    const confirmError = confirmTouched && confirmPassword.length > 0 && confirmPassword !== password
+        ? 'Passwords do not match'
+        : null
 
     const handleProfileSubmit = (e: React.FormEvent) => {
         e.preventDefault()
@@ -44,19 +79,41 @@ export default function SettingsDashboard({ profile, email }: SettingsDashboardP
         })
     }
 
-    const handlePasswordSubmit = (e: React.FormEvent) => {
+    const handlePasswordSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        const fd = new FormData()
-        fd.append('password', password)
-        fd.append('confirm_password', confirmPassword)
+        setOldPasswordTouched(true)
+        setPasswordTouched(true)
+        setConfirmTouched(true)
+
+        if (!oldPassword) return
+        if (!password || password.length < 6) return
+        if (password !== confirmPassword) return
+
         startPasswordTransition(async () => {
-            const result = await updatePassword(fd)
-            if (result.error) {
-                toast.error(result.error)
+            const supabase = createClient()
+
+            // Verify old password by re-authenticating
+            const { error: authError } = await supabase.auth.signInWithPassword({
+                email,
+                password: oldPassword,
+            })
+            if (authError) {
+                toast.error('Current password is incorrect')
+                return
+            }
+
+            // Old password verified — update to new password
+            const { error } = await supabase.auth.updateUser({ password })
+            if (error) {
+                toast.error(error.message)
             } else {
-                toast.success('Password changed')
+                toast.success('Password changed successfully')
+                setOldPassword('')
                 setPassword('')
                 setConfirmPassword('')
+                setOldPasswordTouched(false)
+                setPasswordTouched(false)
+                setConfirmTouched(false)
             }
         })
     }
@@ -149,26 +206,83 @@ export default function SettingsDashboard({ profile, email }: SettingsDashboardP
                     </div>
 
                     <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                        {/* Current / old password */}
+                        <div className="space-y-1.5">
+                            <Label className="text-xs font-medium text-gray-700">Current Password</Label>
+                            <Input
+                                type="password"
+                                value={oldPassword}
+                                onChange={(e) => { setOldPassword(e.target.value); setOldPasswordTouched(true) }}
+                                placeholder="Enter your current password"
+                                className={`h-10 text-sm ${oldPasswordError ? 'border-red-400 focus:ring-red-400' : 'border-gray-300'}`}
+                            />
+                            {oldPasswordError && (
+                                <p className="text-[11px] text-red-500 flex items-center gap-1">
+                                    <span>⚠</span> {oldPasswordError}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="h-px bg-gray-100" />
+
                         <div className="space-y-1.5">
                             <Label className="text-xs font-medium text-gray-700">New Password</Label>
                             <Input
                                 type="password"
                                 value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                                onChange={(e) => { setPassword(e.target.value); setPasswordTouched(true) }}
                                 placeholder="••••••••"
-                                className="h-10 border-gray-300 text-sm"
+                                className={`h-10 text-sm ${passwordError ? 'border-red-400 focus:ring-red-400' : 'border-gray-300'}`}
                             />
+
+                            {/* Strength bar — appears once user starts typing */}
+                            {password.length > 0 && (
+                                <div className="space-y-1 pt-0.5">
+                                    <div className="flex gap-1">
+                                        {[1, 2, 3, 4].map((seg) => (
+                                            <div
+                                                key={seg}
+                                                className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${strength >= seg ? strengthColor : 'bg-gray-200'
+                                                    }`}
+                                            />
+                                        ))}
+                                    </div>
+                                    <p className={`text-[11px] font-medium ${strength === 1 ? 'text-red-500' :
+                                        strength === 2 ? 'text-amber-500' :
+                                            strength === 3 ? 'text-blue-500' :
+                                                'text-emerald-600'
+                                        }`}>
+                                        {strengthLabel}
+                                        {strength === 1 && ' — try adding uppercase letters, numbers or symbols'}
+                                        {strength === 2 && ' — add numbers & symbols to strengthen it'}
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Inline error */}
+                            {passwordError && (
+                                <p className="text-[11px] text-red-500 flex items-center gap-1">
+                                    <span>⚠</span> {passwordError}
+                                </p>
+                            )}
                         </div>
+
                         <div className="space-y-1.5">
                             <Label className="text-xs font-medium text-gray-700">Confirm Password</Label>
                             <Input
                                 type="password"
                                 value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                onChange={(e) => { setConfirmPassword(e.target.value); setConfirmTouched(true) }}
                                 placeholder="••••••••"
-                                className="h-10 border-gray-300 text-sm"
+                                className={`h-10 text-sm ${confirmError ? 'border-red-400 focus:ring-red-400' : 'border-gray-300'}`}
                             />
+                            {confirmError && (
+                                <p className="text-[11px] text-red-500 flex items-center gap-1">
+                                    <span>⚠</span> {confirmError}
+                                </p>
+                            )}
                         </div>
+
                         <Button
                             type="submit"
                             disabled={passwordPending}
