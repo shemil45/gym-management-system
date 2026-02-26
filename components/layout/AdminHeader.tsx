@@ -12,7 +12,8 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { LogOut, User, Bell, Search, ChevronDown } from 'lucide-react'
+import { LogOut, User, Bell, Search, ChevronDown, Menu } from 'lucide-react'
+import { useSidebar } from '@/components/layout/SidebarContext'
 
 interface AdminHeaderProps {
     user: {
@@ -25,6 +26,7 @@ interface AdminHeaderProps {
 
 export default function AdminHeader({ user }: AdminHeaderProps) {
     const router = useRouter()
+    const { toggle } = useSidebar()
 
     const handleLogout = async () => {
         const supabase = createClient()
@@ -41,6 +43,15 @@ export default function AdminHeader({ user }: AdminHeaderProps) {
 
     return (
         <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:px-6">
+            {/* Hamburger – mobile only */}
+            <button
+                onClick={toggle}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors lg:hidden"
+                aria-label="Open navigation"
+            >
+                <Menu className="h-5 w-5" />
+            </button>
+
             {/* Title + Search */}
             <div className="flex flex-1 items-center gap-4">
                 {/* Page Title (hidden on desktop as it's in main content) */}
