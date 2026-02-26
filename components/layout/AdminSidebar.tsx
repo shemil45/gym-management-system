@@ -33,8 +33,8 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 
     return (
         <div
-            className="flex grow flex-col overflow-y-auto pb-4 h-full"
-            style={{ background: 'linear-gradient(180deg, #1a1f2e 0%, #141824 100%)' }}
+            className="flex grow flex-col overflow-y-auto pb-4 h-full [&::-webkit-scrollbar]:hidden"
+            style={{ scrollbarWidth: 'none', background: 'linear-gradient(180deg, #1a1f2e 0%, #141824 100%)' }}
         >
             {/* Logo */}
             <div className="flex h-16 shrink-0 flex-col items-center justify-center gap-1 px-2 mt-4 relative">
