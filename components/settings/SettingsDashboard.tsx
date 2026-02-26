@@ -62,7 +62,9 @@ export default function SettingsDashboard({ profile, email }: SettingsDashboardP
         : null
     const passwordError = passwordTouched && password.length > 0 && password.length < 6
         ? 'Minimum 6 characters required'
-        : null
+        : passwordTouched && password.length >= 6 && oldPassword.length > 0 && password === oldPassword
+            ? 'New password must be different from your current password'
+            : null
     const confirmError = confirmTouched && confirmPassword.length > 0 && confirmPassword !== password
         ? 'Passwords do not match'
         : null
@@ -87,6 +89,7 @@ export default function SettingsDashboard({ profile, email }: SettingsDashboardP
 
         if (!oldPassword) return
         if (!password || password.length < 6) return
+        if (oldPassword === password) return
         if (password !== confirmPassword) return
 
         startPasswordTransition(async () => {
