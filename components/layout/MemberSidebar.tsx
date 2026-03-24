@@ -12,12 +12,14 @@ import {
     User,
     HelpCircle,
     Dumbbell,
+    ClipboardList,
     X,
 } from 'lucide-react'
 
 const navigation = [
     { name: 'Home', href: '/member/dashboard', icon: LayoutDashboard },
     { name: 'Check-ins', href: '/member/check-ins', icon: UserCheck },
+    { name: 'Plans', href: '/member/plans', icon: ClipboardList },
     { name: 'Payments', href: '/member/payments', icon: Receipt },
     { name: 'Referrals', href: '/member/referrals', icon: Gift },
     { name: 'Profile', href: '/member/profile', icon: User },
