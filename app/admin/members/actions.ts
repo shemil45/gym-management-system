@@ -6,22 +6,23 @@ import { revalidatePath } from 'next/cache'
 export async function generateNextMemberId(): Promise<string> {
     const supabase = await createClient()
 
-    // Get all member IDs to find the highest number
+    // Only look at properly formatted GYM### IDs to avoid picking up numbers from mock/legacy data
     const { data: members } = await supabase
         .from('members')
         .select('member_id')
+        .like('member_id', 'GYM%')
         .order('member_id', { ascending: false })
 
     if (!members || members.length === 0) {
         return 'GYM001'
     }
 
-    // Extract all numbers from member IDs and find the maximum
+    // Extract numbers only from GYM-prefixed IDs
     let maxNumber = 0
     for (const member of members) {
-        const match = member.member_id.match(/\d+/)
+        const match = member.member_id.match(/^GYM(\d+)$/)
         if (match) {
-            const num = parseInt(match[0])
+            const num = parseInt(match[1])
             if (num > maxNumber) {
                 maxNumber = num
             }

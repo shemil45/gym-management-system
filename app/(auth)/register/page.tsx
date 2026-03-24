@@ -22,6 +22,7 @@ export default function RegisterPage() {
     })
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({
@@ -34,6 +35,7 @@ export default function RegisterPage() {
         e.preventDefault()
         setLoading(true)
         setError(null)
+        setSuccessMsg(null)
 
         // Validation
         if (formData.password !== formData.confirmPassword) {
@@ -81,9 +83,21 @@ export default function RegisterPage() {
 
             if (profileError) throw profileError
 
-            // Redirect to member dashboard
-            router.push('/member/dashboard')
-            router.refresh()
+            // Determine if the user is automatically signed in
+            if (authData.session) {
+                // Redirect to member dashboard
+                router.push('/member/dashboard')
+                router.refresh()
+            } else {
+                setSuccessMsg('Registration successful! Please check your email to verify your account.')
+                setFormData({
+                    fullName: '',
+                    email: '',
+                    phone: '',
+                    password: '',
+                    confirmPassword: '',
+                })
+            }
         } catch (err: any) {
             setError(err.message || 'Failed to register. Please try again.')
         } finally {
@@ -104,6 +118,11 @@ export default function RegisterPage() {
                     {error && (
                         <Alert variant="destructive">
                             <AlertDescription>{error}</AlertDescription>
+                        </Alert>
+                    )}
+                    {successMsg && (
+                        <Alert className="bg-green-50 text-green-700 border-green-200">
+                            <AlertDescription>{successMsg}</AlertDescription>
                         </Alert>
                     )}
 
