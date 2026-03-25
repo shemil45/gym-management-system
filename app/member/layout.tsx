@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import MemberSidebar from '@/components/layout/MemberSidebar'
 import MemberHeader from '@/components/layout/MemberHeader'
 import { SidebarProvider } from '@/components/layout/SidebarContext'
+import { Toaster } from 'sonner'
 
 export default async function MemberLayout({
     children,
@@ -44,6 +45,7 @@ export default async function MemberLayout({
     return (
         <SidebarProvider>
             <div className="min-h-screen bg-[#f4f6fa]">
+                <Toaster richColors position="top-right" />
                 <MemberSidebar />
                 <div className="lg:pl-[100px] xl:pl-[110px]">
                     <MemberHeader

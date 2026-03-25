@@ -6,10 +6,6 @@ import { createClient } from '@/lib/supabase/client'
 import { formatDate } from '@/lib/utils/date'
 import { formatCurrency } from '@/lib/utils/currency'
 import {
-    UserCheck,
-    Receipt,
-    Gift,
-    User,
     CalendarDays,
     Clock,
     CreditCard,
@@ -19,9 +15,14 @@ import {
     CheckCircle2,
     PauseCircle,
     XCircle,
+    MessageSquare,
+    Zap,
+    Salad,
+    TrendingUp,
+    ArrowRight,
+    Dumbbell,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 
 interface MemberData {
     member_id: string
@@ -31,38 +32,32 @@ interface MemberData {
     membership_start_date: string | null
     membership_expiry_date: string | null
     status: 'active' | 'inactive' | 'frozen' | 'expired'
-    // stats
     totalVisitsThisMonth: number
     totalVisitsAllTime: number
     lastCheckIn: string | null
     currentStreak: number
-    // payments
     lastPayment: { amount: number; payment_date: string } | null
 }
 
 function getDaysRemaining(expiryDate: string | null) {
     if (!expiryDate) return null
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const expiry = new Date(expiryDate)
-    expiry.setHours(0, 0, 0, 0)
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const expiry = new Date(expiryDate); expiry.setHours(0, 0, 0, 0)
     return Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 }
 
 function getStatusConfig(status: string, daysRemaining: number | null) {
-    if (status === 'frozen') return { label: 'Frozen', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: PauseCircle, dot: 'bg-blue-500' }
-    if (status === 'expired' || (daysRemaining !== null && daysRemaining < 0)) return { label: 'Expired', color: 'bg-red-100 text-red-700 border-red-200', icon: XCircle, dot: 'bg-red-500' }
-    if (daysRemaining !== null && daysRemaining <= 7) return { label: 'Expiring Soon', color: 'bg-amber-100 text-amber-700 border-amber-200', icon: AlertCircle, dot: 'bg-amber-500' }
-    if (status === 'active') return { label: 'Active', color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: CheckCircle2, dot: 'bg-emerald-500' }
-    return { label: 'Inactive', color: 'bg-gray-100 text-gray-600 border-gray-200', icon: XCircle, dot: 'bg-gray-400' }
+    if (status === 'frozen') return { label: 'Frozen', color: 'bg-blue-100 text-blue-700 border-blue-200', dot: 'bg-blue-500', icon: PauseCircle }
+    if (status === 'expired' || (daysRemaining !== null && daysRemaining < 0)) return { label: 'Expired', color: 'bg-red-100 text-red-700 border-red-200', dot: 'bg-red-500', icon: XCircle }
+    if (daysRemaining !== null && daysRemaining <= 7) return { label: 'Expiring Soon', color: 'bg-amber-100 text-amber-700 border-amber-200', dot: 'bg-amber-500', icon: AlertCircle }
+    if (status === 'active') return { label: 'Active', color: 'bg-emerald-100 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500', icon: CheckCircle2 }
+    return { label: 'Inactive', color: 'bg-gray-100 text-gray-600 border-gray-200', dot: 'bg-gray-400', icon: XCircle }
 }
 
 function formatLastCheckIn(dateStr: string | null) {
-    if (!dateStr) return 'No visits yet'
+    if (!dateStr) return null
     const date = new Date(dateStr)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMins = Math.floor(diffMs / 60000)
+    const diffMins = Math.floor((Date.now() - date.getTime()) / 60000)
     const diffHours = Math.floor(diffMins / 60)
     const diffDays = Math.floor(diffHours / 24)
     if (diffMins < 60) return `${diffMins}m ago`
@@ -70,6 +65,14 @@ function formatLastCheckIn(dateStr: string | null) {
     if (diffDays === 1) return 'Yesterday'
     return `${diffDays} days ago`
 }
+
+// Onboarding steps
+const ONBOARDING_STEPS = [
+    { key: 'profile', label: 'Complete your profile', href: '/member/profile' },
+    { key: 'workout', label: 'Generate your first workout plan', href: '/member/workout' },
+    { key: 'nutrition', label: 'Set your nutrition goal', href: '/member/nutrition' },
+    { key: 'checkin', label: 'Do your first check-in', href: '/member/check-ins' },
+]
 
 export default function MemberDashboard() {
     const [memberData, setMemberData] = useState<MemberData | null>(null)
@@ -85,15 +88,7 @@ export default function MemberDashboard() {
                 .from('members')
                 .select('*, membership_plan:membership_plans(name, price, duration_days)')
                 .eq('user_id', user.id)
-                .single() as { data: {
-                    member_id: string
-                    full_name: string
-                    photo_url: string | null
-                    status: 'active' | 'inactive' | 'frozen' | 'expired'
-                    membership_start_date: string | null
-                    membership_expiry_date: string | null
-                    membership_plan: { name: string; price: number; duration_days: number } | null
-                } | null, error: unknown }
+                .single() as { data: any | null, error: unknown }
 
             if (!member) { setLoading(false); return }
 
@@ -106,34 +101,19 @@ export default function MemberDashboard() {
                 { data: recentCheckIns },
                 { data: lastPaymentData },
             ] = await Promise.all([
-                supabase.from('check_ins').select('*', { count: 'exact', head: true })
-                    .eq('member_id', member.member_id).gte('check_in_time', monthStart),
-                supabase.from('check_ins').select('*', { count: 'exact', head: true })
-                    .eq('member_id', member.member_id),
-                supabase.from('check_ins').select('*')
-                    .eq('member_id', member.member_id)
-                    .order('check_in_time', { ascending: false })
-                    .limit(60) as unknown as Promise<{ data: { check_in_time: string }[] | null }>,
-                supabase.from('payments').select('*')
-                    .eq('member_id', member.member_id)
-                    .eq('payment_status', 'paid')
-                    .order('payment_date', { ascending: false })
-                    .limit(1) as unknown as Promise<{ data: { amount: number; payment_date: string }[] | null }>,
+                supabase.from('check_ins').select('*', { count: 'exact', head: true }).eq('member_id', member.member_id).gte('check_in_time', monthStart),
+                supabase.from('check_ins').select('*', { count: 'exact', head: true }).eq('member_id', member.member_id),
+                supabase.from('check_ins').select('check_in_time').eq('member_id', member.member_id).order('check_in_time', { ascending: false }).limit(60) as any,
+                supabase.from('payments').select('amount, payment_date').eq('member_id', member.member_id).eq('payment_status', 'paid').order('payment_date', { ascending: false }).limit(1) as any,
             ])
 
-            // Calculate streak
             let streak = 0
-            const checkInItems = recentCheckIns as { check_in_time: string }[] | null
-            if (checkInItems && checkInItems.length > 0) {
-                const dates = [...new Set(checkInItems.map(c =>
-                    new Date(c.check_in_time).toISOString().split('T')[0]
-                ))].sort().reverse()
+            if (recentCheckIns?.length > 0) {
+                const dates = [...new Set((recentCheckIns as any[]).map((c: any) => new Date(c.check_in_time).toISOString().split('T')[0]))].sort().reverse()
                 const today = new Date().toISOString().split('T')[0]
                 if (dates[0] === today || dates[0] === new Date(Date.now() - 86400000).toISOString().split('T')[0]) {
                     for (let i = 0; i < dates.length - 1; i++) {
-                        const d1 = new Date(dates[i])
-                        const d2 = new Date(dates[i + 1])
-                        const diff = (d1.getTime() - d2.getTime()) / 86400000
+                        const diff = (new Date(dates[i]).getTime() - new Date(dates[i + 1]).getTime()) / 86400000
                         if (diff <= 1) streak++
                         else break
                     }
@@ -141,7 +121,6 @@ export default function MemberDashboard() {
                 }
             }
 
-            const paymentItems = lastPaymentData as { amount: number; payment_date: string }[] | null
             setMemberData({
                 member_id: member.member_id,
                 full_name: member.full_name,
@@ -152,9 +131,9 @@ export default function MemberDashboard() {
                 status: member.status,
                 totalVisitsThisMonth: totalVisitsThisMonth || 0,
                 totalVisitsAllTime: totalVisitsAllTime || 0,
-                lastCheckIn: checkInItems?.[0]?.check_in_time || null,
+                lastCheckIn: (recentCheckIns as any[])?.[0]?.check_in_time || null,
                 currentStreak: streak,
-                lastPayment: paymentItems?.[0] || null,
+                lastPayment: (lastPaymentData as any[])?.[0] || null,
             })
             setLoading(false)
         }
@@ -164,12 +143,12 @@ export default function MemberDashboard() {
     if (loading) {
         return (
             <div className="space-y-4 animate-pulse">
-                <div className="h-52 bg-gray-200 rounded-2xl" />
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="h-24 bg-gray-200 rounded-xl" />
-                    <div className="h-24 bg-gray-200 rounded-xl" />
+                <div className="h-16 bg-gray-200 rounded-xl" />
+                <div className="grid grid-cols-3 gap-3">
+                    {[0, 1, 2].map(i => <div key={i} className="h-24 bg-gray-200 rounded-xl" />)}
                 </div>
-                <div className="h-28 bg-gray-200 rounded-xl" />
+                <div className="h-32 bg-gray-200 rounded-xl" />
+                <div className="h-40 bg-gray-200 rounded-xl" />
             </div>
         )
     }
@@ -186,19 +165,24 @@ export default function MemberDashboard() {
 
     const daysRemaining = getDaysRemaining(memberData.membership_expiry_date)
     const statusConfig = getStatusConfig(memberData.status, daysRemaining)
-    const StatusIcon = statusConfig.icon
+    const initials = memberData.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 
-    // Progress bar: days used / total plan days
+    // progress bar
     let progressPct = 0
     if (memberData.membership_plan && memberData.membership_start_date && memberData.membership_expiry_date) {
-        const total = memberData.membership_plan.duration_days
-        const start = new Date(memberData.membership_start_date)
-        const now = new Date()
-        const used = Math.max(0, Math.ceil((now.getTime() - start.getTime()) / 86400000))
-        progressPct = Math.min(100, Math.round((used / total) * 100))
+        const used = Math.max(0, Math.ceil((Date.now() - new Date(memberData.membership_start_date).getTime()) / 86400000))
+        progressPct = Math.min(100, Math.round((used / memberData.membership_plan.duration_days) * 100))
     }
 
-    const initials = memberData.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    // Onboarding: show when inactive or no visits at all
+    const isNewMember = memberData.status === 'inactive' || memberData.totalVisitsAllTime === 0
+    const onboardingDone = {
+        profile: true, // they completed profile to get here
+        workout: false,
+        nutrition: false,
+        checkin: memberData.totalVisitsAllTime > 0,
+    } as Record<string, boolean>
+    const onboardingPct = Math.round((Object.values(onboardingDone).filter(Boolean).length / ONBOARDING_STEPS.length) * 100)
 
     return (
         <div className="space-y-4 max-w-2xl mx-auto lg:max-w-none">
@@ -208,152 +192,174 @@ export default function MemberDashboard() {
                 <p className="text-sm text-gray-500 mt-0.5">Here's your membership overview</p>
             </div>
 
-            {/* ── Digital Membership Card ── */}
+            {/* ── COMPACT Identity Strip ── */}
             <div
-                className="relative overflow-hidden rounded-2xl p-5 text-white shadow-xl"
+                className="relative overflow-hidden rounded-xl px-4 py-3 text-white shadow-lg"
                 style={{ background: 'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)' }}
             >
-                {/* Decorative circles */}
-                <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-white/5" />
-                <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-emerald-500/10" />
+                {/* Decorative blur */}
+                <div className="absolute -top-6 -right-6 h-24 w-24 rounded-full bg-emerald-500/10 blur-xl" />
 
-                <div className="relative flex items-start gap-4">
-                    {/* Avatar */}
-                    <Avatar className="h-16 w-16 border-2 border-white/20 shadow-lg shrink-0">
+                <div className="relative flex items-center gap-3">
+                    <Avatar className="h-10 w-10 border-2 border-white/20 shrink-0">
                         <AvatarImage src={memberData.photo_url || undefined} alt={memberData.full_name} />
-                        <AvatarFallback className="bg-emerald-500 text-white text-lg font-bold">
-                            {initials}
-                        </AvatarFallback>
+                        <AvatarFallback className="bg-emerald-500 text-white text-sm font-bold">{initials}</AvatarFallback>
                     </Avatar>
 
-                    {/* Info */}
                     <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                            <div>
-                                <p className="text-[11px] text-white/60 font-medium">MEMBER ID</p>
-                                <p className="text-lg font-bold font-mono tracking-wider leading-tight">{memberData.member_id}</p>
+                        <div className="flex items-center gap-2 justify-between">
+                            <div className="min-w-0">
+                                <p className="text-sm font-bold truncate leading-tight">{memberData.full_name}</p>
+                                <p className="text-[11px] text-white/50 font-mono">{memberData.member_id}</p>
                             </div>
-                            <div className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusConfig.color}`}>
+                            <div className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold shrink-0 ${statusConfig.color}`}>
                                 <div className={`h-1.5 w-1.5 rounded-full ${statusConfig.dot}`} />
                                 {statusConfig.label}
                             </div>
                         </div>
-                        <p className="text-base font-semibold mt-1 truncate">{memberData.full_name}</p>
-                        <p className="text-xs text-white/60 mt-0.5">{memberData.membership_plan?.name || 'No active plan'}</p>
-                    </div>
-                </div>
 
-                {/* Divider */}
-                <div className="my-4 h-px bg-white/10" />
-
-                {/* Dates + Progress */}
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                        <span className="text-white/60">
-                            {memberData.membership_start_date ? formatDate(memberData.membership_start_date) : '—'}
-                        </span>
-                        <span className="font-semibold text-white/90">
-                            {daysRemaining !== null && daysRemaining > 0
-                                ? `${daysRemaining} days remaining`
-                                : daysRemaining === 0
-                                    ? 'Expires today!'
-                                    : 'Expired'}
-                        </span>
-                        <span className="text-white/60">
-                            {memberData.membership_expiry_date ? formatDate(memberData.membership_expiry_date) : '—'}
-                        </span>
+                        {/* Mini progress bar */}
+                        <div className="mt-2 flex items-center gap-2">
+                            <div className="flex-1 h-1 rounded-full bg-white/10">
+                                <div className="h-1 rounded-full bg-emerald-400 transition-all duration-500" style={{ width: `${progressPct}%` }} />
+                            </div>
+                            <span className="text-[10px] text-white/50 shrink-0">
+                                {memberData.membership_plan?.name || 'No plan'}
+                                {daysRemaining !== null && daysRemaining > 0 ? ` · ${daysRemaining}d left` : ''}
+                            </span>
+                        </div>
                     </div>
-                    <div className="h-1.5 w-full rounded-full bg-white/10">
-                        <div
-                            className="h-1.5 rounded-full bg-emerald-400 transition-all duration-500"
-                            style={{ width: `${progressPct}%` }}
-                        />
-                    </div>
-                    <p className="text-[10px] text-white/40 text-center">Show this card to staff at entrance</p>
                 </div>
             </div>
 
-            {/* ── This Month's Stats ── */}
+            {/* ── Onboarding Checklist (new members only) ── */}
+            {isNewMember && (
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                        <div>
+                            <h2 className="text-sm font-bold text-blue-900">Get started — {onboardingPct}% complete</h2>
+                            <p className="text-xs text-blue-600 mt-0.5">Complete these steps to unlock all features</p>
+                        </div>
+                        <div className="text-right">
+                            <span className="text-2xl font-extrabold text-blue-700">{onboardingPct}%</span>
+                        </div>
+                    </div>
+                    {/* Progress bar */}
+                    <div className="h-1.5 rounded-full bg-blue-200 mb-3">
+                        <div className="h-1.5 rounded-full bg-blue-500 transition-all" style={{ width: `${onboardingPct}%` }} />
+                    </div>
+                    <ul className="space-y-2">
+                        {ONBOARDING_STEPS.map(step => (
+                            <li key={step.key}>
+                                <Link href={step.href} className="flex items-center gap-2.5 group">
+                                    <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${onboardingDone[step.key] ? 'bg-blue-500 border-blue-500' : 'border-blue-300 group-hover:border-blue-500'}`}>
+                                        {onboardingDone[step.key] && <CheckCircle2 className="h-3.5 w-3.5 text-white" />}
+                                    </div>
+                                    <span className={`text-xs ${onboardingDone[step.key] ? 'text-blue-400 line-through' : 'text-blue-800 group-hover:text-blue-600'}`}>{step.label}</span>
+                                    {!onboardingDone[step.key] && <ArrowRight className="h-3 w-3 text-blue-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />}
+                                </Link>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
+            {/* ── Renewal banner ── */}
+            {((daysRemaining !== null && daysRemaining <= 30) || memberData.status === 'expired') && (
+                <div className={`rounded-xl p-4 border flex items-center gap-4 ${
+                    memberData.status === 'expired' || (daysRemaining !== null && daysRemaining < 0) ? 'bg-red-50 border-red-200'
+                    : daysRemaining !== null && daysRemaining <= 7 ? 'bg-amber-50 border-amber-200'
+                    : 'bg-blue-50 border-blue-200'
+                }`}>
+                    <CreditCard className={`h-5 w-5 shrink-0 ${memberData.status === 'expired' ? 'text-red-500' : daysRemaining !== null && daysRemaining <= 7 ? 'text-amber-500' : 'text-blue-500'}`} />
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900">
+                            {memberData.status === 'expired' ? 'Membership Expired' : `Renewal due in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'}`}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                            {memberData.membership_plan ? `${memberData.membership_plan.name} — ${formatCurrency(memberData.membership_plan.price)}` : 'Contact gym to renew'}
+                        </p>
+                    </div>
+                    <Link href="/member/plans" className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
+                        memberData.status === 'expired' ? 'bg-red-600 text-white hover:bg-red-700'
+                        : daysRemaining !== null && daysRemaining <= 7 ? 'bg-amber-500 text-white hover:bg-amber-600'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}>
+                        Renew
+                    </Link>
+                </div>
+            )}
+
+            {/* ── Stat Cards ── */}
             <div className="grid grid-cols-3 gap-3">
+                {/* Visits this month */}
                 <div className="rounded-xl bg-white p-4 shadow-sm border border-gray-100 text-center">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-50 mx-auto mb-2">
                         <CalendarDays className="h-4 w-4 text-violet-600" />
                     </div>
                     <p className="text-2xl font-bold text-gray-900">{memberData.totalVisitsThisMonth}</p>
-                    <p className="text-[11px] text-gray-500 leading-tight mt-0.5">Visits This<br />Month</p>
+                    <p className="text-[11px] text-gray-500 leading-tight mt-0.5">Visits<br />This Month</p>
+                    {memberData.totalVisitsThisMonth === 0 && (
+                        <p className="text-[10px] text-violet-500 mt-1.5 leading-tight">Start today 💪</p>
+                    )}
                 </div>
+
+                {/* Streak */}
                 <div className="rounded-xl bg-white p-4 shadow-sm border border-gray-100 text-center">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50 mx-auto mb-2">
                         <Flame className="h-4 w-4 text-orange-500" />
                     </div>
                     <p className="text-2xl font-bold text-gray-900">{memberData.currentStreak}</p>
                     <p className="text-[11px] text-gray-500 leading-tight mt-0.5">Day<br />Streak 🔥</p>
+                    {memberData.currentStreak === 0 && (
+                        <p className="text-[10px] text-orange-400 mt-1.5 leading-tight">Build one!</p>
+                    )}
                 </div>
+
+                {/* Last check-in */}
                 <div className="rounded-xl bg-white p-4 shadow-sm border border-gray-100 text-center">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 mx-auto mb-2">
                         <Clock className="h-4 w-4 text-blue-600" />
                     </div>
-                    <p className="text-lg font-bold text-gray-900 leading-tight">{formatLastCheckIn(memberData.lastCheckIn)}</p>
+                    {memberData.lastCheckIn ? (
+                        <p className="text-sm font-bold text-gray-900 leading-tight">{formatLastCheckIn(memberData.lastCheckIn)}</p>
+                    ) : (
+                        <p className="text-sm font-bold text-gray-400 leading-tight">No visits<br />yet</p>
+                    )}
                     <p className="text-[11px] text-gray-500 leading-tight mt-0.5">Last<br />Check-in</p>
                 </div>
             </div>
 
-            {/* ── Next Payment Reminder ── */}
-            {(daysRemaining !== null && daysRemaining <= 30) || memberData.status === 'expired' ? (
-                <div className={`rounded-xl p-4 border flex items-center gap-4 ${memberData.status === 'expired' || (daysRemaining !== null && daysRemaining < 0)
-                    ? 'bg-red-50 border-red-200'
-                    : daysRemaining !== null && daysRemaining <= 7
-                        ? 'bg-amber-50 border-amber-200'
-                        : 'bg-blue-50 border-blue-200'
-                    }`}>
-                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${memberData.status === 'expired' ? 'bg-red-100' : daysRemaining !== null && daysRemaining <= 7 ? 'bg-amber-100' : 'bg-blue-100'}`}>
-                        <CreditCard className={`h-5 w-5 ${memberData.status === 'expired' ? 'text-red-600' : daysRemaining !== null && daysRemaining <= 7 ? 'text-amber-600' : 'text-blue-600'}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900">
-                            {memberData.status === 'expired' ? 'Membership Expired' : `Renewal Due in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'}`}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                            {memberData.membership_plan
-                                ? `${memberData.membership_plan.name} — ${formatCurrency(memberData.membership_plan.price)}`
-                                : 'Contact the gym to renew'}
-                        </p>
-                    </div>
-                    <Link
-                        href="/member/payments"
-                        className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${memberData.status === 'expired'
-                            ? 'bg-red-600 text-white hover:bg-red-700'
-                            : daysRemaining !== null && daysRemaining <= 7
-                                ? 'bg-amber-500 text-white hover:bg-amber-600'
-                                : 'bg-blue-600 text-white hover:bg-blue-700'
-                            }`}
-                    >
-                        View
-                    </Link>
-                </div>
-            ) : null}
-
-            {/* ── Quick Actions ── */}
+            {/* ── AI Quick Actions (replaces old sidebar duplicate buttons) ── */}
             <div className="rounded-xl bg-white p-5 shadow-sm border border-gray-100">
-                <h2 className="text-sm font-semibold text-gray-900 mb-4">Quick Actions</h2>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="flex items-center gap-2 mb-4">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-emerald-400 to-blue-500">
+                        <Zap className="h-3.5 w-3.5 text-white" />
+                    </div>
+                    <h2 className="text-sm font-bold text-gray-900">AI Features</h2>
+                    <span className="ml-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">Powered by Gemini</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
                     {[
-                        { href: '/member/check-ins', icon: UserCheck, label: 'Check-ins', color: 'bg-violet-500', shadow: 'shadow-violet-500/30' },
-                        { href: '/member/payments', icon: Receipt, label: 'Payments', color: 'bg-emerald-500', shadow: 'shadow-emerald-500/30' },
-                        { href: '/member/referrals', icon: Gift, label: 'Referrals', color: 'bg-orange-500', shadow: 'shadow-orange-500/30' },
-                        { href: '/member/profile', icon: User, label: 'Profile', color: 'bg-blue-600', shadow: 'shadow-blue-600/30' },
-                    ].map(({ href, icon: Icon, label, color, shadow }) => (
-                        <Link key={href} href={href} className="group flex flex-col items-center gap-2">
-                            <div className={`flex h-13 w-13 h-12 w-12 items-center justify-center rounded-xl ${color} text-white shadow-md ${shadow} group-hover:opacity-90 transition-opacity`}>
+                        { href: '/member/ai-trainer', icon: MessageSquare, label: 'Ask AI Trainer', desc: 'Chat with your personal AI coach', color: 'bg-violet-500', shadow: 'shadow-violet-500/25' },
+                        { href: '/member/workout', icon: Dumbbell, label: 'Generate Workout', desc: 'AI-tailored weekly plan', color: 'bg-emerald-500', shadow: 'shadow-emerald-500/25' },
+                        { href: '/member/nutrition', icon: Salad, label: 'Meal Plan', desc: '7-day nutrition planner', color: 'bg-orange-500', shadow: 'shadow-orange-500/25' },
+                        { href: '/member/progress', icon: TrendingUp, label: 'Track Progress', desc: 'Log workouts & weight', color: 'bg-blue-500', shadow: 'shadow-blue-500/25' },
+                    ].map(({ href, icon: Icon, label, desc, color, shadow }) => (
+                        <Link key={href} href={href} className="group flex items-center gap-3 rounded-xl border border-gray-100 p-3 hover:shadow-md hover:border-gray-200 transition-all duration-200">
+                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${color} text-white shadow-md ${shadow} group-hover:scale-105 transition-transform`}>
                                 <Icon className="h-5 w-5" />
                             </div>
-                            <span className="text-[11px] font-medium text-gray-600 text-center leading-tight">{label}</span>
+                            <div className="min-w-0">
+                                <p className="text-xs font-semibold text-gray-900 leading-tight">{label}</p>
+                                <p className="text-[10px] text-gray-400 leading-tight mt-0.5 truncate">{desc}</p>
+                            </div>
                         </Link>
                     ))}
                 </div>
             </div>
 
-            {/* ── All-time stats ── */}
+            {/* ── My Stats ── */}
             <div className="rounded-xl bg-white p-5 shadow-sm border border-gray-100">
                 <h2 className="text-sm font-semibold text-gray-900 mb-3">My Stats</h2>
                 <div className="space-y-2.5">

@@ -1,0 +1,92 @@
+'use server'
+
+import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { generateText } from '@/lib/gemini'
+import { revalidatePath } from 'next/cache'
+
+const admin = () => createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
+export async function sendChatMessage(message: string) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+
+    const db = admin()
+
+    // Get context
+    const [{ data: profile }, { data: member }, { data: history }] = await Promise.all([
+        db.from('fitness_profiles').select('*').eq('user_id', user.id).single(),
+        db.from('members').select('full_name, status, membership_expiry_date').eq('user_id', user.id).single(),
+        db.from('chat_messages').select('role, content').eq('user_id', user.id).order('created_at', { ascending: true }).limit(20),
+    ])
+
+    const p = profile as any
+    const m = member as any
+
+    const systemInstruction = `You are an expert personal AI trainer and fitness coach for ${m?.full_name || 'this member'} at a gym.
+
+Member profile:
+- Goal: ${p?.goal || 'general fitness'}
+- Experience: ${p?.experience || 'beginner'}
+- Height: ${p?.height_cm ?? 'unknown'} cm, Weight: ${p?.weight_kg ?? 'unknown'} kg
+- Dietary preference: ${p?.dietary_preference || 'no restriction'}
+- Injuries: ${p?.injuries || 'none'}
+- Membership status: ${m?.status || 'inactive'}
+
+Be motivating, concise, and specific. Give practical advice. If asked about exercises, provide proper form cues. Keep responses under 250 words unless more detail is specifically requested.`
+
+    // Build conversation history for Gemini
+    const historyItems = (history as any[] || []).map((h: any) => ({
+        role: h.role as 'user' | 'model',
+        parts: [{ text: h.content }],
+    }))
+
+    // Save user message first
+    await db.from('chat_messages').insert({ user_id: user.id, role: 'user', content: message })
+
+    try {
+        const { GoogleGenerativeAI } = await import('@google/generative-ai')
+        const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY!)
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', systemInstruction })
+        const chat = model.startChat({ history: historyItems })
+        const result = await chat.sendMessage(message)
+        const reply = result.response.text()
+
+        // Save assistant reply
+        await db.from('chat_messages').insert({ user_id: user.id, role: 'model', content: reply })
+
+        revalidatePath('/member/ai-trainer')
+        return { success: true, reply }
+    } catch (e: any) {
+        return { error: 'AI response failed: ' + e.message }
+    }
+}
+
+export async function getChatHistory() {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return []
+
+    const { data } = await admin()
+        .from('chat_messages')
+        .select('role, content, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true })
+        .limit(50)
+
+    return data ?? []
+}
+
+export async function clearChatHistory() {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+
+    await admin().from('chat_messages').delete().eq('user_id', user.id)
+    revalidatePath('/member/ai-trainer')
+    return { success: true }
+}

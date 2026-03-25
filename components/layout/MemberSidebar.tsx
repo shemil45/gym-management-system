@@ -13,10 +13,15 @@ import {
     HelpCircle,
     Dumbbell,
     ClipboardList,
+    MessageSquare,
+    Zap,
+    Salad,
+    TrendingUp,
+    Activity,
     X,
 } from 'lucide-react'
 
-const navigation = [
+const gymNav = [
     { name: 'Home', href: '/member/dashboard', icon: LayoutDashboard },
     { name: 'Check-ins', href: '/member/check-ins', icon: UserCheck },
     { name: 'Plans', href: '/member/plans', icon: ClipboardList },
@@ -26,9 +31,37 @@ const navigation = [
     { name: 'Support', href: '/member/support', icon: HelpCircle },
 ]
 
-function SidebarContent({ onClose }: { onClose?: () => void }) {
-    const pathname = usePathname()
+const aiNav = [
+    { name: 'AI Trainer', href: '/member/ai-trainer', icon: MessageSquare },
+    { name: 'Workout', href: '/member/workout', icon: Zap },
+    { name: 'Nutrition', href: '/member/nutrition', icon: Salad },
+    { name: 'Progress', href: '/member/progress', icon: TrendingUp },
+    { name: 'Fit Profile', href: '/member/fitness-profile', icon: Activity },
+]
 
+function NavItem({ href, icon: Icon, name, onClose }: { href: string; icon: React.ElementType; name: string; onClose?: () => void }) {
+    const pathname = usePathname()
+    const isActive = pathname === href || pathname?.startsWith(href + '/')
+    return (
+        <li>
+            <Link
+                href={href}
+                onClick={onClose}
+                className={cn(
+                    'group flex flex-col items-center gap-1 rounded-xl px-2 py-3 text-xs font-medium transition-all duration-200',
+                    isActive
+                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
+                        : 'text-slate-400 hover:bg-white/10 hover:text-white'
+                )}
+            >
+                <Icon className={cn('h-5 w-5 shrink-0 transition-colors', isActive ? 'text-white' : 'text-slate-400 group-hover:text-white')} aria-hidden="true" />
+                <span className="text-center leading-tight">{name}</span>
+            </Link>
+        </li>
+    )
+}
+
+function SidebarContent({ onClose }: { onClose?: () => void }) {
     return (
         <div
             className="flex grow flex-col overflow-y-auto pb-4 h-full [&::-webkit-scrollbar]:hidden"
@@ -42,7 +75,6 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
                 <span className="text-[11px] font-bold text-white tracking-wide">GymFit</span>
                 <span className="text-[9px] text-slate-400">Member Portal</span>
 
-                {/* Close button — mobile only */}
                 {onClose && (
                     <button
                         onClick={onClose}
@@ -58,39 +90,22 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
             <div className="mx-4 h-px bg-white/10 mb-4" />
 
             {/* Navigation */}
-            <nav className="flex flex-1 flex-col px-2">
-                <ul role="list" className="flex flex-1 flex-col gap-y-1">
-                    {navigation.map((item) => {
-                        const isActive =
-                            pathname === item.href ||
-                            pathname?.startsWith(item.href + '/')
-                        return (
-                            <li key={item.name}>
-                                <Link
-                                    href={item.href}
-                                    onClick={onClose}
-                                    className={cn(
-                                        'group flex flex-col items-center gap-1 rounded-xl px-2 py-3 text-xs font-medium transition-all duration-200',
-                                        isActive
-                                            ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
-                                            : 'text-slate-400 hover:bg-white/10 hover:text-white'
-                                    )}
-                                >
-                                    <item.icon
-                                        className={cn(
-                                            'h-5 w-5 shrink-0 transition-colors',
-                                            isActive
-                                                ? 'text-white'
-                                                : 'text-slate-400 group-hover:text-white'
-                                        )}
-                                        aria-hidden="true"
-                                    />
-                                    <span className="text-center leading-tight">{item.name}</span>
-                                </Link>
-                            </li>
-                        )
-                    })}
+            <nav className="flex flex-1 flex-col px-2 gap-4 overflow-y-auto [&::-webkit-scrollbar]:hidden">
+
+                {/* Gym Management */}
+                <ul role="list" className="flex flex-col gap-y-1">
+                    {gymNav.map(item => <NavItem key={item.name} {...item} onClose={onClose} />)}
                 </ul>
+
+                {/* AI Features section */}
+                <div>
+                    <p className="px-2 mb-1 text-[9px] font-semibold uppercase tracking-widest text-slate-500">AI</p>
+                    <div className="mx-2 h-px bg-white/10 mb-2" />
+                    <ul role="list" className="flex flex-col gap-y-1">
+                        {aiNav.map(item => <NavItem key={item.name} {...item} onClose={onClose} />)}
+                    </ul>
+                </div>
+
             </nav>
 
             {/* Footer */}
@@ -107,13 +122,12 @@ export default function MemberSidebar() {
 
     return (
         <>
-            {/* ── Desktop sidebar (always visible on lg+) ── */}
+            {/* Desktop sidebar */}
             <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-[100px] lg:flex-col xl:w-[110px]">
                 <SidebarContent />
             </div>
 
-            {/* ── Mobile drawer ── */}
-            {/* Backdrop */}
+            {/* Mobile backdrop */}
             <div
                 className={cn(
                     'fixed inset-0 z-50 bg-black/60 backdrop-blur-sm transition-opacity duration-300 lg:hidden',
@@ -123,13 +137,11 @@ export default function MemberSidebar() {
                 aria-hidden="true"
             />
 
-            {/* Drawer panel */}
-            <div
-                className={cn(
-                    'fixed inset-y-0 left-0 z-50 w-[110px] flex flex-col transition-transform duration-300 ease-in-out lg:hidden',
-                    isOpen ? 'translate-x-0' : '-translate-x-full'
-                )}
-            >
+            {/* Mobile drawer */}
+            <div className={cn(
+                'fixed inset-y-0 left-0 z-50 w-[110px] flex flex-col transition-transform duration-300 ease-in-out lg:hidden',
+                isOpen ? 'translate-x-0' : '-translate-x-full'
+            )}>
                 <SidebarContent onClose={close} />
             </div>
         </>
