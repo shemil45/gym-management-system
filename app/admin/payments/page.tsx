@@ -4,7 +4,7 @@ import PaymentsTable from '@/components/tables/PaymentsTable'
 export default async function PaymentsPage() {
     const supabase = await createClient()
 
-    // Fetch payments with member details, most recent first
+    // Fetch payments with member details, newest records first
     const { data: payments } = await supabase
         .from('payments')
         .select(`
@@ -17,7 +17,7 @@ export default async function PaymentsPage() {
                 membership_plan:membership_plans(name)
             )
         `)
-        .order('payment_date', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(500)
 
     // Totals for stats

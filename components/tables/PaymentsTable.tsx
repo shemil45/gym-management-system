@@ -186,9 +186,17 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal }: Paym
         })
     }, [payments, searchQuery, statusFilter, methodFilter])
 
-    const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE))
+    const sortedFiltered = useMemo(() => {
+        return [...filtered].sort((a, b) => {
+            const aTs = new Date(a.created_at || a.payment_date).getTime()
+            const bTs = new Date(b.created_at || b.payment_date).getTime()
+            return bTs - aTs
+        })
+    }, [filtered])
+
+    const totalPages = Math.max(1, Math.ceil(sortedFiltered.length / ITEMS_PER_PAGE))
     const safePage = Math.min(currentPage, totalPages)
-    const paginated = filtered.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE)
+    const paginated = sortedFiltered.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE)
 
     const resetPage = () => setCurrentPage(1)
 
@@ -358,11 +366,11 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal }: Paym
                     <p className="text-xs text-gray-500">
                         Showing{' '}
                         <span className="font-semibold text-emerald-600">
-                            {filtered.length === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1}–
-                            {Math.min(safePage * ITEMS_PER_PAGE, filtered.length)}
+                            {sortedFiltered.length === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1}–
+                            {Math.min(safePage * ITEMS_PER_PAGE, sortedFiltered.length)}
                         </span>
                         {' '}of{' '}
-                        <span className="font-medium text-gray-700">{filtered.length}</span> payments
+                        <span className="font-medium text-gray-700">{sortedFiltered.length}</span> payments
                     </p>
                     {totalPages > 1 && (
                         <PaginationBar
