@@ -101,10 +101,10 @@ export default function MemberDashboard() {
                 { data: recentCheckIns },
                 { data: lastPaymentData },
             ] = await Promise.all([
-                supabase.from('check_ins').select('*', { count: 'exact', head: true }).eq('member_id', member.member_id).gte('check_in_time', monthStart),
-                supabase.from('check_ins').select('*', { count: 'exact', head: true }).eq('member_id', member.member_id),
-                supabase.from('check_ins').select('check_in_time').eq('member_id', member.member_id).order('check_in_time', { ascending: false }).limit(60) as any,
-                supabase.from('payments').select('amount, payment_date').eq('member_id', member.member_id).eq('payment_status', 'paid').order('payment_date', { ascending: false }).limit(1) as any,
+                supabase.from('check_ins').select('*', { count: 'exact', head: true }).eq('member_id', member.id).gte('check_in_time', monthStart),
+                supabase.from('check_ins').select('*', { count: 'exact', head: true }).eq('member_id', member.id),
+                supabase.from('check_ins').select('check_in_time').eq('member_id', member.id).order('check_in_time', { ascending: false }).limit(60) as any,
+                supabase.from('payments').select('amount, payment_date').eq('member_id', member.id).eq('payment_status', 'paid').order('payment_date', { ascending: false }).limit(1) as any,
             ])
 
             let streak = 0

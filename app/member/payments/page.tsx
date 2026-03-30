@@ -55,14 +55,14 @@ export default function MemberPayments() {
 
             const { data: member } = await supabase
                 .from('members').select('*').eq('user_id', user.id).single() as {
-                    data: { member_id: string } | null, error: unknown
+                    data: { id: string; member_id: string } | null, error: unknown
                 }
             if (!member) { setLoading(false); return }
 
             const { data } = await supabase
                 .from('payments')
                 .select('*')
-                .eq('member_id', member.member_id)
+                .eq('member_id', member.id)
                 .order('payment_date', { ascending: false })
 
             setPayments((data as Payment[]) || [])

@@ -58,7 +58,7 @@ export default function MemberCheckIns() {
 
             const { data: member } = await supabase
                 .from('members').select('*').eq('user_id', user.id).single() as {
-                    data: { member_id: string } | null, error: unknown
+                    data: { id: string; member_id: string } | null, error: unknown
                 }
             if (!member) { setLoading(false); return }
 
@@ -67,7 +67,7 @@ export default function MemberCheckIns() {
             const { data } = await supabase
                 .from('check_ins')
                 .select('*')
-                .eq('member_id', member.member_id)
+                .eq('member_id', member.id)
                 .order('check_in_time', { ascending: false })
 
             setCheckIns((data as CheckIn[]) || [])
