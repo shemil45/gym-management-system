@@ -37,6 +37,7 @@ interface MemberData {
     lastCheckIn: string | null
     currentStreak: number
     lastPayment: { amount: number; payment_date: string } | null
+    onboardingDone: Record<string, boolean>
 }
 
 function getDaysRemaining(expiryDate: string | null) {
@@ -100,11 +101,17 @@ export default function MemberDashboard() {
                 { count: totalVisitsAllTime },
                 { data: recentCheckIns },
                 { data: lastPaymentData },
+                { count: fitnessProfileCount },
+                { count: workoutPlanCount },
+                { count: nutritionPlanCount },
             ] = await Promise.all([
                 supabase.from('check_ins').select('*', { count: 'exact', head: true }).eq('member_id', member.id).gte('check_in_time', monthStart),
                 supabase.from('check_ins').select('*', { count: 'exact', head: true }).eq('member_id', member.id),
                 supabase.from('check_ins').select('check_in_time').eq('member_id', member.id).order('check_in_time', { ascending: false }).limit(60) as any,
                 supabase.from('payments').select('amount, payment_date').eq('member_id', member.id).eq('payment_status', 'paid').order('payment_date', { ascending: false }).limit(1) as any,
+                supabase.from('fitness_profiles').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+                supabase.from('workout_plans').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+                supabase.from('nutrition_plans').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
             ])
 
             let streak = 0
@@ -134,6 +141,12 @@ export default function MemberDashboard() {
                 lastCheckIn: (recentCheckIns as any[])?.[0]?.check_in_time || null,
                 currentStreak: streak,
                 lastPayment: (lastPaymentData as any[])?.[0] || null,
+                onboardingDone: {
+                    profile: (fitnessProfileCount || 0) > 0,
+                    workout: (workoutPlanCount || 0) > 0,
+                    nutrition: (nutritionPlanCount || 0) > 0,
+                    checkin: (totalVisitsAllTime || 0) > 0,
+                },
             })
             setLoading(false)
         }
@@ -174,15 +187,9 @@ export default function MemberDashboard() {
         progressPct = Math.min(100, Math.round((used / memberData.membership_plan.duration_days) * 100))
     }
 
-    // Onboarding: show when inactive or no visits at all
-    const isNewMember = memberData.status === 'inactive' || memberData.totalVisitsAllTime === 0
-    const onboardingDone = {
-        profile: true, // they completed profile to get here
-        workout: false,
-        nutrition: false,
-        checkin: memberData.totalVisitsAllTime > 0,
-    } as Record<string, boolean>
+    const onboardingDone = memberData.onboardingDone
     const onboardingPct = Math.round((Object.values(onboardingDone).filter(Boolean).length / ONBOARDING_STEPS.length) * 100)
+    const showOnboardingChecklist = onboardingPct < 100
 
     return (
         <div className="space-y-4 max-w-2xl mx-auto lg:max-w-none">
@@ -233,7 +240,7 @@ export default function MemberDashboard() {
             </div>
 
             {/* ── Onboarding Checklist (new members only) ── */}
-            {isNewMember && (
+            {showOnboardingChecklist && (
                 <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
                     <div className="flex items-center justify-between mb-3">
                         <div>

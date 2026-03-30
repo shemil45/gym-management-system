@@ -4,7 +4,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
-export async function purchasePlan(planId: string, paymentMethod: string) {
+export async function purchasePlan(planId: string, paymentMethod: string, useReferralCoins = true) {
     const supabase = await createClient()
     const supabaseAdmin = createAdminClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,7 +18,7 @@ export async function purchasePlan(planId: string, paymentMethod: string) {
         // Get the member record
         const { data: member } = await supabaseAdmin
             .from('members')
-            .select('id, membership_expiry_date')
+            .select('id, membership_expiry_date, referral_coins_balance')
             .eq('user_id', user.id)
             .single()
 
@@ -42,6 +42,9 @@ export async function purchasePlan(planId: string, paymentMethod: string) {
 
         const startStr = startDate.toISOString().split('T')[0]
         const expiryStr = expiryDate.toISOString().split('T')[0]
+        const availableCoins = member.referral_coins_balance || 0
+        const coinsUsed = useReferralCoins ? Math.min(availableCoins, Number((plan as any).price)) : 0
+        const finalAmount = Math.max(0, Number((plan as any).price) - coinsUsed)
 
         // Generate invoice number
         const dateStr = today.toISOString().split('T')[0].replace(/-/g, '')
@@ -53,14 +56,16 @@ export async function purchasePlan(planId: string, paymentMethod: string) {
             .from('payments')
             .insert({
                 member_id: member.id,
-                amount: (plan as any).price,
+                amount: finalAmount,
                 payment_method: paymentMethod,
                 payment_status: 'paid',
                 payment_date: startStr,
                 invoice_number: invoiceNumber,
                 membership_start_date: startStr,
                 membership_end_date: expiryStr,
-                notes: `Self-service plan purchase: ${(plan as any).name}`,
+                notes: coinsUsed > 0
+                    ? `Self-service plan purchase: ${(plan as any).name}. Referral coins used: ${coinsUsed}.`
+                    : `Self-service plan purchase: ${(plan as any).name}`,
             })
 
         if (paymentError) return { error: paymentError.message }
@@ -73,21 +78,44 @@ export async function purchasePlan(planId: string, paymentMethod: string) {
                 membership_start_date: startStr,
                 membership_expiry_date: expiryStr,
                 status: 'active',
+                referral_coins_balance: availableCoins - coinsUsed,
             })
             .eq('id', member.id)
 
         if (memberError) return { error: memberError.message }
 
-        // Auto-apply any pending referral for this member
-        await supabaseAdmin
+        // Auto-apply any pending referral for this member and credit the referrer.
+        const { data: appliedReferrals } = await supabaseAdmin
             .from('referrals')
-            .update({ status: 'applied', applied_at: new Date().toISOString() })
+            .update({
+                status: 'applied',
+                applied_at: new Date().toISOString(),
+            })
+            .select('referrer_id')
             .eq('referred_id', member.id)
             .eq('status', 'pending')
+
+        if (appliedReferrals && appliedReferrals.length > 0) {
+            for (const referral of appliedReferrals) {
+                const { data: referrer } = await supabaseAdmin
+                    .from('members')
+                    .select('id, referral_coins_balance')
+                    .eq('id', referral.referrer_id)
+                    .single()
+
+                if (referrer) {
+                    await supabaseAdmin
+                        .from('members')
+                        .update({ referral_coins_balance: (referrer.referral_coins_balance || 0) + 500 })
+                        .eq('id', referrer.id)
+                }
+            }
+        }
 
         revalidatePath('/member/dashboard')
         revalidatePath('/member/plans')
         revalidatePath('/member/payments')
+        revalidatePath('/member/referrals')
         return { success: true, invoiceNumber }
     } catch (err: any) {
         return { error: err.message || 'Failed to purchase plan' }

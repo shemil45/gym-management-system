@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { formatDate } from '@/lib/utils/date'
-import { formatCurrency } from '@/lib/utils/currency'
 import { Gift, Users, CheckCircle, Clock, Copy, Share2, Check, ExternalLink } from 'lucide-react'
 import { fetchMemberReferrals, ReferralPageData } from './actions'
 
@@ -27,7 +26,7 @@ export default function MemberReferrals() {
     }
 
     const handleWhatsApp = () => {
-        const text = `Join my gym with my referral code *${data?.referralCode}* and get a special discount! 💪`
+        const text = `Join my gym with my referral code *${data?.referralCode}* and get a special discount!`
         window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
     }
 
@@ -46,7 +45,7 @@ export default function MemberReferrals() {
     )
 
     const statusConfig = {
-        applied: { label: 'Rewarded', class: 'bg-emerald-100 text-emerald-700' },
+        applied: { label: 'Coins Added', class: 'bg-emerald-100 text-emerald-700' },
         pending: { label: 'Pending', class: 'bg-amber-100 text-amber-700' },
         expired: { label: 'Expired', class: 'bg-gray-100 text-gray-500' },
     }
@@ -55,7 +54,7 @@ export default function MemberReferrals() {
         <div className="space-y-4 max-w-2xl mx-auto lg:max-w-none">
             <div>
                 <h1 className="text-xl font-bold text-gray-900">Referral Program</h1>
-                <p className="text-sm text-gray-500 mt-0.5">Invite friends and earn rewards</p>
+                <p className="text-sm text-gray-500 mt-0.5">Invite friends and earn referral coins</p>
             </div>
 
             {/* ── Referral Code Card ── */}
@@ -103,12 +102,13 @@ export default function MemberReferrals() {
             </div>
 
             {/* ── Stats ── */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">
                 {[
                     { label: 'Total Referred', value: data.stats.total, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
                     { label: 'Successful', value: data.stats.successful, icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50' },
                     { label: 'Pending', value: data.stats.pending, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50' },
-                    { label: 'Rewards Earned', value: formatCurrency(data.stats.totalRewardsEarned), icon: Gift, color: 'text-orange-500', bg: 'bg-orange-50' },
+                    { label: 'Coins Earned', value: data.stats.totalCoinsEarned.toLocaleString(), icon: Gift, color: 'text-orange-500', bg: 'bg-orange-50' },
+                    { label: 'Available Coins', value: data.stats.availableCoins.toLocaleString(), icon: Gift, color: 'text-violet-600', bg: 'bg-violet-50' },
                 ].map(({ label, value, icon: Icon, color, bg }) => (
                     <div key={label} className="rounded-xl bg-white p-4 shadow-sm border border-gray-100 flex items-center gap-3">
                         <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${bg}`}>
@@ -122,7 +122,7 @@ export default function MemberReferrals() {
                 ))}
             </div>
 
-            {/* ── Rewards Explanation ── */}
+            {/* ── Referral Coins Explanation ── */}
             <div className="rounded-xl bg-white p-5 shadow-sm border border-gray-100">
                 <h2 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
                     <Gift className="h-4 w-4 text-orange-500" /> How It Works
@@ -131,7 +131,7 @@ export default function MemberReferrals() {
                     {[
                         { step: '1', title: 'Share your code', desc: 'Send your unique referral code to friends and family' },
                         { step: '2', title: 'They join the gym', desc: 'Your friend registers and makes their first payment' },
-                        { step: '3', title: 'You earn rewards', desc: 'Receive your reward once their membership is confirmed' },
+                        { step: '3', title: 'You earn 500 coins', desc: 'You get 500 coins when their membership purchase is confirmed' },
                     ].map(({ step, title, desc }) => (
                         <div key={step} className="flex gap-3">
                             <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-600">
@@ -145,7 +145,7 @@ export default function MemberReferrals() {
                     ))}
                 </div>
                 <p className="mt-4 text-[11px] text-gray-400 border-t border-gray-100 pt-3">
-                    * Reward amounts and types are determined by the gym. Contact the gym for current referral offers.
+                    Every successful referral adds 500 coins to your wallet. You can use those coins as a discount when purchasing a plan.
                 </p>
             </div>
 
@@ -164,8 +164,8 @@ export default function MemberReferrals() {
                     </div>
                 ) : (
                     <>
-                        <div className="grid grid-cols-4 gap-2 px-2 mb-2">
-                            {['Name', 'Date', 'Status', 'Reward'].map(h => (
+                        <div className="grid grid-cols-3 gap-2 px-2 mb-2">
+                            {['Name', 'Date', 'Status'].map(h => (
                                 <span key={h} className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{h}</span>
                             ))}
                         </div>
@@ -173,14 +173,11 @@ export default function MemberReferrals() {
                             {data.referrals.map(r => {
                                 const sc = statusConfig[r.status]
                                 return (
-                                    <div key={r.id} className="grid grid-cols-4 gap-2 items-center rounded-lg px-2 py-2.5 hover:bg-gray-50 transition-colors">
+                                    <div key={r.id} className="grid grid-cols-3 gap-2 items-center rounded-lg px-2 py-2.5 hover:bg-gray-50 transition-colors">
                                         <span className="text-xs font-medium text-gray-800 truncate">{r.referred_name}</span>
                                         <span className="text-xs text-gray-500">{formatDate(r.created_at)}</span>
                                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${sc.class}`}>
                                             {sc.label}
-                                        </span>
-                                        <span className="text-xs text-gray-500">
-                                            {r.reward_amount ? formatCurrency(r.reward_amount) : '—'}
                                         </span>
                                     </div>
                                 )

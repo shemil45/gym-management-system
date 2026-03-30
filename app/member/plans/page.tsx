@@ -11,7 +11,7 @@ export default async function PlansPage() {
     // Get current member record
     const { data: member } = await supabase
         .from('members')
-        .select('id, membership_plan_id, membership_expiry_date, status')
+        .select('id, membership_plan_id, membership_expiry_date, status, referral_coins_balance')
         .eq('user_id', user.id)
         .single() as any
 
@@ -28,6 +28,7 @@ export default async function PlansPage() {
             currentPlanId={member?.membership_plan_id ?? null}
             membershipExpiry={member?.membership_expiry_date ?? null}
             memberStatus={member?.status ?? 'inactive'}
+            referralCoinsBalance={member?.referral_coins_balance ?? 0}
         />
     )
 }

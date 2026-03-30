@@ -59,6 +59,7 @@ CREATE TABLE members (
   membership_start_date DATE,
   membership_expiry_date DATE,
   status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'frozen', 'expired')),
+  referral_coins_balance INTEGER NOT NULL DEFAULT 0,
   referred_by UUID REFERENCES members(id),
   notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -161,8 +162,6 @@ CREATE TABLE referrals (
   referrer_id UUID REFERENCES members(id) ON DELETE CASCADE,
   referred_id UUID REFERENCES members(id) ON DELETE CASCADE,
   referral_code TEXT UNIQUE,
-  reward_type TEXT CHECK (reward_type IN ('discount', 'free_days', 'cash')),
-  reward_amount DECIMAL(10,2),
   status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'applied', 'expired')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   applied_at TIMESTAMPTZ

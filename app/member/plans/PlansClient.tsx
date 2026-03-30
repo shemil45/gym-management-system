@@ -20,6 +20,7 @@ interface PlansClientProps {
     currentPlanId: string | null
     membershipExpiry: string | null
     memberStatus: string
+    referralCoinsBalance: number
 }
 
 const PAYMENT_METHODS = [
@@ -40,24 +41,29 @@ const planColors = [
     { bg: 'from-violet-500 to-violet-700', badge: 'bg-violet-100 text-violet-700', border: 'border-violet-200', ring: 'ring-violet-400' },
 ]
 
-export default function PlansClient({ plans, currentPlanId, membershipExpiry, memberStatus }: PlansClientProps) {
+export default function PlansClient({ plans, currentPlanId, membershipExpiry, memberStatus, referralCoinsBalance }: PlansClientProps) {
     const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
     const [paymentMethod, setPaymentMethod] = useState('upi')
+    const [useReferralCoins, setUseReferralCoins] = useState(true)
     const [loading, setLoading] = useState(false)
 
     const isActive = memberStatus === 'active'
     const expiryDate = membershipExpiry ? new Date(membershipExpiry) : null
-    const daysLeft = expiryDate ? Math.ceil((expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0
+    const now = new Date()
+    const daysLeft = expiryDate ? Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : 0
+    const selectedPlan = plans.find((plan) => plan.id === selectedPlanId) ?? null
+    const coinsToApply = useReferralCoins && selectedPlan ? Math.min(referralCoinsBalance, selectedPlan.price) : 0
+    const finalPayable = selectedPlan ? Math.max(0, selectedPlan.price - coinsToApply) : 0
 
     const handlePurchase = async () => {
         if (!selectedPlanId) { toast.error('Please select a plan'); return }
         setLoading(true)
-        const result = await purchasePlan(selectedPlanId, paymentMethod)
+        const result = await purchasePlan(selectedPlanId, paymentMethod, useReferralCoins)
         setLoading(false)
         if (result?.error) {
             toast.error(result.error)
         } else {
-            toast.success(`Plan purchased! Invoice: ${result.invoiceNumber}. An admin will confirm your payment.`)
+            toast.success(`Plan purchased! Invoice: ${result.invoiceNumber}.`)
             setSelectedPlanId(null)
         }
     }
@@ -150,8 +156,48 @@ export default function PlansClient({ plans, currentPlanId, membershipExpiry, me
                 <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-6 space-y-4">
                     <h2 className="text-base font-bold text-gray-900">Confirm Purchase</h2>
                     <p className="text-sm text-gray-500">
-                        Your plan will be confirmed after an admin verifies your payment.
+                        Review your payment details before confirming the purchase.
                     </p>
+
+                    {selectedPlan && (
+                        <div className="rounded-xl bg-gray-50 border border-gray-200 p-4 space-y-2">
+                            <div className="flex items-center justify-between text-sm text-gray-600">
+                                <span>Plan price</span>
+                                <span className="font-semibold text-gray-900">Rs {selectedPlan.price.toLocaleString()}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm text-gray-600">
+                                <span>Available referral coins</span>
+                                <span className="font-semibold text-gray-900">{referralCoinsBalance.toLocaleString()}</span>
+                            </div>
+                            {coinsToApply > 0 && (
+                                <div className="flex items-center justify-between text-sm text-emerald-600">
+                                    <span>Referral discount</span>
+                                    <span className="font-semibold">- Rs {coinsToApply.toLocaleString()}</span>
+                                </div>
+                            )}
+                            <div className="flex items-center justify-between border-t border-gray-200 pt-2 text-sm">
+                                <span className="font-medium text-gray-700">Final payable</span>
+                                <span className="text-lg font-bold text-gray-900">Rs {finalPayable.toLocaleString()}</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {referralCoinsBalance > 0 && (
+                        <label className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={useReferralCoins}
+                                onChange={(e) => setUseReferralCoins(e.target.checked)}
+                                className="mt-1 h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
+                            />
+                            <div>
+                                <p className="text-sm font-semibold text-emerald-900">Use referral coins</p>
+                                <p className="text-xs text-emerald-700">
+                                    Apply up to {referralCoinsBalance.toLocaleString()} coins as a discount on this purchase.
+                                </p>
+                            </div>
+                        </label>
+                    )}
 
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">Payment Method</label>

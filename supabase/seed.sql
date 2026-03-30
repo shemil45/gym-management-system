@@ -95,20 +95,30 @@ VALUES
 -- =============================================
 -- 6. REFERRALS
 -- =============================================
--- Create referral codes for first 5 members
-INSERT INTO referrals (referrer_id, referred_id, referral_code, reward_type, reward_amount, status)
+-- Create sample applied referrals
+INSERT INTO referrals (referrer_id, referred_id, referral_code, status, applied_at)
 SELECT 
   m1.id,
   m2.id,
   UPPER(SUBSTRING(m1.full_name FROM 1 FOR 4)) || SUBSTRING(m1.phone FROM 7 FOR 4),
-  'discount',
-  500.00,
-  'applied'
+  'applied',
+  NOW()
 FROM members m1
 CROSS JOIN LATERAL (
   SELECT id FROM members WHERE id != m1.id ORDER BY RANDOM() LIMIT 1
 ) m2
 LIMIT 3;
+
+-- Credit 500 referral coins for each applied referral
+UPDATE members m
+SET referral_coins_balance = ref_counts.applied_count * 500
+FROM (
+  SELECT referrer_id, COUNT(*) AS applied_count
+  FROM referrals
+  WHERE status = 'applied'
+  GROUP BY referrer_id
+) AS ref_counts
+WHERE m.id = ref_counts.referrer_id;
 
 -- =============================================
 -- VERIFICATION QUERIES

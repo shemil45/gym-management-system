@@ -6,8 +6,6 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 export interface ReferralRow {
     id: string
     status: 'pending' | 'applied' | 'expired'
-    reward_type: string | null
-    reward_amount: number | null
     created_at: string
     referred_name: string
 }
@@ -20,7 +18,8 @@ export interface ReferralPageData {
         total: number
         successful: number
         pending: number
-        totalRewardsEarned: number
+        totalCoinsEarned: number
+        availableCoins: number
     }
     referrals: ReferralRow[]
 }
@@ -37,11 +36,25 @@ export async function fetchMemberReferrals(): Promise<ReferralPageData | null> {
     )
 
     // Get the current user's member row
-    const { data: member } = await admin
+    const memberWithCoinsResult = await admin
         .from('members')
-        .select('id, member_id, full_name')
+        .select('id, member_id, full_name, referral_coins_balance')
         .eq('user_id', user.id)
-        .single() as { data: { id: string; member_id: string; full_name: string } | null, error: unknown }
+        .single()
+
+    let member: { id: string; member_id: string; full_name: string; referral_coins_balance?: number } | null =
+        memberWithCoinsResult.data as { id: string; member_id: string; full_name: string; referral_coins_balance?: number } | null
+
+    // Fallback for environments where the referral coins migration has not been applied yet.
+    if (!member) {
+        const memberFallbackResult = await admin
+            .from('members')
+            .select('id, member_id, full_name')
+            .eq('user_id', user.id)
+            .single()
+
+        member = memberFallbackResult.data as { id: string; member_id: string; full_name: string } | null
+    }
 
     if (!member) return null
 
@@ -49,7 +62,7 @@ export async function fetchMemberReferrals(): Promise<ReferralPageData | null> {
     const { data: referrals } = await admin
         .from('referrals')
         .select(`
-            id, status, reward_type, reward_amount, created_at,
+            id, status, created_at,
             referred:members!referrals_referred_id_fkey(full_name)
         `)
         .eq('referrer_id', member.id)
@@ -57,8 +70,6 @@ export async function fetchMemberReferrals(): Promise<ReferralPageData | null> {
             data: {
                 id: string
                 status: 'pending' | 'applied' | 'expired'
-                reward_type: string | null
-                reward_amount: number | null
                 created_at: string
                 referred: { full_name: string } | null
             }[] | null,
@@ -66,6 +77,10 @@ export async function fetchMemberReferrals(): Promise<ReferralPageData | null> {
         }
 
     const refs = referrals || []
+    const totalCoinsEarned = refs.filter(r => r.status === 'applied').length * 500
+    const availableCoins = typeof member.referral_coins_balance === 'number'
+        ? member.referral_coins_balance
+        : totalCoinsEarned
 
     return {
         referralCode: member.member_id.toUpperCase(),
@@ -75,17 +90,14 @@ export async function fetchMemberReferrals(): Promise<ReferralPageData | null> {
             total: refs.length,
             successful: refs.filter(r => r.status === 'applied').length,
             pending: refs.filter(r => r.status === 'pending').length,
-            totalRewardsEarned: refs
-                .filter(r => r.status === 'applied' && r.reward_amount)
-                .reduce((s, r) => s + (r.reward_amount || 0), 0),
+            totalCoinsEarned,
+            availableCoins,
         },
         referrals: refs.map(r => ({
             id: r.id,
             referred_name: r.referred?.full_name || 'Unknown',
             created_at: r.created_at,
             status: r.status,
-            reward_type: r.reward_type,
-            reward_amount: r.reward_amount,
         })),
     }
 }

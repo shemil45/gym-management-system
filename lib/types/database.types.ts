@@ -91,6 +91,7 @@ export interface Database {
                     membership_start_date: string | null
                     membership_expiry_date: string | null
                     status: 'active' | 'inactive' | 'frozen' | 'expired'
+                    referral_coins_balance: number
                     referred_by: string | null
                     notes: string | null
                     created_at: string
@@ -113,6 +114,7 @@ export interface Database {
                     membership_start_date?: string | null
                     membership_expiry_date?: string | null
                     status?: 'active' | 'inactive' | 'frozen' | 'expired'
+                    referral_coins_balance?: number
                     referred_by?: string | null
                     notes?: string | null
                     created_at?: string
@@ -135,6 +137,7 @@ export interface Database {
                     membership_start_date?: string | null
                     membership_expiry_date?: string | null
                     status?: 'active' | 'inactive' | 'frozen' | 'expired'
+                    referral_coins_balance?: number
                     referred_by?: string | null
                     notes?: string | null
                     created_at?: string
@@ -267,8 +270,6 @@ export interface Database {
                     referrer_id: string
                     referred_id: string
                     referral_code: string | null
-                    reward_type: 'discount' | 'free_days' | 'cash' | null
-                    reward_amount: number | null
                     status: 'pending' | 'applied' | 'expired'
                     created_at: string
                     applied_at: string | null
@@ -278,8 +279,6 @@ export interface Database {
                     referrer_id: string
                     referred_id: string
                     referral_code?: string | null
-                    reward_type?: 'discount' | 'free_days' | 'cash' | null
-                    reward_amount?: number | null
                     status?: 'pending' | 'applied' | 'expired'
                     created_at?: string
                     applied_at?: string | null
@@ -289,8 +288,6 @@ export interface Database {
                     referrer_id?: string
                     referred_id?: string
                     referral_code?: string | null
-                    reward_type?: 'discount' | 'free_days' | 'cash' | null
-                    reward_amount?: number | null
                     status?: 'pending' | 'applied' | 'expired'
                     created_at?: string
                     applied_at?: string | null
