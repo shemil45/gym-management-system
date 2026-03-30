@@ -50,11 +50,24 @@ interface Props {
     savedVersion: number | null
 }
 
+const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+function getDefaultDayIndex(days: NutritionDay[]): number {
+    if (days.length === 0) return 0
+
+    const todayName = WEEKDAY_NAMES[new Date().getDay()].toLowerCase()
+    const todayIndex = days.findIndex((day) => day.day.trim().toLowerCase() === todayName)
+    if (todayIndex >= 0) return todayIndex
+
+    const mondayIndex = days.findIndex((day) => day.day.trim().toLowerCase() === 'monday')
+    return mondayIndex >= 0 ? mondayIndex : 0
+}
+
 export default function NutritionClient({ hasProfile, savedPlan, savedVersion }: Props) {
     const [plan, setPlan] = useState<NutritionPlan | null>(savedPlan)
     const [version, setVersion] = useState<number | null>(savedVersion)
     const [loading, setLoading] = useState(false)
-    const [activeDay, setActiveDay] = useState(0)
+    const [activeDay, setActiveDay] = useState(() => getDefaultDayIndex(savedPlan?.days || []))
 
     const handleGenerate = async () => {
         setLoading(true)
@@ -65,7 +78,7 @@ export default function NutritionClient({ hasProfile, savedPlan, savedVersion }:
         } else {
             setPlan(result.plan)
             setVersion(result.version!)
-            setActiveDay(0)
+            setActiveDay(getDefaultDayIndex(result.plan.days))
             toast.success('Nutrition plan generated!')
         }
     }
@@ -181,7 +194,7 @@ export default function NutritionClient({ hasProfile, savedPlan, savedVersion }:
                 <div className="rounded-xl border-2 border-dashed border-gray-200 p-16 text-center">
                     <Salad className="mx-auto h-10 w-10 text-gray-300 mb-3" />
                     <p className="text-sm font-medium text-gray-500">No nutrition plan yet</p>
-                    <p className="text-xs text-gray-400 mt-1">Click "Generate Plan" to get your personalised 7-day meal plan</p>
+                    <p className="text-xs text-gray-400 mt-1">Click &quot;Generate Plan&quot; to get your personalised 7-day meal plan</p>
                 </div>
             )}
         </div>
