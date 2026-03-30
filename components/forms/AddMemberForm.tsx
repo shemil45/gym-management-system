@@ -13,7 +13,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
-import { Loader2, Upload, ImageIcon, Camera } from 'lucide-react'
+import { Loader2, Upload, ImageIcon, Camera, Gift } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { createMember } from '@/app/admin/members/actions'
@@ -228,6 +228,23 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
                                 rows={3}
                                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 disabled:opacity-60 resize-none"
                             />
+                        </div>
+
+                        {/* Referral Code */}
+                        <div className="space-y-1.5">
+                            <Label htmlFor="referral_code" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                                <Gift className="h-3.5 w-3.5 text-orange-500" />
+                                Referred By (Code)
+                            </Label>
+                            <Input
+                                id="referral_code"
+                                name="referral_code"
+                                placeholder="e.g. GYM001"
+                                disabled={loading}
+                                className="h-10 border-gray-300 text-sm uppercase"
+                                style={{ textTransform: 'uppercase' }}
+                            />
+                            <p className="text-xs text-gray-400">Optional — enter the referrer&apos;s member ID</p>
                         </div>
                     </div>
 

@@ -57,6 +57,21 @@ export async function createMember(formData: FormData) {
         const expiryDate = new Date(startDate)
         expiryDate.setDate(expiryDate.getDate() + plan.duration_days)
 
+        // Resolve referral code → referrer member
+        const rawCode = (formData.get('referral_code') as string | null)?.trim().toUpperCase()
+        let referrerId: string | null = null
+        if (rawCode) {
+            const { data: referrer } = await supabase
+                .from('members')
+                .select('id')
+                .eq('member_id', rawCode)
+                .single()
+            if (!referrer) {
+                return { error: `Referral code "${rawCode}" is not valid. Please check the member ID.` }
+            }
+            referrerId = referrer.id
+        }
+
         // Create member
         const { data: member, error: memberError } = await supabase
             .from('members')
@@ -74,6 +89,7 @@ export async function createMember(formData: FormData) {
                 membership_start_date: startDate.toISOString().split('T')[0],
                 membership_expiry_date: expiryDate.toISOString().split('T')[0],
                 status: 'active',
+                referred_by: referrerId,
             })
             .select()
             .single()
@@ -96,6 +112,16 @@ export async function createMember(formData: FormData) {
 
         if (paymentError) {
             return { error: paymentError.message }
+        }
+
+        // If referred, create a referral record
+        if (referrerId) {
+            await supabase.from('referrals').insert({
+                referrer_id: referrerId,
+                referred_id: member.id,
+                referral_code: rawCode,
+                status: 'pending',
+            })
         }
 
         revalidatePath('/admin/members')

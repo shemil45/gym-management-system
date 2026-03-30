@@ -85,8 +85,8 @@ export default function RegisterPage() {
 
             // Determine if the user is automatically signed in
             if (authData.session) {
-                // Redirect to member dashboard
-                router.push('/member/dashboard')
+                // Redirect to complete profile
+                router.push('/complete-profile')
                 router.refresh()
             } else {
                 setSuccessMsg('Registration successful! Please check your email to verify your account.')

@@ -48,14 +48,14 @@ export async function purchasePlan(planId: string, paymentMethod: string) {
         const rand = Math.floor(1000 + Math.random() * 9000)
         const invoiceNumber = `INV-${dateStr}-${rand}`
 
-        // Record payment
+        // Record payment as paid immediately (no payment gateway)
         const { error: paymentError } = await supabaseAdmin
             .from('payments')
             .insert({
                 member_id: member.id,
                 amount: (plan as any).price,
                 payment_method: paymentMethod,
-                payment_status: 'pending', // pending until manually confirmed or online payment
+                payment_status: 'paid',
                 payment_date: startStr,
                 invoice_number: invoiceNumber,
                 membership_start_date: startStr,
@@ -77,6 +77,13 @@ export async function purchasePlan(planId: string, paymentMethod: string) {
             .eq('id', member.id)
 
         if (memberError) return { error: memberError.message }
+
+        // Auto-apply any pending referral for this member
+        await supabaseAdmin
+            .from('referrals')
+            .update({ status: 'applied', applied_at: new Date().toISOString() })
+            .eq('referred_id', member.id)
+            .eq('status', 'pending')
 
         revalidatePath('/member/dashboard')
         revalidatePath('/member/plans')

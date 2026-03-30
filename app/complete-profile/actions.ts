@@ -19,15 +19,22 @@ export async function completeMemberProfile(formData: FormData) {
             return { error: 'Not authenticated. Please log in again.' }
         }
 
-        // IDEMPOTENCY CHECK: If member already exists for this user, just return success
+        // IDEMPOTENCY CHECK: If member already exists for this user, handle carefully
         const { data: existingMember } = await supabaseAdmin
             .from('members')
-            .select('id')
+            .select('id, status, full_name')
             .eq('user_id', user.id)
-            .single()
+            .single() as { data: { id: string; status: string; full_name: string } | null, error: unknown }
 
         if (existingMember) {
-            // Member already created (likely from a previous form submission that failed to redirect)
+            // If the existing member is already active, this session likely belongs to a different
+            // (already set-up) account — warn the user instead of silently redirecting them.
+            if (existingMember.status !== 'inactive') {
+                return {
+                    error: `Your session is linked to an existing account (${existingMember.full_name}). Please log out and sign in with the correct new account before completing your profile.`
+                }
+            }
+            // Genuine re-submit for an inactive member — safe to redirect
             revalidatePath('/member/dashboard')
             return { success: true }
         }
@@ -96,11 +103,50 @@ export async function completeMemberProfile(formData: FormData) {
                 membership_plan_id: null,
                 membership_start_date: null,
                 membership_expiry_date: null,
+                referred_by: null, // will be patched below after referral lookup
             })
 
         if (memberError) {
             console.error('Member insert failed:', memberError.message)
             return { error: `Failed to create member: ${memberError.message}` }
+        }
+
+        // Handle referral code
+        const rawCode = (formData.get('referral_code') as string | null)?.trim().toUpperCase()
+        if (rawCode) {
+            const { data: referrer } = await supabaseAdmin
+                .from('members')
+                .select('id')
+                .eq('member_id', rawCode)
+                .single()
+
+            if (!referrer) {
+                // Non-fatal: member is created, just skip referral linkage
+                console.warn(`Referral code "${rawCode}" not found; skipping referral.`)
+            } else {
+                // Fetch the newly created member's id
+                const { data: newMember } = await supabaseAdmin
+                    .from('members')
+                    .select('id')
+                    .eq('user_id', user.id)
+                    .single()
+
+                if (newMember) {
+                    // Set referred_by on the new member
+                    await supabaseAdmin
+                        .from('members')
+                        .update({ referred_by: referrer.id })
+                        .eq('id', newMember.id)
+
+                    // Create a referral record
+                    await supabaseAdmin.from('referrals').insert({
+                        referrer_id: referrer.id,
+                        referred_id: newMember.id,
+                        referral_code: rawCode,
+                        status: 'pending',
+                    })
+                }
+            }
         }
 
         revalidatePath('/member/dashboard')

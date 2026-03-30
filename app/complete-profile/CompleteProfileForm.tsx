@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2, Upload, ImageIcon, Camera } from 'lucide-react'
+import { Loader2, Upload, ImageIcon, Camera, Gift, CheckCircle, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { completeMemberProfile } from './actions'
 
@@ -18,6 +18,40 @@ export default function CompleteProfileForm() {
     const [loading, setLoading] = useState(false)
     const [gender, setGender] = useState<'male' | 'female' | 'other' | ''>('')
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+    const [referralCode, setReferralCode] = useState('')
+    const [referralStatus, setReferralStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle')
+    const [referrerName, setReferrerName] = useState<string | null>(null)
+    const debounceRef = useRef<NodeJS.Timeout | null>(null)
+
+    // Live referral code lookup (debounced)
+    const lookupCode = useCallback(async (code: string) => {
+        if (!code) { setReferralStatus('idle'); setReferrerName(null); return }
+        setReferralStatus('checking')
+        try {
+            const res = await fetch(`/api/referral-lookup?code=${encodeURIComponent(code)}`)
+            const json = await res.json()
+            if (json.valid) {
+                setReferralStatus('valid')
+                setReferrerName(json.name)
+            } else {
+                setReferralStatus('invalid')
+                setReferrerName(null)
+            }
+        } catch {
+            setReferralStatus('idle')
+        }
+    }, [])
+
+    const handleReferralChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value.toUpperCase()
+        setReferralCode(val)
+        setReferralStatus('idle')
+        setReferrerName(null)
+        if (debounceRef.current) clearTimeout(debounceRef.current)
+        if (val.length >= 3) {
+            debounceRef.current = setTimeout(() => lookupCode(val), 500)
+        }
+    }
 
     const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -37,10 +71,17 @@ export default function CompleteProfileForm() {
             toast.error('Please select a gender')
             return
         }
+        if (referralCode && referralStatus === 'invalid') {
+            toast.error('The referral code you entered is invalid. Please fix or clear it.')
+            return
+        }
 
         setLoading(true)
         const formData = new FormData(e.currentTarget)
         formData.append('gender', gender)
+        if (referralCode && referralStatus === 'valid') {
+            formData.append('referral_code', referralCode)
+        }
 
         const result = await completeMemberProfile(formData)
 
@@ -165,6 +206,53 @@ export default function CompleteProfileForm() {
                             rows={3}
                             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 disabled:opacity-60 resize-y min-h-[80px]"
                         />
+                    </div>
+
+                    {/* Referral Code */}
+                    <div className="space-y-1.5">
+                        <Label htmlFor="referral_code" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                            <Gift className="h-3.5 w-3.5 text-orange-500" />
+                            Referral Code
+                            <span className="text-xs text-gray-400 font-normal">(Optional)</span>
+                        </Label>
+
+                        {/* Referrer name preview */}
+                        {referralStatus === 'valid' && referrerName && (
+                            <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+                                <CheckCircle className="h-3.5 w-3.5 shrink-0" />
+                                Referred by <span className="font-semibold">{referrerName}</span>
+                            </div>
+                        )}
+                        {referralStatus === 'invalid' && (
+                            <div className="flex items-center gap-1.5 text-xs font-medium text-red-500">
+                                <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                                No member found with this code
+                            </div>
+                        )}
+
+                        <div className="relative">
+                            <Input
+                                id="referral_code"
+                                name="referral_code_display"
+                                type="text"
+                                placeholder="e.g. GYM001"
+                                value={referralCode}
+                                onChange={handleReferralChange}
+                                disabled={loading}
+                                className={`h-10 text-sm font-mono tracking-widest pr-8 border ${
+                                    referralStatus === 'valid'
+                                        ? 'border-emerald-400 focus-visible:ring-emerald-300'
+                                        : referralStatus === 'invalid'
+                                        ? 'border-red-400 focus-visible:ring-red-300'
+                                        : 'border-gray-300'
+                                }`}
+                                style={{ textTransform: 'uppercase' }}
+                            />
+                            {referralStatus === 'checking' && (
+                                <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+                            )}
+                        </div>
+                        <p className="text-xs text-gray-400">Got a code from a friend? Enter their member ID here.</p>
                     </div>
                 </div>
 

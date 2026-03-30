@@ -1,94 +1,22 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { formatDate } from '@/lib/utils/date'
 import { formatCurrency } from '@/lib/utils/currency'
 import { Gift, Users, CheckCircle, Clock, Copy, Share2, Check, ExternalLink } from 'lucide-react'
+import { fetchMemberReferrals, ReferralPageData } from './actions'
 
-interface ReferralData {
-    referralCode: string
-    memberId: string
-    fullName: string
-    stats: {
-        total: number
-        successful: number
-        pending: number
-        totalRewardsEarned: number
-    }
-    referrals: {
-        id: string
-        referred_name: string
-        created_at: string
-        status: 'pending' | 'applied' | 'expired'
-        reward_type: string | null
-        reward_amount: number | null
-    }[]
-}
 
 export default function MemberReferrals() {
-    const [data, setData] = useState<ReferralData | null>(null)
+    const [data, setData] = useState<ReferralPageData | null>(null)
     const [loading, setLoading] = useState(true)
     const [copied, setCopied] = useState(false)
 
     useEffect(() => {
-        async function fetchReferrals() {
-            const supabase = createClient()
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) return
-
-            const { data: member } = await supabase
-                .from('members')
-                .select('*')
-                .eq('user_id', user.id)
-                .single() as { data: { member_id: string; full_name: string } | null, error: unknown }
-            if (!member) { setLoading(false); return }
-
-            // Fetch referrals where this member is the referrer
-            const { data: referrals } = await supabase
-                .from('referrals')
-                .select(`
-                    id, status, reward_type, reward_amount, created_at,
-                    referred:members!referrals_referred_id_fkey(full_name)
-                `)
-                .eq('referrer_id', member.member_id)
-                .order('created_at', { ascending: false })
-
-            const refs = (referrals || []) as {
-                id: string
-                status: 'pending' | 'applied' | 'expired'
-                reward_type: string | null
-                reward_amount: number | null
-                created_at: string
-                referred: { full_name: string } | null
-            }[]
-
-            const successful = refs.filter(r => r.status === 'applied').length
-            const pending = refs.filter(r => r.status === 'pending').length
-            const totalRewards = refs
-                .filter(r => r.status === 'applied' && r.reward_amount)
-                .reduce((s, r) => s + (r.reward_amount || 0), 0)
-
-            // Referral code = member_id (simple, unique)
-            const referralCode = member.member_id.toUpperCase()
-
-            setData({
-                referralCode,
-                memberId: member.member_id,
-                fullName: member.full_name,
-                stats: { total: refs.length, successful, pending, totalRewardsEarned: totalRewards },
-                referrals: refs.map(r => ({
-                    id: r.id,
-                    referred_name: r.referred?.full_name || 'Unknown',
-                    created_at: r.created_at,
-                    status: r.status,
-                    reward_type: r.reward_type,
-                    reward_amount: r.reward_amount,
-                })),
-            })
+        fetchMemberReferrals().then(result => {
+            setData(result)
             setLoading(false)
-        }
-        fetchReferrals()
+        })
     }, [])
 
     const handleCopy = async () => {
