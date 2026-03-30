@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { User, Shield, Bell, AlertTriangle, ChevronDown, ChevronUp, Save, Eye, EyeOff, Loader2, Check } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -21,7 +21,7 @@ interface MemberProfile {
 type SectionId = 'personal' | 'emergency' | 'password' | 'freeze'
 
 function Section({
-    id, title, icon: Icon, open, onToggle, children
+    id, title, icon: Icon, open, onToggle, children, sectionRef
 }: {
     id: SectionId
     title: string
@@ -29,9 +29,10 @@ function Section({
     open: boolean
     onToggle: (id: SectionId) => void
     children: React.ReactNode
+    sectionRef?: (element: HTMLDivElement | null) => void
 }) {
     return (
-        <div className="rounded-xl bg-white shadow-sm border border-gray-100 overflow-hidden">
+        <div ref={sectionRef} className="rounded-xl bg-white shadow-sm border border-gray-100 overflow-hidden">
             <button
                 className="flex w-full items-center justify-between p-5 text-left"
                 onClick={() => onToggle(id)}
@@ -65,7 +66,13 @@ function SuccessBanner({ message }: { message: string }) {
 export default function MemberProfile() {
     const [profile, setProfile] = useState<MemberProfile | null>(null)
     const [loading, setLoading] = useState(true)
-    const [openSection, setOpenSection] = useState<SectionId>('personal')
+    const [openSection, setOpenSection] = useState<SectionId | null>('personal')
+    const sectionRefs = useRef<Record<SectionId, HTMLDivElement | null>>({
+        personal: null,
+        emergency: null,
+        password: null,
+        freeze: null,
+    })
 
     // Personal info form
     const [personalForm, setPersonalForm] = useState({
@@ -136,7 +143,20 @@ export default function MemberProfile() {
         fetchProfile()
     }, [])
 
-    const toggleSection = (id: SectionId) => setOpenSection(prev => prev === id ? id : id)
+    useEffect(() => {
+        if (!openSection) return
+
+        const element = sectionRefs.current[openSection]
+        if (!element) return
+
+        window.setTimeout(() => {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }, 120)
+    }, [openSection])
+
+    const toggleSection = (id: SectionId) => {
+        setOpenSection(prev => prev === id ? null : id)
+    }
 
     const savePersonal = async () => {
         setPersonalSaving(true); setPersonalError(''); setPersonalSuccess('')
@@ -245,7 +265,14 @@ export default function MemberProfile() {
             </div>
 
             {/* ── Personal Info ── */}
-            <Section id="personal" title="Personal Information" icon={User} open={openSection === 'personal'} onToggle={toggleSection}>
+            <Section
+                id="personal"
+                title="Personal Information"
+                icon={User}
+                open={openSection === 'personal'}
+                onToggle={toggleSection}
+                sectionRef={(element) => { sectionRefs.current.personal = element }}
+            >
                 <div className="space-y-3">
                     {personalSuccess && <SuccessBanner message={personalSuccess} />}
                     {personalError && <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{personalError}</div>}
@@ -290,7 +317,14 @@ export default function MemberProfile() {
             </Section>
 
             {/* ── Emergency Contact ── */}
-            <Section id="emergency" title="Emergency Contact" icon={Shield} open={openSection === 'emergency'} onToggle={toggleSection}>
+            <Section
+                id="emergency"
+                title="Emergency Contact"
+                icon={Shield}
+                open={openSection === 'emergency'}
+                onToggle={toggleSection}
+                sectionRef={(element) => { sectionRefs.current.emergency = element }}
+            >
                 <div className="space-y-3">
                     {emergencySuccess && <SuccessBanner message={emergencySuccess} />}
                     {emergencyError && <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{emergencyError}</div>}
@@ -315,7 +349,14 @@ export default function MemberProfile() {
             </Section>
 
             {/* ── Change Password ── */}
-            <Section id="password" title="Change Password" icon={Shield} open={openSection === 'password'} onToggle={toggleSection}>
+            <Section
+                id="password"
+                title="Change Password"
+                icon={Shield}
+                open={openSection === 'password'}
+                onToggle={toggleSection}
+                sectionRef={(element) => { sectionRefs.current.password = element }}
+            >
                 <div className="space-y-3">
                     {pwSuccess && <SuccessBanner message={pwSuccess} />}
                     {pwError && <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{pwError}</div>}
@@ -350,7 +391,14 @@ export default function MemberProfile() {
             </Section>
 
             {/* ── Membership Requests ── */}
-            <Section id="freeze" title="Membership Requests" icon={AlertTriangle} open={openSection === 'freeze'} onToggle={toggleSection}>
+            <Section
+                id="freeze"
+                title="Membership Requests"
+                icon={AlertTriangle}
+                open={openSection === 'freeze'}
+                onToggle={toggleSection}
+                sectionRef={(element) => { sectionRefs.current.freeze = element }}
+            >
                 <div className="space-y-4">
                     {freezeSuccess && <SuccessBanner message={freezeSuccess} />}
                     {freezeError && <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{freezeError}</div>}
