@@ -140,12 +140,12 @@ export default function WorkoutClient({ hasProfile, savedPlan, savedVersion }: P
                             <div className="divide-y divide-gray-100">
                                 {plan.days[activeDay].exercises.map((ex, i) => (
                                     <div key={i} className="px-5 py-3.5">
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div className="flex-1 min-w-0">
+                                        <div className="space-y-3">
+                                            <div className="min-w-0">
                                                 <p className="text-sm font-semibold text-gray-900">{ex.name}</p>
                                                 {ex.notes && <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{ex.notes}</p>}
                                             </div>
-                                            <div className="flex gap-2 shrink-0">
+                                            <div className="flex flex-wrap gap-2">
                                                 <span className="rounded-lg bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">{ex.sets} sets</span>
                                                 <span className="rounded-lg bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">{ex.reps} reps</span>
                                                 <span className="rounded-lg bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600">{ex.rest_seconds}s rest</span>

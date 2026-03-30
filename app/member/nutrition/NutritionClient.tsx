@@ -170,16 +170,16 @@ export default function NutritionClient({ hasProfile, savedPlan, savedVersion }:
                                 </div>
                                 {(Object.entries(day.meals) as [string, Meal][]).map(([mealKey, meal]) => (
                                     <div key={mealKey} className={`rounded-xl border p-4 ${MEAL_COLORS[mealKey] || 'bg-gray-50 border-gray-200'}`}>
-                                        <div className="flex items-start justify-between gap-3">
+                                        <div className="space-y-3">
                                             <div>
                                                 <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-0.5">{MEAL_LABEL[mealKey]}</p>
                                                 <p className="text-sm font-bold text-gray-900">{meal.name}</p>
                                                 <p className="text-xs text-gray-500 mt-1 leading-relaxed">{meal.description}</p>
                                             </div>
-                                            <div className="shrink-0 text-right">
+                                            <div className="flex items-end justify-between gap-3 sm:justify-start sm:gap-6">
                                                 <p className="text-sm font-bold text-gray-800">{meal.calories}</p>
                                                 <p className="text-[10px] text-gray-400">kcal</p>
-                                                <p className="text-xs font-medium text-gray-600 mt-1">{meal.protein_g}g P</p>
+                                                <p className="text-xs font-medium text-gray-600">{meal.protein_g}g P</p>
                                             </div>
                                         </div>
                                     </div>
