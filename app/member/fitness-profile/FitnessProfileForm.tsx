@@ -29,7 +29,15 @@ const DIETS = [
 ]
 
 interface Props {
-    existing: any
+    existing: {
+        goal?: string | null
+        experience?: string | null
+        dietary_preference?: string | null
+        height_cm?: number | null
+        weight_kg?: number | null
+        days_per_week?: number | null
+        injuries?: string | null
+    } | null
 }
 
 export default function FitnessProfileForm({ existing }: Props) {
@@ -67,7 +75,7 @@ export default function FitnessProfileForm({ existing }: Props) {
 
                 {/* Goal */}
                 <div className="space-y-3">
-                    <Label className="text-sm font-semibold text-gray-800">What's your primary goal? <span className="text-red-500">*</span></Label>
+                    <Label className="text-sm font-semibold text-gray-800">What&apos;s your primary goal? <span className="text-red-500">*</span></Label>
                     <div className="grid grid-cols-2 gap-3">
                         {GOALS.map(g => (
                             <button key={g.value} type="button" onClick={() => setGoal(g.value)}

@@ -10,6 +10,17 @@ const admin = () => createAdminClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+type FitnessProfileRow = {
+    goal: string | null
+    dietary_preference: string | null
+    height_cm: number | null
+    weight_kg: number | null
+    experience: string | null
+}
+
+type VersionRow = { version: number }
+type SavedNutritionPlanRow = { plan_data: unknown }
+
 export async function generateNutritionPlan() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -21,9 +32,9 @@ export async function generateNutritionPlan() {
     if (!profile) return { error: 'Please complete your fitness profile first.' }
 
     const { data: existing } = await db.from('nutrition_plans').select('version').eq('user_id', user.id).order('version', { ascending: false }).limit(1)
-    const nextVersion = existing && existing.length > 0 ? (existing[0] as any).version + 1 : 1
+    const nextVersion = existing && existing.length > 0 ? (existing[0] as VersionRow).version + 1 : 1
 
-    const p = profile as any
+    const p = profile as FitnessProfileRow
     const prompt = `
 Create a 7-day meal plan for:
 - Goal: ${p.goal}
@@ -54,7 +65,7 @@ Return JSON with this exact shape:
 }`
 
     try {
-        const plan = await generateJSON<any>(prompt)
+        const plan = await generateJSON<unknown>(prompt)
         const { data: saved, error } = await db.from('nutrition_plans').insert({
             user_id: user.id,
             version: nextVersion,
@@ -64,9 +75,10 @@ Return JSON with this exact shape:
         if (error) return { error: error.message }
 
         revalidatePath('/member/nutrition')
-        return { success: true, plan: (saved as any).plan_data, version: nextVersion }
-    } catch (e: any) {
-        return { error: 'Failed to generate plan: ' + e.message }
+        return { success: true, plan: (saved as SavedNutritionPlanRow).plan_data, version: nextVersion }
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error'
+        return { error: 'Failed to generate plan: ' + message }
     }
 }
 

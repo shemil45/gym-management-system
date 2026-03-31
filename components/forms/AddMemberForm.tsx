@@ -34,8 +34,6 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
     const [paymentAmount, setPaymentAmount] = useState('')
 
-    const selectedPlanDetails = plans.find((p) => p.id === selectedPlan)
-
     // Auto-fill amount when plan is chosen
     const handlePlanChange = (value: string) => {
         setSelectedPlan(value)

@@ -45,6 +45,37 @@ const randomDateThisMonth = () => {
 }
 
 const runSeed = async () => {
+  type MemberRow = { id: string }
+  type MemberInsert = {
+    member_id: string
+    full_name: string
+    email: string
+    phone: string
+    status: string
+    membership_plan_id: string
+    membership_start_date: string
+    membership_expiry_date: string
+  }
+  type CheckInInsert = {
+    member_id: string
+    check_in_time: string
+    check_out_time: string
+    entry_method: string
+  }
+  type PaymentInsert = {
+    member_id: string
+    amount: number
+    payment_method: string
+    payment_status: string
+    payment_date: string
+  }
+  type ExpenseInsert = {
+    category: string
+    amount: number
+    description: string
+    expense_date: string
+  }
+
   console.log('Starting mock data insertion...')
 
   // 1. Membership Plans
@@ -54,7 +85,7 @@ const runSeed = async () => {
     { name: 'Yearly Elite', duration_days: 365, price: 8999, is_active: true }
   ]
   
-  const { data: existingPlans, error: plansError } = await supabase.from('membership_plans').select('*')
+  const { data: existingPlans } = await supabase.from('membership_plans').select('id')
   let planIds = existingPlans?.map(p => p.id) || []
   
   if (planIds.length === 0) {
@@ -71,7 +102,7 @@ const runSeed = async () => {
 
   // 2. Members (15 Mock Members)
   console.log('Inserting 15 mock members...')
-  const newMembers: any[] = []
+  const newMembers: MemberInsert[] = []
   for (let i = 1; i <= 15; i++) {
     const start = new Date(currentYear, currentMonth, randomInt(1, 10))
     const end = new Date(start)
@@ -91,13 +122,13 @@ const runSeed = async () => {
 
   const { data: insertedMembers, error: membersError } = await supabase.from('members').insert(newMembers).select()
   if (membersError) console.error(membersError)
-  const memberIds = insertedMembers?.map(m => m.id) || []
+  const memberIds = (insertedMembers as MemberRow[] | null)?.map(m => m.id) || []
 
   if (memberIds.length === 0) return
 
   // 3. Check-ins (50 mock check-ins this month)
   console.log('Inserting 50 mock check-ins...')
-  const newCheckIns: any[] = []
+  const newCheckIns: CheckInInsert[] = []
   for (let i = 0; i < 50; i++) {
     const entryMethods = ['manual', 'qr', 'fingerprint']
     const inTime = randomDateThisMonth()
@@ -116,7 +147,7 @@ const runSeed = async () => {
 
   // 4. Payments (20 mock payments this month)
   console.log('Inserting 20 mock payments...')
-  const newPayments: any[] = []
+  const newPayments: PaymentInsert[] = []
   const paymentMethods = ['cash', 'card', 'upi', 'online']
   const paymentStatuses = ['paid', 'paid', 'paid', 'pending', 'failed'] // mostly paid
   
@@ -134,7 +165,7 @@ const runSeed = async () => {
 
   // 5. Expenses (15 mock expenses this month)
   console.log('Inserting 15 mock expenses...')
-  const newExpenses: any[] = []
+  const newExpenses: ExpenseInsert[] = []
   const categories = ['utilities', 'salary', 'equipment', 'maintenance', 'marketing', 'rent', 'other']
   
   for (let i = 0; i < 15; i++) {

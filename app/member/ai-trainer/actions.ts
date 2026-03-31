@@ -2,13 +2,32 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
-import { generateText } from '@/lib/gemini'
 import { revalidatePath } from 'next/cache'
 
 const admin = () => createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
+
+type FitnessProfileRow = {
+    goal: string | null
+    experience: string | null
+    height_cm: number | null
+    weight_kg: number | null
+    dietary_preference: string | null
+    injuries: string | null
+}
+
+type MemberContextRow = {
+    full_name: string
+    status: string
+    membership_expiry_date: string | null
+}
+
+type ChatHistoryRow = {
+    role: 'user' | 'model'
+    content: string
+}
 
 export async function sendChatMessage(message: string) {
     const supabase = await createClient()
@@ -24,8 +43,8 @@ export async function sendChatMessage(message: string) {
         db.from('chat_messages').select('role, content').eq('user_id', user.id).order('created_at', { ascending: true }).limit(20),
     ])
 
-    const p = profile as any
-    const m = member as any
+    const p = profile as FitnessProfileRow | null
+    const m = member as MemberContextRow | null
 
     const systemInstruction = `You are an expert personal AI trainer and fitness coach for ${m?.full_name || 'this member'} at a gym.
 
@@ -40,7 +59,7 @@ Member profile:
 Be motivating, concise, and specific. Give practical advice. If asked about exercises, provide proper form cues. Keep responses under 250 words unless more detail is specifically requested.`
 
     // Build conversation history for Gemini
-    const historyItems = (history as any[] || []).map((h: any) => ({
+    const historyItems = ((history as ChatHistoryRow[] | null) || []).map((h) => ({
         role: h.role as 'user' | 'model',
         parts: [{ text: h.content }],
     }))
@@ -61,8 +80,9 @@ Be motivating, concise, and specific. Give practical advice. If asked about exer
 
         revalidatePath('/member/ai-trainer')
         return { success: true, reply }
-    } catch (e: any) {
-        return { error: 'AI response failed: ' + e.message }
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error'
+        return { error: 'AI response failed: ' + message }
     }
 }
 

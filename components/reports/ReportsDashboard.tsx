@@ -384,17 +384,18 @@ function AttendanceReport({ checkIns, members }: { checkIns: CheckInRow[]; membe
 
 function RenewalsReport({ members }: { members: MemberRow[] }) {
     const [window, setWindow] = useState<7 | 15 | 30>(15)
+    const today = useMemo(() => new Date(), [])
+    const todayTs = today.getTime()
 
     const expiring = useMemo(() => {
-        const now = new Date()
         const cutoff = new Date()
         cutoff.setDate(cutoff.getDate() + window)
         return members.filter((m) => {
             if (!m.membership_expiry_date) return false
             const exp = new Date(m.membership_expiry_date)
-            return exp >= now && exp <= cutoff && m.status === 'active'
+            return exp >= today && exp <= cutoff && m.status === 'active'
         }).sort((a, b) => new Date(a.membership_expiry_date!).getTime() - new Date(b.membership_expiry_date!).getTime())
-    }, [members, window])
+    }, [members, today, window])
 
     const alreadyExpired = useMemo(
         () => members.filter((m) => m.status === 'expired').length,
@@ -406,12 +407,12 @@ function RenewalsReport({ members }: { members: MemberRow[] }) {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <KPICard label="Expiring in 7 days" value={members.filter((m) => {
                     if (!m.membership_expiry_date || m.status !== 'active') return false
-                    const diff = (new Date(m.membership_expiry_date).getTime() - Date.now()) / 86400000
+                    const diff = (new Date(m.membership_expiry_date).getTime() - todayTs) / 86400000
                     return diff >= 0 && diff <= 7
                 }).length} color="red" />
                 <KPICard label="Expiring in 30 days" value={members.filter((m) => {
                     if (!m.membership_expiry_date || m.status !== 'active') return false
-                    const diff = (new Date(m.membership_expiry_date).getTime() - Date.now()) / 86400000
+                    const diff = (new Date(m.membership_expiry_date).getTime() - todayTs) / 86400000
                     return diff >= 0 && diff <= 30
                 }).length} color="amber" />
                 <KPICard label="Already Expired" value={alreadyExpired} color="red" />
@@ -453,7 +454,7 @@ function RenewalsReport({ members }: { members: MemberRow[] }) {
                             </thead>
                             <tbody className="divide-y divide-gray-50">
                                 {expiring.map((m) => {
-                                    const daysLeft = Math.ceil((new Date(m.membership_expiry_date!).getTime() - Date.now()) / 86400000)
+                                    const daysLeft = Math.ceil((new Date(m.membership_expiry_date!).getTime() - todayTs) / 86400000)
                                     return (
                                         <tr key={m.id} className="hover:bg-rose-50/20 transition-colors">
                                             <td className="py-2.5">
@@ -489,7 +490,7 @@ function PaymentsReport({ payments }: { payments: PaymentRow[] }) {
     const totalRevenue = paidPayments.reduce((s, p) => s + Number(p.amount), 0)
 
     // Method breakdown
-    const methodData = useMemo(() => {
+    const methodData = (() => {
         const counts: Record<string, { count: number; total: number }> = {}
         paidPayments.forEach((p) => {
             if (!counts[p.payment_method]) counts[p.payment_method] = { count: 0, total: 0 }
@@ -503,10 +504,10 @@ function PaymentsReport({ payments }: { payments: PaymentRow[] }) {
                 cfg: METHOD_CONFIG[method] ?? { label: method, icon: <Wallet className="h-3.5 w-3.5" />, color: '#9ca3af' },
             }))
             .sort((a, b) => b.total - a.total)
-    }, [paidPayments])
+    })()
 
     // Monthly revenue (12 months)
-    const monthlyRevenue = useMemo(() => {
+    const monthlyRevenue = (() => {
         const months: { key: string; label: string }[] = []
         for (let i = 11; i >= 0; i--) {
             const d = new Date()
@@ -523,7 +524,7 @@ function PaymentsReport({ payments }: { payments: PaymentRow[] }) {
             byMonth[key] = (byMonth[key] || 0) + Number(p.amount)
         })
         return months.map((m) => ({ month: m.label, Revenue: Math.round(byMonth[m.key] || 0) }))
-    }, [paidPayments])
+    })()
 
     return (
         <div className="space-y-6">

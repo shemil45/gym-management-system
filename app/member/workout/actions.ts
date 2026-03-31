@@ -10,6 +10,18 @@ const admin = () => createAdminClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+type FitnessProfileRow = {
+    days_per_week: number | null
+    goal: string | null
+    experience: string | null
+    height_cm: number | null
+    weight_kg: number | null
+    injuries: string | null
+}
+
+type VersionRow = { version: number }
+type SavedWorkoutPlanRow = { plan_data: unknown }
+
 export async function generateWorkoutPlan() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -23,14 +35,15 @@ export async function generateWorkoutPlan() {
 
     // Get latest version number
     const { data: existing } = await db.from('workout_plans').select('version').eq('user_id', user.id).order('version', { ascending: false }).limit(1)
-    const nextVersion = existing && existing.length > 0 ? (existing[0] as any).version + 1 : 1
+    const nextVersion = existing && existing.length > 0 ? (existing[0] as VersionRow).version + 1 : 1
 
+    const typedProfile = profile as FitnessProfileRow
     const prompt = `
-Generate a ${(profile as any).days_per_week}-day per week workout plan for a person with these details:
-- Goal: ${(profile as any).goal}
-- Experience: ${(profile as any).experience}
-- Height: ${(profile as any).height_cm ?? 'unknown'} cm, Weight: ${(profile as any).weight_kg ?? 'unknown'} kg
-- Injuries/Limitations: ${(profile as any).injuries || 'none'}
+Generate a ${typedProfile.days_per_week}-day per week workout plan for a person with these details:
+- Goal: ${typedProfile.goal}
+- Experience: ${typedProfile.experience}
+- Height: ${typedProfile.height_cm ?? 'unknown'} cm, Weight: ${typedProfile.weight_kg ?? 'unknown'} kg
+- Injuries/Limitations: ${typedProfile.injuries || 'none'}
 
 Return a JSON object with this exact shape:
 {
@@ -46,10 +59,10 @@ Return a JSON object with this exact shape:
   ]
 }
 
-Include exactly ${(profile as any).days_per_week} training days and add rest days as needed. Exercises should be appropriate for ${(profile as any).experience} level. Be specific with form notes.`
+Include exactly ${typedProfile.days_per_week} training days and add rest days as needed. Exercises should be appropriate for ${typedProfile.experience} level. Be specific with form notes.`
 
     try {
-        const plan = await generateJSON<any>(prompt)
+        const plan = await generateJSON<unknown>(prompt)
 
         const { data: saved, error } = await db.from('workout_plans').insert({
             user_id: user.id,
@@ -60,9 +73,10 @@ Include exactly ${(profile as any).days_per_week} training days and add rest day
         if (error) return { error: error.message }
 
         revalidatePath('/member/workout')
-        return { success: true, plan: (saved as any).plan_data, version: nextVersion }
-    } catch (e: any) {
-        return { error: 'Failed to generate plan: ' + e.message }
+        return { success: true, plan: (saved as SavedWorkoutPlanRow).plan_data, version: nextVersion }
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error'
+        return { error: 'Failed to generate plan: ' + message }
     }
 }
 

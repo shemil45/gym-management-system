@@ -98,8 +98,9 @@ export default function RegisterPage() {
                     confirmPassword: '',
                 })
             }
-        } catch (err: any) {
-            setError(err.message || 'Failed to register. Please try again.')
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to register. Please try again.'
+            setError(message)
         } finally {
             setLoading(false)
         }

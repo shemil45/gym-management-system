@@ -24,7 +24,7 @@ export async function completeMemberProfile(formData: FormData) {
             .from('members')
             .select('id, status, full_name')
             .eq('user_id', user.id)
-            .single() as { data: { id: string; status: string; full_name: string } | null, error: unknown }
+            .single() as { data: ExistingMember | null, error: unknown }
 
         if (existingMember) {
             // If the existing member is already active, this session likely belongs to a different
@@ -42,7 +42,7 @@ export async function completeMemberProfile(formData: FormData) {
         // Get basic info from profiles
         const { data: profile, error: profileFetchError } = await supabaseAdmin
             .from('profiles')
-            .select('*')
+            .select('full_name, phone')
             .eq('id', user.id)
             .single()
 
@@ -90,9 +90,9 @@ export async function completeMemberProfile(formData: FormData) {
             .insert({
                 user_id: user.id,
                 member_id: memberId,
-                full_name: (profile as any).full_name,
+                full_name: (profile as ProfileRow).full_name,
                 email: user.email,
-                phone: (profile as any).phone || '',
+                phone: (profile as ProfileRow).phone || '',
                 photo_url: photoUrl,
                 date_of_birth: (formData.get('date_of_birth') as string) || null,
                 gender: (formData.get('gender') as string) || null,
@@ -151,8 +151,10 @@ export async function completeMemberProfile(formData: FormData) {
 
         revalidatePath('/member/dashboard')
         return { success: true }
-    } catch (err: any) {
-        console.error('Unexpected error:', err)
-        return { error: err.message || 'Failed to complete profile' }
+    } catch (error) {
+        console.error('Unexpected error:', error)
+        return { error: error instanceof Error ? error.message : 'Failed to complete profile' }
     }
 }
+    type ExistingMember = { id: string; status: string; full_name: string }
+    type ProfileRow = { full_name: string; phone: string | null }

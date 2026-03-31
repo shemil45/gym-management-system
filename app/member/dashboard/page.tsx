@@ -40,6 +40,26 @@ interface MemberData {
     onboardingDone: Record<string, boolean>
 }
 
+interface MemberQueryRow {
+    id: string
+    member_id: string
+    full_name: string
+    photo_url: string | null
+    membership_plan: { name: string; price: number; duration_days: number } | null
+    membership_start_date: string | null
+    membership_expiry_date: string | null
+    status: 'active' | 'inactive' | 'frozen' | 'expired'
+}
+
+interface CheckInTimeRow {
+    check_in_time: string
+}
+
+interface LastPaymentRow {
+    amount: number
+    payment_date: string
+}
+
 function getDaysRemaining(expiryDate: string | null) {
     if (!expiryDate) return null
     const today = new Date(); today.setHours(0, 0, 0, 0)
@@ -55,10 +75,10 @@ function getStatusConfig(status: string, daysRemaining: number | null) {
     return { label: 'Inactive', color: 'bg-gray-100 text-gray-600 border-gray-200', dot: 'bg-gray-400', icon: XCircle }
 }
 
-function formatLastCheckIn(dateStr: string | null) {
+function formatLastCheckIn(dateStr: string | null, now: Date) {
     if (!dateStr) return null
     const date = new Date(dateStr)
-    const diffMins = Math.floor((Date.now() - date.getTime()) / 60000)
+    const diffMins = Math.floor((now.getTime() - date.getTime()) / 60000)
     const diffHours = Math.floor(diffMins / 60)
     const diffDays = Math.floor(diffHours / 24)
     if (diffMins < 60) return `${diffMins}m ago`
@@ -89,7 +109,7 @@ export default function MemberDashboard() {
                 .from('members')
                 .select('*, membership_plan:membership_plans(name, price, duration_days)')
                 .eq('user_id', user.id)
-                .single() as { data: any | null, error: unknown }
+                .single() as { data: MemberQueryRow | null, error: unknown }
 
             if (!member) { setLoading(false); return }
 
@@ -107,8 +127,8 @@ export default function MemberDashboard() {
             ] = await Promise.all([
                 supabase.from('check_ins').select('*', { count: 'exact', head: true }).eq('member_id', member.id).gte('check_in_time', monthStart),
                 supabase.from('check_ins').select('*', { count: 'exact', head: true }).eq('member_id', member.id),
-                supabase.from('check_ins').select('check_in_time').eq('member_id', member.id).order('check_in_time', { ascending: false }).limit(60) as any,
-                supabase.from('payments').select('amount, payment_date').eq('member_id', member.id).eq('payment_status', 'paid').order('payment_date', { ascending: false }).limit(1) as any,
+                supabase.from('check_ins').select('check_in_time').eq('member_id', member.id).order('check_in_time', { ascending: false }).limit(60) as { data: CheckInTimeRow[] | null, error: unknown },
+                supabase.from('payments').select('amount, payment_date').eq('member_id', member.id).eq('payment_status', 'paid').order('payment_date', { ascending: false }).limit(1) as { data: LastPaymentRow[] | null, error: unknown },
                 supabase.from('fitness_profiles').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
                 supabase.from('workout_plans').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
                 supabase.from('nutrition_plans').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
@@ -116,9 +136,11 @@ export default function MemberDashboard() {
 
             let streak = 0
             if (recentCheckIns?.length > 0) {
-                const dates = [...new Set((recentCheckIns as any[]).map((c: any) => new Date(c.check_in_time).toISOString().split('T')[0]))].sort().reverse()
+                const dates = [...new Set(recentCheckIns.map((c) => new Date(c.check_in_time).toISOString().split('T')[0]))].sort().reverse()
                 const today = new Date().toISOString().split('T')[0]
-                if (dates[0] === today || dates[0] === new Date(Date.now() - 86400000).toISOString().split('T')[0]) {
+                const yesterday = new Date()
+                yesterday.setDate(yesterday.getDate() - 1)
+                if (dates[0] === today || dates[0] === yesterday.toISOString().split('T')[0]) {
                     for (let i = 0; i < dates.length - 1; i++) {
                         const diff = (new Date(dates[i]).getTime() - new Date(dates[i + 1]).getTime()) / 86400000
                         if (diff <= 1) streak++
@@ -138,9 +160,9 @@ export default function MemberDashboard() {
                 status: member.status,
                 totalVisitsThisMonth: totalVisitsThisMonth || 0,
                 totalVisitsAllTime: totalVisitsAllTime || 0,
-                lastCheckIn: (recentCheckIns as any[])?.[0]?.check_in_time || null,
+                lastCheckIn: recentCheckIns?.[0]?.check_in_time || null,
                 currentStreak: streak,
-                lastPayment: (lastPaymentData as any[])?.[0] || null,
+                lastPayment: lastPaymentData?.[0] || null,
                 onboardingDone: {
                     profile: (fitnessProfileCount || 0) > 0,
                     workout: (workoutPlanCount || 0) > 0,
@@ -171,7 +193,7 @@ export default function MemberDashboard() {
             <div className="flex flex-col items-center justify-center py-20 text-center">
                 <AlertCircle className="h-12 w-12 text-gray-300 mb-4" />
                 <h2 className="text-lg font-semibold text-gray-700">Member Profile Not Found</h2>
-                <p className="text-sm text-gray-500 mt-1">Your account isn't linked to a member record yet. Please contact the gym admin.</p>
+                <p className="text-sm text-gray-500 mt-1">Your account isn&apos;t linked to a member record yet. Please contact the gym admin.</p>
             </div>
         )
     }
@@ -183,7 +205,8 @@ export default function MemberDashboard() {
     // progress bar
     let progressPct = 0
     if (memberData.membership_plan && memberData.membership_start_date && memberData.membership_expiry_date) {
-        const used = Math.max(0, Math.ceil((Date.now() - new Date(memberData.membership_start_date).getTime()) / 86400000))
+        const now = new Date()
+        const used = Math.max(0, Math.ceil((now.getTime() - new Date(memberData.membership_start_date).getTime()) / 86400000))
         progressPct = Math.min(100, Math.round((used / memberData.membership_plan.duration_days) * 100))
     }
 
@@ -196,7 +219,7 @@ export default function MemberDashboard() {
             {/* Page Header */}
             <div>
                 <h1 className="text-xl font-bold text-gray-900">Welcome back 👋</h1>
-                <p className="text-sm text-gray-500 mt-0.5">Here's your membership overview</p>
+                <p className="text-sm text-gray-500 mt-0.5">Here&apos;s your membership overview</p>
             </div>
 
             {/* ── COMPACT Identity Strip ── */}
@@ -329,7 +352,7 @@ export default function MemberDashboard() {
                         <Clock className="h-4 w-4 text-blue-600" />
                     </div>
                     {memberData.lastCheckIn ? (
-                        <p className="text-sm font-bold text-gray-900 leading-tight">{formatLastCheckIn(memberData.lastCheckIn)}</p>
+                        <p className="text-sm font-bold text-gray-900 leading-tight">{formatLastCheckIn(memberData.lastCheckIn, new Date())}</p>
                     ) : (
                         <p className="text-sm font-bold text-gray-400 leading-tight">No visits<br />yet</p>
                     )}

@@ -127,7 +127,7 @@ export default function AITrainerClient({ hasProfile, initialHistory }: Props) {
                             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-purple-700 mx-auto mb-3">
                                 <Bot className="h-7 w-7 text-white" />
                             </div>
-                            <p className="text-sm font-semibold text-gray-800">Hey! I'm your AI trainer 👋</p>
+                            <p className="text-sm font-semibold text-gray-800">Hey! I&apos;m your AI trainer 👋</p>
                             <p className="text-xs text-gray-400 mt-1">I know your fitness goals and current plan. Ask me anything!</p>
                         </div>
                         <div className="grid grid-cols-2 gap-2">

@@ -41,7 +41,6 @@ const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
 
 export default function MemberCheckIns() {
     const [checkIns, setCheckIns] = useState<CheckIn[]>([])
-    const [memberId, setMemberId] = useState<string | null>(null)
     const [loading, setLoading] = useState(true)
     const [calMonth, setCalMonth] = useState(() => {
         const now = new Date()
@@ -61,8 +60,6 @@ export default function MemberCheckIns() {
                     data: { id: string; member_id: string } | null, error: unknown
                 }
             if (!member) { setLoading(false); return }
-
-            setMemberId(member.member_id)
 
             const { data } = await supabase
                 .from('check_ins')
@@ -96,7 +93,9 @@ export default function MemberCheckIns() {
         let tempStreak = 1
 
         const todayStr = now.toISOString().split('T')[0]
-        const yestStr = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+        const yesterday = new Date(now)
+        yesterday.setDate(yesterday.getDate() - 1)
+        const yestStr = yesterday.toISOString().split('T')[0]
         if (dates.length > 0 && (dates[0] === todayStr || dates[0] === yestStr)) {
             currentStreak = 1
             for (let i = 0; i < dates.length - 1; i++) {

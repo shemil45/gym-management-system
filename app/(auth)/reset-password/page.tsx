@@ -33,8 +33,9 @@ export default function ResetPasswordPage() {
 
             setSuccess(true)
             setEmail('')
-        } catch (err: any) {
-            setError(err.message || 'Failed to send reset email. Please try again.')
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to send reset email. Please try again.'
+            setError(message)
         } finally {
             setLoading(false)
         }
@@ -45,7 +46,7 @@ export default function ResetPasswordPage() {
             <CardHeader className="space-y-1">
                 <CardTitle className="text-2xl font-bold">Reset Password</CardTitle>
                 <CardDescription>
-                    Enter your email address and we'll send you a reset link
+                    Enter your email address and we&apos;ll send you a reset link
                 </CardDescription>
             </CardHeader>
             <form onSubmit={handleResetPassword}>

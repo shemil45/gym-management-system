@@ -84,17 +84,6 @@ function formatTime(iso: string) {
     })
 }
 
-function formatDateTime(iso: string) {
-    return new Date(iso).toLocaleDateString('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
-    })
-}
-
 function calcDuration(checkIn: string, checkOut: string | null) {
     if (!checkOut) return null
     const mins = Math.round(

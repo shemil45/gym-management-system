@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,7 +10,6 @@ import { toast } from 'sonner'
 import { completeMemberProfile } from './actions'
 
 export default function CompleteProfileForm() {
-    const router = useRouter()
     const fileInputRef = useRef<HTMLInputElement>(null)
     const cameraInputRef = useRef<HTMLInputElement>(null)
 

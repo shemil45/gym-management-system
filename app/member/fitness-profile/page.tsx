@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import { getFitnessProfile } from './actions'
 import FitnessProfileForm from './FitnessProfileForm'
 

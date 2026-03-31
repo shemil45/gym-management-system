@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils/currency'
-import { formatDate } from '@/lib/utils/date'
 import {
     Users,
     DollarSign,
