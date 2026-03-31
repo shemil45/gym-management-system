@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils/currency'
@@ -38,6 +39,13 @@ function StatusBadge({ status }: { status: Payment['payment_status'] }) {
             {cfg.label}
         </span>
     )
+}
+
+function getInvoiceHref(payment: Payment) {
+    if (!payment.invoice_number) return null
+
+    const status = payment.payment_status === 'paid' ? 'success' : 'failure'
+    return `/member/plans/result?invoice=${encodeURIComponent(payment.invoice_number)}&status=${status}`
 }
 
 export default function MemberPayments() {
@@ -79,6 +87,10 @@ export default function MemberPayments() {
 
     const paged = payments.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
     const totalPages = Math.ceil(payments.length / PAGE_SIZE)
+    const visiblePages = Array.from({ length: totalPages }, (_, index) => index).slice(
+        Math.max(0, Math.min(page - 1, totalPages - 3)),
+        Math.max(0, Math.min(page - 1, totalPages - 3)) + Math.min(3, totalPages)
+    )
 
     if (loading) return (
         <div className="space-y-4 animate-pulse">
@@ -156,49 +168,66 @@ export default function MemberPayments() {
                         </div>
 
                         <div className="space-y-1">
-                            {paged.map(p => (
-                                <div key={p.id} className="grid grid-cols-5 gap-2 items-center rounded-lg px-2 py-2.5 hover:bg-gray-50 transition-colors">
-                                    <span className="text-xs font-mono text-gray-600 truncate">{p.invoice_number || '—'}</span>
-                                    <span className="text-xs text-gray-500">{formatDate(p.payment_date)}</span>
-                                    <span className="text-xs font-semibold text-gray-800">{formatCurrency(p.amount)}</span>
-                                    <span className="text-xs text-gray-500">{METHOD_LABELS[p.payment_method] || p.payment_method}</span>
-                                    <StatusBadge status={p.payment_status} />
-                                </div>
-                            ))}
+                            {paged.map(p => {
+                                const invoiceHref = getInvoiceHref(p)
+
+                                return (
+                                    <div key={p.id} className="grid grid-cols-5 gap-2 items-center rounded-lg px-2 py-2.5 hover:bg-gray-50 transition-colors">
+                                        {invoiceHref ? (
+                                            <Link
+                                                href={invoiceHref}
+                                                className="truncate text-xs font-mono text-emerald-700 underline decoration-emerald-200 underline-offset-2 transition hover:text-emerald-800 hover:decoration-emerald-400"
+                                                title="View invoice"
+                                            >
+                                                {p.invoice_number}
+                                            </Link>
+                                        ) : (
+                                            <span className="text-xs font-mono text-gray-600 truncate">{p.invoice_number || '—'}</span>
+                                        )}
+                                        <span className="text-xs text-gray-500">{formatDate(p.payment_date)}</span>
+                                        <span className="text-xs font-semibold text-gray-800">{formatCurrency(p.amount)}</span>
+                                        <span className="text-xs text-gray-500">{METHOD_LABELS[p.payment_method] || p.payment_method}</span>
+                                        <StatusBadge status={p.payment_status} />
+                                    </div>
+                                )
+                            })}
                         </div>
 
-                        {/* Period details */}
-                        {paged.some(p => p.membership_start_date || p.membership_end_date) && (
-                            <div className="mt-3 pt-3 border-t border-gray-100 space-y-1">
-                                {paged.filter(p => p.membership_start_date || p.membership_end_date).map(p => (
-                                    <div key={`detail-${p.id}`} className="flex items-center gap-2 text-[10px] text-gray-400 px-2">
-                                        <span className="font-mono">{p.invoice_number || p.id.slice(0, 8)}</span>
-                                        <span>→</span>
-                                        <span>
-                                            {p.membership_start_date ? formatDate(p.membership_start_date) : '?'} to {p.membership_end_date ? formatDate(p.membership_end_date) : '?'}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
                         {totalPages > 1 && (
-                            <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                                <button
-                                    onClick={() => setPage(p => Math.max(0, p - 1))}
-                                    disabled={page === 0}
-                                    className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-700 disabled:opacity-30"
-                                >
-                                    <ChevronLeft className="h-3.5 w-3.5" /> Previous
-                                </button>
-                                <span className="text-xs text-gray-400">Page {page + 1} of {totalPages}</span>
-                                <button
-                                    onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                                    disabled={page === totalPages - 1}
-                                    className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-700 disabled:opacity-30"
-                                >
-                                    Next <ChevronRight className="h-3.5 w-3.5" />
-                                </button>
+                            <div className="mt-4 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                                <span className="text-xs text-gray-400">
+                                    Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, payments.length)} of {payments.length} payments
+                                </span>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <button
+                                        onClick={() => setPage(p => Math.max(0, p - 1))}
+                                        disabled={page === 0}
+                                        className="inline-flex items-center gap-1 rounded-2xl border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-500 transition hover:border-gray-300 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                    >
+                                        <ChevronLeft className="h-3.5 w-3.5" /> Previous
+                                    </button>
+                                    {visiblePages.map(pageIndex => (
+                                        <button
+                                            key={pageIndex}
+                                            onClick={() => setPage(pageIndex)}
+                                            aria-current={pageIndex === page ? 'page' : undefined}
+                                            className={`inline-flex h-10 min-w-10 items-center justify-center rounded-2xl border px-3 text-sm font-semibold transition ${
+                                                pageIndex === page
+                                                    ? 'border-emerald-500 bg-emerald-500 text-white shadow-sm'
+                                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:text-gray-900'
+                                            }`}
+                                        >
+                                            {pageIndex + 1}
+                                        </button>
+                                    ))}
+                                    <button
+                                        onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                                        disabled={page === totalPages - 1}
+                                        className="inline-flex items-center gap-1 rounded-2xl border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-700 transition hover:border-gray-300 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40"
+                                    >
+                                        Next <ChevronRight className="h-3.5 w-3.5" />
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </>

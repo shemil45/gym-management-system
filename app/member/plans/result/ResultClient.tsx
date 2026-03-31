@@ -68,8 +68,49 @@ function statusLabel(status: PaymentResult['paymentStatus']) {
 
 export default function ResultClient({ payment, reason, status }: ResultClientProps) {
     const [downloading, setDownloading] = useState(false)
-    const isSuccess = status === 'success'
     const hasDiscount = payment && payment.coinsUsed > 0
+    const resolvedStatus = payment?.paymentStatus ?? (status === 'success' ? 'paid' : 'failed')
+    const bannerTone =
+        resolvedStatus === 'paid'
+            ? 'success'
+            : resolvedStatus === 'pending'
+                ? 'warning'
+                : resolvedStatus === 'refunded'
+                    ? 'info'
+                    : 'failure'
+
+    const bannerStyles = {
+        success: 'border-emerald-200 bg-emerald-50/80',
+        warning: 'border-amber-200 bg-amber-50/80',
+        info: 'border-sky-200 bg-sky-50/80',
+        failure: 'border-rose-200 bg-rose-50/80',
+    } as const
+
+    const badgeStyles = {
+        success: 'bg-emerald-500',
+        warning: 'bg-amber-500',
+        info: 'bg-sky-500',
+        failure: 'bg-rose-500',
+    } as const
+
+    const statusCopy = {
+        paid: {
+            title: 'Payment successful',
+            message: 'Your invoice is ready. Download or view it below.',
+        },
+        pending: {
+            title: 'Payment pending',
+            message: 'This payment is still being processed. You can still open the invoice details below.',
+        },
+        refunded: {
+            title: 'Payment refunded',
+            message: 'This payment has been refunded. You can still view or download the invoice below.',
+        },
+        failed: {
+            title: 'Payment not completed',
+            message: reason || 'We could not confirm your payment. Please try again.',
+        },
+    } as const
 
     const handleDownload = async () => {
         if (!payment) return
@@ -265,18 +306,18 @@ export default function ResultClient({ payment, reason, status }: ResultClientPr
     return (
         <div className="mx-auto max-w-3xl space-y-4">
             {/* ── Status Banner ── */}
-            <div className={`rounded-2xl border p-4 shadow-sm ${isSuccess ? 'border-emerald-200 bg-emerald-50/80' : 'border-rose-200 bg-rose-50/80'}`}>
+            <div className={`rounded-2xl border p-4 shadow-sm ${bannerStyles[bannerTone]}`}>
                 <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-3">
-                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm ${isSuccess ? 'bg-emerald-500' : 'bg-rose-500'}`}>
-                            {isSuccess ? <CheckCircle2 className="h-5 w-5 text-white" /> : <XCircle className="h-5 w-5 text-white" />}
+                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm ${badgeStyles[bannerTone]}`}>
+                            {resolvedStatus === 'paid' ? <CheckCircle2 className="h-5 w-5 text-white" /> : <XCircle className="h-5 w-5 text-white" />}
                         </div>
                         <div>
                             <h1 className="text-base font-bold text-gray-950 sm:text-lg">
-                                {isSuccess ? 'Payment successful' : 'Payment not completed'}
+                                {statusCopy[resolvedStatus].title}
                             </h1>
                             <p className="text-xs text-gray-500 sm:text-sm">
-                                {isSuccess ? 'Your invoice is ready. Download or view it below.' : reason || 'We could not confirm your payment. Please try again.'}
+                                {statusCopy[resolvedStatus].message}
                             </p>
                         </div>
                     </div>
