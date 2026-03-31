@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils/currency'
 import { formatDate } from '@/lib/utils/date'
 import { Receipt, ChevronLeft, ChevronRight, CreditCard, CheckCircle, Clock, XCircle, AlertCircle } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 
 interface Payment {
     id: string
@@ -208,9 +207,9 @@ export default function MemberPayments() {
 
             {/* Contact to pay */}
             <div className="rounded-xl bg-gray-50 border border-gray-200 p-4 text-center">
-                <p className="text-sm font-medium text-gray-700">Need to make a payment?</p>
-                <p className="text-xs text-gray-500 mt-1">Contact the gym desk or call your gym directly to process your membership renewal.</p>
-                <a href="/member/support" className="mt-3 inline-block text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition-colors">
+                <p className="text-sm font-medium text-gray-700">Need to renew your membership?</p>
+                <p className="text-xs text-gray-500 mt-1">Open the plans page to pay online with Razorpay or contact support if you run into any payment issue.</p>
+                <a href="/member/plans" className="mt-3 inline-block text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition-colors">
                     Contact Support →
                 </a>
             </div>
