@@ -1,14 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { CheckCircle2, Zap, Star, Crown, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { createRazorpayOrder, verifyRazorpayPayment } from './actions'
+import { createRazorpayOrder, markRazorpayPaymentFailed, verifyRazorpayPayment } from './actions'
 
 declare global {
     interface Window {
         Razorpay?: new (options: RazorpayCheckoutOptions) => {
             open: () => void
+            on: (
+                event: 'payment.failed',
+                handler: (response: {
+                    error?: {
+                        description?: string
+                    }
+                }) => void
+            ) => void
         }
     }
 }
@@ -94,9 +103,12 @@ function loadRazorpayScript() {
 }
 
 export default function PlansClient({ plans, currentPlanId, membershipExpiry, memberStatus, referralCoinsBalance }: PlansClientProps) {
+    const router = useRouter()
     const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
     const [useReferralCoins, setUseReferralCoins] = useState(true)
     const [loading, setLoading] = useState(false)
+    const redirectHandledRef = useRef(false)
+    const failureReasonRef = useRef<string | null>(null)
 
     const isActive = memberStatus === 'active'
     const expiryDate = membershipExpiry ? new Date(membershipExpiry) : null
@@ -113,23 +125,27 @@ export default function PlansClient({ plans, currentPlanId, membershipExpiry, me
         }
 
         setLoading(true)
+        redirectHandledRef.current = false
+        failureReasonRef.current = null
 
         try {
             const orderResult = await createRazorpayOrder(selectedPlan.id, useReferralCoins)
 
             if ('error' in orderResult) {
+                setLoading(false)
                 toast.error(orderResult.error)
                 return
             }
 
             if (orderResult.amount === 0) {
-                toast.success(`Plan activated! Invoice: ${orderResult.invoiceNumber}.`)
                 setSelectedPlanId(null)
+                router.push(`/member/plans/result?status=success&invoice=${encodeURIComponent(orderResult.invoiceNumber)}`)
                 return
             }
 
             const sdkLoaded = await loadRazorpayScript()
             if (!sdkLoaded || !window.Razorpay) {
+                setLoading(false)
                 toast.error('Unable to load Razorpay checkout. Please try again.')
                 return
             }
@@ -150,11 +166,20 @@ export default function PlansClient({ plans, currentPlanId, membershipExpiry, me
                     color: '#10b981',
                 },
                 modal: {
-                    ondismiss: () => {
+                    ondismiss: async () => {
+                        if (redirectHandledRef.current) return
+                        redirectHandledRef.current = true
+                        const failureReason = failureReasonRef.current
+                        await markRazorpayPaymentFailed({
+                            razorpayOrderId: orderResult.orderId,
+                            reason: failureReason || 'Checkout window closed before payment completion.',
+                        })
                         setLoading(false)
+                        router.push(`/member/plans/result?status=failure&invoice=${encodeURIComponent(orderResult.invoiceNumber)}&reason=${encodeURIComponent(failureReason || 'Payment was cancelled before completion.')}`)
                     },
                 },
                 handler: async (response) => {
+                    failureReasonRef.current = null
                     const verifyResult = await verifyRazorpayPayment({
                         planId: selectedPlan.id,
                         razorpayOrderId: response.razorpay_order_id,
@@ -166,13 +191,25 @@ export default function PlansClient({ plans, currentPlanId, membershipExpiry, me
                     setLoading(false)
 
                     if ('error' in verifyResult) {
-                        toast.error(verifyResult.error)
+                        redirectHandledRef.current = true
+                        await markRazorpayPaymentFailed({
+                            razorpayOrderId: response.razorpay_order_id,
+                            reason: verifyResult.error,
+                        })
+                        router.push(`/member/plans/result?status=failure&invoice=${encodeURIComponent(orderResult.invoiceNumber)}&reason=${encodeURIComponent(verifyResult.error)}`)
                         return
                     }
 
-                    toast.success(`Plan purchased! Invoice: ${verifyResult.invoiceNumber}.`)
                     setSelectedPlanId(null)
+                    redirectHandledRef.current = true
+                    router.push(`/member/plans/result?status=success&invoice=${encodeURIComponent(verifyResult.invoiceNumber)}`)
                 },
+            })
+
+            razorpay.on('payment.failed', async (response) => {
+                if (redirectHandledRef.current) return
+                failureReasonRef.current = response.error?.description || 'Payment was declined by Razorpay.'
+                setLoading(false)
             })
 
             razorpay.open()

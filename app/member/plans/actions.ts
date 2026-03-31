@@ -41,6 +41,26 @@ type VerifyPaymentResult =
     | { success: true; invoiceNumber: string }
     | { error: string }
 
+type PaymentResultDetails =
+    | {
+        success: true
+        payment: {
+            amount: number
+            coinsUsed: number
+            invoiceNumber: string
+            membershipEndDate: string | null
+            membershipStartDate: string | null
+            originalPrice: number
+            paymentDate: string
+            paymentMethod: string
+            paymentStatus: 'paid' | 'pending' | 'failed' | 'refunded'
+            planName: string
+            razorpayOrderId: string | null
+            razorpayPaymentId: string | null
+        }
+    }
+    | { error: string }
+
 function getSupabaseAdmin() {
     return createAdminClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -403,5 +423,117 @@ export async function verifyRazorpayPayment(input: {
         return { success: true, invoiceNumber: existingPayment.invoice_number || context.invoiceNumber }
     } catch (error) {
         return { error: error instanceof Error ? error.message : 'Failed to verify payment' }
+    }
+}
+
+export async function markRazorpayPaymentFailed(input: {
+    razorpayOrderId: string
+    reason?: string
+}) {
+    try {
+        const supabase = await createClient()
+        const supabaseAdmin = getSupabaseAdmin()
+        const {
+            data: { user },
+            error: userError,
+        } = await supabase.auth.getUser()
+
+        if (userError || !user) {
+            return { error: 'Not authenticated' }
+        }
+
+        const { data: member } = await supabaseAdmin
+            .from('members')
+            .select('id')
+            .eq('user_id', user.id)
+            .single()
+
+        if (!member) {
+            return { error: 'Member record not found' }
+        }
+
+        const { error } = await supabaseAdmin
+            .from('payments')
+            .update({
+                payment_status: 'failed',
+                notes: input.reason
+                    ? `Razorpay payment failed or cancelled. Reason: ${input.reason}`
+                    : 'Razorpay payment failed or was cancelled by the user.',
+            })
+            .eq('member_id', member.id)
+            .eq('razorpay_order_id', input.razorpayOrderId)
+            .eq('payment_status', 'pending')
+
+        if (error) {
+            return { error: error.message }
+        }
+
+        revalidatePath('/member/payments')
+        revalidatePath('/member/plans')
+        return { success: true }
+    } catch (error) {
+        return { error: error instanceof Error ? error.message : 'Failed to update payment status' }
+    }
+}
+
+export async function getPaymentResult(invoiceNumber: string): Promise<PaymentResultDetails> {
+    try {
+        const supabase = await createClient()
+        const supabaseAdmin = getSupabaseAdmin()
+        const {
+            data: { user },
+            error: userError,
+        } = await supabase.auth.getUser()
+
+        if (userError || !user) {
+            return { error: 'Not authenticated' }
+        }
+
+        const { data: member } = await supabaseAdmin
+            .from('members')
+            .select('id')
+            .eq('user_id', user.id)
+            .single()
+
+        if (!member) {
+            return { error: 'Member record not found' }
+        }
+
+        const { data: payment } = await supabaseAdmin
+            .from('payments')
+            .select('amount, invoice_number, membership_start_date, membership_end_date, payment_date, payment_method, payment_status, razorpay_order_id, razorpay_payment_id, notes')
+            .eq('member_id', member.id)
+            .eq('invoice_number', invoiceNumber)
+            .maybeSingle()
+
+        if (!payment || !payment.invoice_number) {
+            return { error: 'Payment record not found' }
+        }
+
+        const planNameMatch = payment.notes?.match(/Razorpay purchase: (.+?)(?:\.|$)/)
+        const coinsMatch = payment.notes?.match(/Referral coins (?:used|reserved): (\d+)/)
+        const coinsUsed = coinsMatch ? Number(coinsMatch[1]) : 0
+        const finalAmount = Number(payment.amount)
+        const originalPrice = finalAmount + coinsUsed
+
+        return {
+            success: true,
+            payment: {
+                amount: finalAmount,
+                coinsUsed,
+                invoiceNumber: payment.invoice_number,
+                membershipEndDate: payment.membership_end_date,
+                membershipStartDate: payment.membership_start_date,
+                originalPrice,
+                paymentDate: payment.payment_date,
+                paymentMethod: payment.payment_method,
+                paymentStatus: payment.payment_status,
+                planName: planNameMatch?.[1] || 'Membership Plan',
+                razorpayOrderId: payment.razorpay_order_id,
+                razorpayPaymentId: payment.razorpay_payment_id,
+            },
+        }
+    } catch (error) {
+        return { error: error instanceof Error ? error.message : 'Failed to fetch payment result' }
     }
 }
