@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import type { InsertTables } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -72,14 +73,16 @@ export default function RegisterPage() {
             }
 
             // Create profile (member role by default)
+            const profilePayload: InsertTables<'profiles'> = {
+                id: authData.user.id,
+                role: 'member',
+                full_name: formData.fullName,
+                phone: formData.phone,
+            }
+
             const { error: profileError } = await supabase
                 .from('profiles')
-                .insert({
-                    id: authData.user.id,
-                    role: 'member',
-                    full_name: formData.fullName,
-                    phone: formData.phone,
-                })
+                .insert(profilePayload as never)
 
             if (profileError) throw profileError
 
