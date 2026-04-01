@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import type { Profile } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -40,9 +41,10 @@ export default function LoginPage() {
                 .from('profiles')
                 .select('role')
                 .eq('id', authData.user.id)
-                .single()
+                .single() as { data: Pick<Profile, 'role'> | null; error: unknown }
 
             if (profileError) throw profileError
+            if (!profile) throw new Error('Profile not found for this user.')
 
             // Redirect based on role
             if (profile.role === 'admin') {
