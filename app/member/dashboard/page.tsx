@@ -386,23 +386,27 @@ export default function MemberDashboard() {
                         </HoverBorderGradient>
                     </Link>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 items-stretch gap-3">
                         {[
                             { href: '/member/workout', icon: Dumbbell, label: 'Generate Workout', desc: 'AI-tailored weekly plan', color: 'bg-emerald-500', shadow: 'shadow-emerald-500/25' },
                             { href: '/member/nutrition', icon: Salad, label: 'Meal Plan', desc: '7-day nutrition planner', color: 'bg-orange-500', shadow: 'shadow-orange-500/25' },
                         ].map(({ href, icon: Icon, label, desc, color, shadow }) => (
-                            <Link key={href} href={href} className="block">
+                            <Link key={href} href={href} className="block h-full">
                                 <HoverBorderGradient
                                     duration={1.8}
-                                    containerClassName="group w-full rounded-2xl border-0 bg-transparent p-[1px] transition-transform duration-200 hover:-translate-y-0.5"
-                                    className="flex min-h-28 w-full flex-col items-center justify-center gap-4 rounded-2xl bg-white px-4 py-5 text-center shadow-sm"
+                                    containerClassName="group h-full w-full rounded-2xl border-0 bg-transparent p-[1px] transition-transform duration-200 hover:-translate-y-0.5"
+                                    className="flex h-full min-h-28 w-full flex-col items-center justify-center gap-4 rounded-2xl bg-white px-4 py-5 text-center shadow-sm"
                                 >
                                     <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${color} text-white shadow-md ${shadow} transition-transform group-hover:scale-105`}>
                                         <Icon className="h-5 w-5" />
                                     </div>
-                                    <div className="min-w-0 space-y-1">
-                                        <p className="text-sm font-semibold text-gray-900 leading-tight">{label}</p>
-                                        <p className="text-xs text-gray-400 leading-relaxed">{desc}</p>
+                                    <div className="grid min-h-[5.75rem] w-full grid-rows-[2.75rem_1fr] justify-items-center">
+                                        <p className="flex min-h-[2.75rem] items-center justify-center text-sm font-semibold leading-tight text-gray-900">
+                                            {label}
+                                        </p>
+                                        <p className="flex min-h-[3rem] items-start justify-center text-xs leading-relaxed text-gray-400">
+                                            {desc}
+                                        </p>
                                     </div>
                                 </HoverBorderGradient>
                             </Link>
