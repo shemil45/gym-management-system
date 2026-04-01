@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import type { InsertTables } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 
 export type ExpenseCategory =
@@ -26,12 +27,14 @@ export async function addExpense(formData: FormData) {
         return { error: 'Category, amount, and description are required' }
     }
 
-    const { error } = await supabase.from('expenses').insert({
+    const expensePayload: InsertTables<'expenses'> = {
         category,
         amount,
         description,
         expense_date,
-    })
+    }
+
+    const { error } = await supabase.from('expenses').insert(expensePayload as never)
 
     if (error) return { error: error.message }
 
