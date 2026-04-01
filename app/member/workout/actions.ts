@@ -20,9 +20,35 @@ type FitnessProfileRow = {
 }
 
 type VersionRow = { version: number }
-type SavedWorkoutPlanRow = { plan_data: unknown }
+type WorkoutExercise = {
+    name: string
+    sets: number
+    reps: string
+    rest_seconds: number
+    notes?: string
+}
 
-export async function generateWorkoutPlan() {
+type WorkoutDay = {
+    day: string
+    focus: string
+    exercises: WorkoutExercise[]
+}
+
+export type WorkoutPlan = {
+    summary: string
+    days: WorkoutDay[]
+}
+
+export type SavedWorkoutPlanRow = {
+    plan_data: WorkoutPlan
+    version: number
+}
+
+type GenerateWorkoutPlanResult =
+    | { success: true; plan: WorkoutPlan; version: number }
+    | { error: string }
+
+export async function generateWorkoutPlan(): Promise<GenerateWorkoutPlanResult> {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Not authenticated' }
@@ -62,7 +88,7 @@ Return a JSON object with this exact shape:
 Include exactly ${typedProfile.days_per_week} training days and add rest days as needed. Exercises should be appropriate for ${typedProfile.experience} level. Be specific with form notes.`
 
     try {
-        const plan = await generateJSON<unknown>(prompt)
+        const plan = await generateJSON<WorkoutPlan>(prompt)
 
         const { data: saved, error } = await db.from('workout_plans').insert({
             user_id: user.id,
@@ -80,7 +106,7 @@ Include exactly ${typedProfile.days_per_week} training days and add rest days as
     }
 }
 
-export async function getLatestWorkoutPlan() {
+export async function getLatestWorkoutPlan(): Promise<SavedWorkoutPlanRow | null> {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return null
@@ -92,7 +118,7 @@ export async function getLatestWorkoutPlan() {
         .order('version', { ascending: false })
         .limit(1)
 
-    return data?.[0] ?? null
+    return (data?.[0] as SavedWorkoutPlanRow | undefined) ?? null
 }
 
 export async function hasFitnessProfile(): Promise<boolean> {

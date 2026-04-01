@@ -1,7 +1,14 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import type { UpdateTables } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
+
+function getErrorMessage(error: unknown, fallback: string) {
+    return error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+        ? error.message
+        : fallback
+}
 
 export async function updateProfile(formData: FormData) {
     const supabase = await createClient()
@@ -15,10 +22,13 @@ export async function updateProfile(formData: FormData) {
 
     const { error } = await supabase
         .from('profiles')
-        .update({ full_name, phone: phone || null })
+        .update(({
+            full_name,
+            phone: phone || null,
+        } satisfies UpdateTables<'profiles'>) as never)
         .eq('id', user.id)
 
-    if (error) return { error: error.message }
+    if (error) return { error: getErrorMessage(error, 'Failed to update profile') }
 
     revalidatePath('/admin/settings')
     return { success: true }

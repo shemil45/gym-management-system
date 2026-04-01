@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import type { Profile } from '@/lib/types'
+import type { Profile, QueryResult } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -37,11 +37,12 @@ export default function LoginPage() {
             if (authError) throw authError
 
             // Get user profile to determine role
-            const { data: profile, error: profileError } = await supabase
+            const profileResult = await supabase
                 .from('profiles')
                 .select('role')
                 .eq('id', authData.user.id)
-                .single() as { data: Pick<Profile, 'role'> | null; error: unknown }
+                .single()
+            const { data: profile, error: profileError } = profileResult as unknown as QueryResult<Pick<Profile, 'role'> | null>
 
             if (profileError) throw profileError
             if (!profile) throw new Error('Profile not found for this user.')

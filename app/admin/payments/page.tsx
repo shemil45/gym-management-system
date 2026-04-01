@@ -1,11 +1,35 @@
 import { createClient } from '@/lib/supabase/server'
+import type { QueryResult } from '@/lib/types'
 import PaymentsTable from '@/components/tables/PaymentsTable'
+
+type PaymentSummaryRow = {
+    amount: number
+}
+
+type PaymentTableRow = {
+    id: string
+    member_id: string
+    amount: number
+    payment_method: 'cash' | 'card' | 'upi' | 'bank_transfer' | 'online'
+    payment_status: 'paid' | 'pending' | 'failed' | 'refunded'
+    payment_date: string
+    invoice_number: string | null
+    notes: string | null
+    created_at: string
+    member: {
+        id: string
+        member_id: string
+        full_name: string
+        photo_url: string | null
+        membership_plan: { name: string } | null
+    } | null
+}
 
 export default async function PaymentsPage() {
     const supabase = await createClient()
 
     // Fetch payments with member details, newest records first
-    const { data: payments } = await supabase
+    const paymentsResult = await supabase
         .from('payments')
         .select(`
             *,
@@ -19,6 +43,7 @@ export default async function PaymentsPage() {
         `)
         .order('created_at', { ascending: false })
         .limit(500)
+    const { data: payments } = paymentsResult as unknown as QueryResult<PaymentTableRow[] | null>
 
     // Totals for stats
     const today = new Date().toISOString().split('T')[0]
@@ -26,17 +51,19 @@ export default async function PaymentsPage() {
         .toISOString()
         .split('T')[0]
 
-    const { data: todayPayments } = await supabase
+    const todayPaymentsResult = await supabase
         .from('payments')
         .select('amount')
         .eq('payment_status', 'paid')
         .eq('payment_date', today)
+    const { data: todayPayments } = todayPaymentsResult as unknown as QueryResult<PaymentSummaryRow[] | null>
 
-    const { data: monthPayments } = await supabase
+    const monthPaymentsResult = await supabase
         .from('payments')
         .select('amount')
         .eq('payment_status', 'paid')
         .gte('payment_date', monthStart)
+    const { data: monthPayments } = monthPaymentsResult as unknown as QueryResult<PaymentSummaryRow[] | null>
 
     const todayTotal = (todayPayments ?? []).reduce((s, p) => s + Number(p.amount), 0)
     const monthTotal = (monthPayments ?? []).reduce((s, p) => s + Number(p.amount), 0)

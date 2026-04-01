@@ -19,9 +19,42 @@ type FitnessProfileRow = {
 }
 
 type VersionRow = { version: number }
-type SavedNutritionPlanRow = { plan_data: unknown }
+type NutritionMeal = {
+    name: string
+    calories: number
+    protein_g: number
+    description: string
+}
 
-export async function generateNutritionPlan() {
+export type NutritionPlan = {
+    summary: string
+    daily_calories: number
+    protein_g: number
+    carbs_g: number
+    fat_g: number
+    days: {
+        day: string
+        meals: {
+            breakfast: NutritionMeal
+            lunch: NutritionMeal
+            dinner: NutritionMeal
+            snacks: NutritionMeal
+        }
+        total_calories: number
+        total_protein_g: number
+    }[]
+}
+
+export type SavedNutritionPlanRow = {
+    plan_data: NutritionPlan
+    version: number
+}
+
+type GenerateNutritionPlanResult =
+    | { success: true; plan: NutritionPlan; version: number }
+    | { error: string }
+
+export async function generateNutritionPlan(): Promise<GenerateNutritionPlanResult> {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Not authenticated' }
@@ -65,7 +98,7 @@ Return JSON with this exact shape:
 }`
 
     try {
-        const plan = await generateJSON<unknown>(prompt)
+        const plan = await generateJSON<NutritionPlan>(prompt)
         const { data: saved, error } = await db.from('nutrition_plans').insert({
             user_id: user.id,
             version: nextVersion,
@@ -82,7 +115,7 @@ Return JSON with this exact shape:
     }
 }
 
-export async function getLatestNutritionPlan() {
+export async function getLatestNutritionPlan(): Promise<SavedNutritionPlanRow | null> {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return null
@@ -94,5 +127,5 @@ export async function getLatestNutritionPlan() {
         .order('version', { ascending: false })
         .limit(1)
 
-    return data?.[0] ?? null
+    return (data?.[0] as SavedNutritionPlanRow | undefined) ?? null
 }

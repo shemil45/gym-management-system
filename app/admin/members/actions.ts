@@ -2,17 +2,31 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import type { InsertTables, QueryResult, UpdateTables } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
+
+type MemberIdRow = Pick<InsertTables<'members'>, 'member_id'>
+type PlanLookup = Pick<InsertTables<'membership_plans'>, 'duration_days' | 'price'>
+type ReferrerLookup = { id: string }
+type CreatedMember = { id: string }
+
+function getErrorMessage(error: unknown, fallback: string) {
+    return error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+        ? error.message
+        : fallback
+}
 
 export async function generateNextMemberId(): Promise<string> {
     const supabase = await createClient()
 
     // Only look at properly formatted GYM### IDs to avoid picking up numbers from mock/legacy data
-    const { data: members } = await supabase
+    const membersResult = await supabase
         .from('members')
         .select('member_id')
         .like('member_id', 'GYM%')
         .order('member_id', { ascending: false })
+
+    const { data: members } = membersResult as unknown as QueryResult<MemberIdRow[] | null>
 
     if (!members || members.length === 0) {
         return 'GYM001'
@@ -43,11 +57,13 @@ export async function createMember(formData: FormData) {
 
         // Get plan details
         const planId = formData.get('membership_plan_id') as string
-        const { data: plan } = await supabase
+        const planResult = await supabase
             .from('membership_plans')
             .select('duration_days, price')
             .eq('id', planId)
             .single()
+
+        const { data: plan } = planResult as unknown as QueryResult<PlanLookup | null>
 
         if (!plan) {
             return { error: 'Invalid membership plan' }
@@ -62,11 +78,12 @@ export async function createMember(formData: FormData) {
         const rawCode = (formData.get('referral_code') as string | null)?.trim().toUpperCase()
         let referrerId: string | null = null
         if (rawCode) {
-            const { data: referrer } = await supabase
+            const referrerResult = await supabase
                 .from('members')
                 .select('id')
                 .eq('member_id', rawCode)
                 .single()
+            const { data: referrer } = referrerResult as unknown as QueryResult<ReferrerLookup | null>
             if (!referrer) {
                 return { error: `Referral code "${rawCode}" is not valid. Please check the member ID.` }
             }
@@ -74,55 +91,65 @@ export async function createMember(formData: FormData) {
         }
 
         // Create member
-        const { data: member, error: memberError } = await supabase
+        const memberPayload: InsertTables<'members'> = {
+            member_id: memberId,
+            full_name: formData.get('full_name') as string,
+            email: formData.get('email') as string,
+            phone: formData.get('phone') as string,
+            date_of_birth: (formData.get('date_of_birth') as string) || null,
+            gender: ((formData.get('gender') as string) || null) as InsertTables<'members'>['gender'],
+            address: (formData.get('address') as string) || null,
+            emergency_contact_name: (formData.get('emergency_contact_name') as string) || null,
+            emergency_contact_phone: (formData.get('emergency_contact_phone') as string) || null,
+            membership_plan_id: planId,
+            membership_start_date: startDate.toISOString().split('T')[0],
+            membership_expiry_date: expiryDate.toISOString().split('T')[0],
+            status: 'active',
+            referred_by: referrerId,
+        }
+
+        const memberInsertResult = await supabase
             .from('members')
-            .insert({
-                member_id: memberId,
-                full_name: formData.get('full_name') as string,
-                email: formData.get('email') as string,
-                phone: formData.get('phone') as string,
-                date_of_birth: (formData.get('date_of_birth') as string) || null,
-                gender: (formData.get('gender') as string) || null,
-                address: (formData.get('address') as string) || null,
-                emergency_contact_name: (formData.get('emergency_contact_name') as string) || null,
-                emergency_contact_phone: (formData.get('emergency_contact_phone') as string) || null,
-                membership_plan_id: planId,
-                membership_start_date: startDate.toISOString().split('T')[0],
-                membership_expiry_date: expiryDate.toISOString().split('T')[0],
-                status: 'active',
-                referred_by: referrerId,
-            })
+            .insert(memberPayload as never)
             .select()
             .single()
 
+        const { data: member, error: memberError } = memberInsertResult as unknown as QueryResult<CreatedMember | null>
+
         if (memberError) {
-            return { error: memberError.message }
+            return { error: getErrorMessage(memberError, 'Failed to create member') }
+        }
+        if (!member) {
+            return { error: 'Member record was not returned after creation' }
         }
 
         // Create initial payment record
+        const paymentPayload: InsertTables<'payments'> = {
+            member_id: member.id,
+            amount: Number(formData.get('payment_amount') as string),
+            payment_method: (formData.get('payment_method') as string) as InsertTables<'payments'>['payment_method'],
+            payment_date: new Date().toISOString().split('T')[0],
+            notes: 'Initial membership fee',
+        }
+
         const { error: paymentError } = await supabase
             .from('payments')
-            .insert({
-                member_id: member.id,
-                amount: formData.get('payment_amount') as string,
-                payment_method: formData.get('payment_method') as string,
-                payment_date: new Date().toISOString().split('T')[0],
-                payment_type: 'membership_fee',
-                description: `Initial membership fee`,
-            })
+            .insert(paymentPayload as never)
 
         if (paymentError) {
-            return { error: paymentError.message }
+            return { error: getErrorMessage(paymentError, 'Failed to create initial payment record') }
         }
 
         // If referred, create a referral record
         if (referrerId) {
-            await supabase.from('referrals').insert({
+            const referralPayload: InsertTables<'referrals'> = {
                 referrer_id: referrerId,
                 referred_id: member.id,
                 referral_code: rawCode,
                 status: 'pending',
-            })
+            }
+
+            await supabase.from('referrals').insert(referralPayload as never)
         }
 
         revalidatePath('/admin/members')
@@ -151,11 +178,12 @@ export async function updateMember(formData: FormData) {
 
         let membershipExpiryDate: string | null = null
         if (planId && startDateValue) {
-            const { data: plan } = await supabase
+            const planResult = await supabase
                 .from('membership_plans')
                 .select('duration_days')
                 .eq('id', planId)
                 .single()
+            const { data: plan } = planResult as unknown as QueryResult<Pick<InsertTables<'membership_plans'>, 'duration_days'> | null>
 
             if (!plan) {
                 return { error: 'Invalid membership plan' }
@@ -178,7 +206,7 @@ export async function updateMember(formData: FormData) {
                 .upload(fileName, photoFile, { upsert: true })
 
             if (uploadError) {
-                return { error: uploadError.message }
+                return { error: getErrorMessage(uploadError, 'Failed to upload member photo') }
             }
 
             const { data: { publicUrl } } = supabaseAdmin.storage
@@ -188,27 +216,29 @@ export async function updateMember(formData: FormData) {
             photoUrl = publicUrl
         }
 
+        const updatePayload: UpdateTables<'members'> = {
+            full_name: formData.get('full_name') as string,
+            email: (formData.get('email') as string) || null,
+            phone: formData.get('phone') as string,
+            date_of_birth: (formData.get('date_of_birth') as string) || null,
+            gender: ((formData.get('gender') as string) || null) as UpdateTables<'members'>['gender'],
+            address: (formData.get('address') as string) || null,
+            emergency_contact_name: (formData.get('emergency_contact_name') as string) || null,
+            emergency_contact_phone: (formData.get('emergency_contact_phone') as string) || null,
+            membership_plan_id: planId,
+            membership_start_date: startDateValue,
+            membership_expiry_date: membershipExpiryDate,
+            status: (formData.get('status') as string) as UpdateTables<'members'>['status'],
+            photo_url: photoUrl,
+        }
+
         const { error } = await supabase
             .from('members')
-            .update({
-                full_name: formData.get('full_name') as string,
-                email: (formData.get('email') as string) || null,
-                phone: formData.get('phone') as string,
-                date_of_birth: (formData.get('date_of_birth') as string) || null,
-                gender: (formData.get('gender') as string) || null,
-                address: (formData.get('address') as string) || null,
-                emergency_contact_name: (formData.get('emergency_contact_name') as string) || null,
-                emergency_contact_phone: (formData.get('emergency_contact_phone') as string) || null,
-                membership_plan_id: planId,
-                membership_start_date: startDateValue,
-                membership_expiry_date: membershipExpiryDate,
-                status: formData.get('status') as string,
-                photo_url: photoUrl,
-            })
+            .update(updatePayload as never)
             .eq('id', memberId)
 
         if (error) {
-            return { error: error.message }
+            return { error: getErrorMessage(error, 'Failed to update member') }
         }
 
         revalidatePath('/admin/members')

@@ -3,7 +3,14 @@
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { generateNextMemberId } from '@/app/admin/members/actions'
+import type { InsertTables, QueryResult, UpdateTables } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
+
+function getErrorMessage(error: unknown, fallback: string) {
+    return error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+        ? error.message
+        : fallback
+}
 
 export async function completeMemberProfile(formData: FormData) {
     const supabase = await createClient()
@@ -40,14 +47,15 @@ export async function completeMemberProfile(formData: FormData) {
         }
 
         // Get basic info from profiles
-        const { data: profile, error: profileFetchError } = await supabaseAdmin
+        const profileResult = await supabaseAdmin
             .from('profiles')
             .select('full_name, phone')
             .eq('id', user.id)
             .single()
+        const { data: profile, error: profileFetchError } = profileResult as unknown as QueryResult<ProfileRow | null>
 
         if (profileFetchError || !profile) {
-            return { error: `Profile not found: ${profileFetchError?.message}` }
+            return { error: `Profile not found: ${getErrorMessage(profileFetchError, 'Unable to load profile')}` }
         }
 
         // Handle Photo Upload if present
@@ -66,85 +74,95 @@ export async function completeMemberProfile(formData: FormData) {
                     .from('avatars')
                     .getPublicUrl(fileName)
                 photoUrl = publicUrl
-                await supabaseAdmin.from('profiles').update({ photo_url: photoUrl }).eq('id', user.id)
+                await supabaseAdmin
+                    .from('profiles')
+                    .update(({ photo_url: photoUrl } satisfies UpdateTables<'profiles'>) as never)
+                    .eq('id', user.id)
             } else {
-                console.error('Photo upload failed:', uploadError.message)
+                console.error('Photo upload failed:', getErrorMessage(uploadError, 'Unknown upload error'))
             }
         }
 
         // Generate a unique member ID with a timestamp fallback to prevent collisions
         let memberId = await generateNextMemberId()
         // Append timestamp suffix to guarantee uniqueness across concurrent inserts
-        const { data: conflict } = await supabaseAdmin
+        const conflictResult = await supabaseAdmin
             .from('members')
             .select('id')
             .eq('member_id', memberId)
             .single()
+        const { data: conflict } = conflictResult as unknown as QueryResult<{ id: string } | null>
         if (conflict) {
             memberId = `GYM-${Date.now()}`
         }
 
         // Insert into members table using admin client (bypasses RLS)
+        const memberPayload: InsertTables<'members'> = {
+            user_id: user.id,
+            member_id: memberId,
+            full_name: profile.full_name,
+            email: user.email,
+            phone: profile.phone || '',
+            photo_url: photoUrl,
+            date_of_birth: (formData.get('date_of_birth') as string) || null,
+            gender: ((formData.get('gender') as string) || null) as InsertTables<'members'>['gender'],
+            address: (formData.get('address') as string) || null,
+            emergency_contact_name: (formData.get('emergency_contact_name') as string) || null,
+            emergency_contact_phone: (formData.get('emergency_contact_phone') as string) || null,
+            status: 'inactive',
+            membership_plan_id: null,
+            membership_start_date: null,
+            membership_expiry_date: null,
+            referred_by: null,
+        }
+
         const { error: memberError } = await supabaseAdmin
             .from('members')
-            .insert({
-                user_id: user.id,
-                member_id: memberId,
-                full_name: (profile as ProfileRow).full_name,
-                email: user.email,
-                phone: (profile as ProfileRow).phone || '',
-                photo_url: photoUrl,
-                date_of_birth: (formData.get('date_of_birth') as string) || null,
-                gender: (formData.get('gender') as string) || null,
-                address: (formData.get('address') as string) || null,
-                emergency_contact_name: (formData.get('emergency_contact_name') as string) || null,
-                emergency_contact_phone: (formData.get('emergency_contact_phone') as string) || null,
-                status: 'inactive',
-                membership_plan_id: null,
-                membership_start_date: null,
-                membership_expiry_date: null,
-                referred_by: null, // will be patched below after referral lookup
-            })
+            .insert(memberPayload as never)
 
         if (memberError) {
-            console.error('Member insert failed:', memberError.message)
-            return { error: `Failed to create member: ${memberError.message}` }
+            const memberErrorMessage = getErrorMessage(memberError, 'Unknown member insert error')
+            console.error('Member insert failed:', memberErrorMessage)
+            return { error: `Failed to create member: ${memberErrorMessage}` }
         }
 
         // Handle referral code
         const rawCode = (formData.get('referral_code') as string | null)?.trim().toUpperCase()
         if (rawCode) {
-            const { data: referrer } = await supabaseAdmin
+            const referrerResult = await supabaseAdmin
                 .from('members')
                 .select('id')
                 .eq('member_id', rawCode)
                 .single()
+            const { data: referrer } = referrerResult as unknown as QueryResult<{ id: string } | null>
 
             if (!referrer) {
                 // Non-fatal: member is created, just skip referral linkage
                 console.warn(`Referral code "${rawCode}" not found; skipping referral.`)
             } else {
                 // Fetch the newly created member's id
-                const { data: newMember } = await supabaseAdmin
+                const newMemberResult = await supabaseAdmin
                     .from('members')
                     .select('id')
                     .eq('user_id', user.id)
                     .single()
+                const { data: newMember } = newMemberResult as unknown as QueryResult<{ id: string } | null>
 
                 if (newMember) {
                     // Set referred_by on the new member
                     await supabaseAdmin
                         .from('members')
-                        .update({ referred_by: referrer.id })
+                        .update(({ referred_by: referrer.id } satisfies UpdateTables<'members'>) as never)
                         .eq('id', newMember.id)
 
                     // Create a referral record
-                    await supabaseAdmin.from('referrals').insert({
+                    const referralPayload: InsertTables<'referrals'> = {
                         referrer_id: referrer.id,
                         referred_id: newMember.id,
                         referral_code: rawCode,
                         status: 'pending',
-                    })
+                    }
+                    await supabaseAdmin.from('referrals').insert(referralPayload as never)
                 }
             }
         }

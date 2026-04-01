@@ -1,7 +1,14 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import type { InsertTables, QueryResult, UpdateTables } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
+
+function getErrorMessage(error: unknown, fallback: string) {
+    return error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+        ? error.message
+        : fallback
+}
 
 export async function recordPayment(formData: FormData) {
     const supabase = await createClient()
@@ -28,19 +35,21 @@ export async function recordPayment(formData: FormData) {
         let membershipEndDate: string | null = null
 
         if (renewMembership && planId && paymentStatus === 'paid') {
-            const { data: member, error: memberError } = await supabase
+            const memberResult = await supabase
                 .from('members')
                 .select('membership_expiry_date')
                 .eq('id', memberId)
                 .single()
+            const { data: member, error: memberError } = memberResult as unknown as QueryResult<{ membership_expiry_date: string | null } | null>
 
-            if (memberError) return { error: memberError.message }
+            if (memberError) return { error: getErrorMessage(memberError, 'Failed to fetch member details') }
 
-            const { data: plan } = await supabase
+            const planResult = await supabase
                 .from('membership_plans')
                 .select('duration_days')
                 .eq('id', planId)
                 .single()
+            const { data: plan } = planResult as unknown as QueryResult<{ duration_days: number } | null>
 
             if (plan) {
                 const paymentStartDate = new Date(paymentDate)
@@ -57,11 +66,11 @@ export async function recordPayment(formData: FormData) {
         }
 
         // Build payment insert payload
-        const paymentPayload: Record<string, unknown> = {
+        const paymentPayload: InsertTables<'payments'> = {
             member_id: memberId,
             amount,
-            payment_method: paymentMethod,
-            payment_status: paymentStatus,
+            payment_method: paymentMethod as InsertTables<'payments'>['payment_method'],
+            payment_status: paymentStatus as InsertTables<'payments'>['payment_status'],
             payment_date: paymentDate,
             invoice_number: invoiceNumber,
             notes,
@@ -71,22 +80,22 @@ export async function recordPayment(formData: FormData) {
 
         const { error: paymentError } = await supabase
             .from('payments')
-            .insert(paymentPayload)
+            .insert(paymentPayload as never)
 
-        if (paymentError) return { error: paymentError.message }
+        if (paymentError) return { error: getErrorMessage(paymentError, 'Failed to record payment') }
 
         if (renewMembership && planId && paymentStatus === 'paid' && membershipStartDate && membershipEndDate) {
             const { error: updateMemberError } = await supabase
                 .from('members')
-                .update({
+                .update(({
                     membership_plan_id: planId,
                     membership_start_date: membershipStartDate,
                     membership_expiry_date: membershipEndDate,
                     status: 'active',
-                })
+                } satisfies UpdateTables<'members'>) as never)
                 .eq('id', memberId)
 
-            if (updateMemberError) return { error: updateMemberError.message }
+            if (updateMemberError) return { error: getErrorMessage(updateMemberError, 'Failed to update member membership') }
         }
 
         revalidatePath('/admin/payments')

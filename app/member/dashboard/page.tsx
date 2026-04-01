@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import type { QueryResult } from '@/lib/types'
 import { formatDate } from '@/lib/utils/date'
 import { formatCurrency } from '@/lib/utils/currency'
 import {
@@ -105,11 +106,12 @@ export default function MemberDashboard() {
             const { data: { user } } = await supabase.auth.getUser()
             if (!user) return
 
-            const { data: member } = await supabase
+            const memberResult = await supabase
                 .from('members')
                 .select('*, membership_plan:membership_plans(name, price, duration_days)')
                 .eq('user_id', user.id)
-                .single() as { data: MemberQueryRow | null, error: unknown }
+                .single()
+            const { data: member } = memberResult as unknown as QueryResult<MemberQueryRow | null>
 
             if (!member) { setLoading(false); return }
 
@@ -117,26 +119,36 @@ export default function MemberDashboard() {
             const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
             const [
-                { count: totalVisitsThisMonth },
-                { count: totalVisitsAllTime },
-                { data: recentCheckIns },
-                { data: lastPaymentData },
-                { count: fitnessProfileCount },
-                { count: workoutPlanCount },
-                { count: nutritionPlanCount },
+                totalVisitsThisMonthResult,
+                totalVisitsAllTimeResult,
+                recentCheckInsResult,
+                lastPaymentResult,
+                fitnessProfileCountResult,
+                workoutPlanCountResult,
+                nutritionPlanCountResult,
             ] = await Promise.all([
                 supabase.from('check_ins').select('*', { count: 'exact', head: true }).eq('member_id', member.id).gte('check_in_time', monthStart),
                 supabase.from('check_ins').select('*', { count: 'exact', head: true }).eq('member_id', member.id),
-                supabase.from('check_ins').select('check_in_time').eq('member_id', member.id).order('check_in_time', { ascending: false }).limit(60) as { data: CheckInTimeRow[] | null, error: unknown },
-                supabase.from('payments').select('amount, payment_date').eq('member_id', member.id).eq('payment_status', 'paid').order('payment_date', { ascending: false }).limit(1) as { data: LastPaymentRow[] | null, error: unknown },
+                supabase.from('check_ins').select('check_in_time').eq('member_id', member.id).order('check_in_time', { ascending: false }).limit(60),
+                supabase.from('payments').select('amount, payment_date').eq('member_id', member.id).eq('payment_status', 'paid').order('payment_date', { ascending: false }).limit(1),
                 supabase.from('fitness_profiles').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
                 supabase.from('workout_plans').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
                 supabase.from('nutrition_plans').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
             ])
 
+            const { count: totalVisitsThisMonth } = totalVisitsThisMonthResult
+            const { count: totalVisitsAllTime } = totalVisitsAllTimeResult
+            const { data: recentCheckIns } = recentCheckInsResult as unknown as QueryResult<CheckInTimeRow[] | null>
+            const { data: lastPaymentData } = lastPaymentResult as unknown as QueryResult<LastPaymentRow[] | null>
+            const { count: fitnessProfileCount } = fitnessProfileCountResult
+            const { count: workoutPlanCount } = workoutPlanCountResult
+            const { count: nutritionPlanCount } = nutritionPlanCountResult
+            const recentCheckInsList = recentCheckIns ?? []
+            const lastPaymentList = lastPaymentData ?? []
+
             let streak = 0
-            if (recentCheckIns?.length > 0) {
-                const dates = [...new Set(recentCheckIns.map((c) => new Date(c.check_in_time).toISOString().split('T')[0]))].sort().reverse()
+            if (recentCheckInsList.length > 0) {
+                const dates = [...new Set(recentCheckInsList.map((c) => new Date(c.check_in_time).toISOString().split('T')[0]))].sort().reverse()
                 const today = new Date().toISOString().split('T')[0]
                 const yesterday = new Date()
                 yesterday.setDate(yesterday.getDate() - 1)
@@ -160,9 +172,9 @@ export default function MemberDashboard() {
                 status: member.status,
                 totalVisitsThisMonth: totalVisitsThisMonth || 0,
                 totalVisitsAllTime: totalVisitsAllTime || 0,
-                lastCheckIn: recentCheckIns?.[0]?.check_in_time || null,
+                lastCheckIn: recentCheckInsList[0]?.check_in_time || null,
                 currentStreak: streak,
-                lastPayment: lastPaymentData?.[0] || null,
+                lastPayment: lastPaymentList[0] || null,
                 onboardingDone: {
                     profile: (fitnessProfileCount || 0) > 0,
                     workout: (workoutPlanCount || 0) > 0,

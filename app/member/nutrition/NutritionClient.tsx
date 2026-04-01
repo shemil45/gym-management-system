@@ -73,7 +73,7 @@ export default function NutritionClient({ hasProfile, savedPlan, savedVersion }:
         setLoading(true)
         const result = await generateNutritionPlan()
         setLoading(false)
-        if (result?.error) {
+        if ('error' in result) {
             toast.error(result.error)
         } else {
             setPlan(result.plan)

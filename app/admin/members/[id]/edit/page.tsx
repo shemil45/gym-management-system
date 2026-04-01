@@ -2,11 +2,27 @@ import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import EditMemberForm from '@/components/forms/EditMemberForm'
 
+type EditableMember = {
+    id: string
+    full_name: string
+    email: string | null
+    phone: string
+    photo_url: string | null
+    date_of_birth: string | null
+    gender: 'male' | 'female' | 'other' | null
+    address: string | null
+    emergency_contact_name: string | null
+    emergency_contact_phone: string | null
+    membership_plan_id: string | null
+    membership_start_date: string | null
+    status: string
+}
+
 export default async function EditMemberPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
     const supabase = await createClient()
 
-    const [{ data: member }, { data: plans }] = await Promise.all([
+    const [memberResult, plansResult] = await Promise.all([
         supabase
             .from('members')
             .select(`
@@ -31,6 +47,9 @@ export default async function EditMemberPage({ params }: { params: Promise<{ id:
             .select('id, name')
             .order('name'),
     ])
+
+    const { data: member } = memberResult as unknown as { data: EditableMember | null; error: unknown }
+    const { data: plans } = plansResult
 
     if (!member) {
         notFound()

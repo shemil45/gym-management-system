@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import type { InsertTables, UpdateTables } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 
 export async function createPlan(formData: FormData) {
@@ -15,9 +16,15 @@ export async function createPlan(formData: FormData) {
     if (!price || price <= 0) return { error: 'Enter a valid price' }
     if (!duration_days || duration_days <= 0) return { error: 'Enter a valid duration' }
 
-    const { error } = await supabase.from('membership_plans').insert({
-        name, price, duration_days, description, is_active: true,
-    })
+    const payload: InsertTables<'membership_plans'> = {
+        name,
+        price,
+        duration_days,
+        description,
+        is_active: true,
+    }
+
+    const { error } = await supabase.from('membership_plans').insert(payload as never)
 
     if (error) return { error: error.message }
     revalidatePath('/admin/plans')
@@ -40,7 +47,12 @@ export async function updatePlan(formData: FormData) {
 
     const { error } = await supabase
         .from('membership_plans')
-        .update({ name, price, duration_days, description })
+        .update(({
+            name,
+            price,
+            duration_days,
+            description,
+        } satisfies UpdateTables<'membership_plans'>) as never)
         .eq('id', id)
 
     if (error) return { error: error.message }
@@ -52,7 +64,7 @@ export async function togglePlanStatus(id: string, isActive: boolean) {
     const supabase = await createClient()
     const { error } = await supabase
         .from('membership_plans')
-        .update({ is_active: isActive })
+        .update(({ is_active: isActive } satisfies UpdateTables<'membership_plans'>) as never)
         .eq('id', id)
 
     if (error) return { error: error.message }

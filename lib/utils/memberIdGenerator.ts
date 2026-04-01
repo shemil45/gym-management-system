@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import type { QueryResult } from '@/lib/types'
 
 /**
  * Generate next member ID in sequence (GYM001, GYM002, etc.)
@@ -7,12 +8,14 @@ export async function generateMemberId(): Promise<string> {
     const supabase = await createClient()
 
     // Get the latest member ID
-    const { data: latestMember } = await supabase
+    const latestMemberResult = await supabase
         .from('members')
         .select('member_id')
         .order('created_at', { ascending: false })
         .limit(1)
         .single()
+
+    const { data: latestMember } = latestMemberResult as unknown as QueryResult<{ member_id: string } | null>
 
     if (!latestMember) {
         // First member

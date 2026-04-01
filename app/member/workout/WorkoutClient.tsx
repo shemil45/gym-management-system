@@ -5,26 +5,8 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import { Loader2, Zap, RefreshCw, Dumbbell } from 'lucide-react'
 import { generateWorkoutPlan } from './actions'
+import type { WorkoutPlan } from './actions'
 import { Button } from '@/components/ui/button'
-
-interface Exercise {
-    name: string
-    sets: number
-    reps: string
-    rest_seconds: number
-    notes?: string
-}
-
-interface Day {
-    day: string
-    focus: string
-    exercises: Exercise[]
-}
-
-interface WorkoutPlan {
-    summary: string
-    days: Day[]
-}
 
 interface Props {
     hasProfile: boolean
@@ -34,7 +16,7 @@ interface Props {
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
-function getDefaultDayIndex(days: Day[]): number {
+function getDefaultDayIndex(days: WorkoutPlan['days']): number {
     if (days.length === 0) return 0
 
     const todayName = WEEKDAY_NAMES[new Date().getDay()].toLowerCase()
@@ -55,7 +37,7 @@ export default function WorkoutClient({ hasProfile, savedPlan, savedVersion }: P
         setLoading(true)
         const result = await generateWorkoutPlan()
         setLoading(false)
-        if (result?.error) {
+        if ('error' in result) {
             toast.error(result.error)
         } else {
             setPlan(result.plan)

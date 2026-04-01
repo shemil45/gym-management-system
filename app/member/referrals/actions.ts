@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import type { QueryResult } from '@/lib/types'
 
 export interface ReferralRow {
     id: string
@@ -43,7 +44,12 @@ export async function fetchMemberReferrals(): Promise<ReferralPageData | null> {
         .single()
 
     let member: { id: string; member_id: string; full_name: string; referral_coins_balance?: number } | null =
-        memberWithCoinsResult.data as { id: string; member_id: string; full_name: string; referral_coins_balance?: number } | null
+        (memberWithCoinsResult as unknown as QueryResult<{
+            id: string
+            member_id: string
+            full_name: string
+            referral_coins_balance?: number
+        } | null>).data
 
     // Fallback for environments where the referral coins migration has not been applied yet.
     if (!member) {
@@ -53,28 +59,31 @@ export async function fetchMemberReferrals(): Promise<ReferralPageData | null> {
             .eq('user_id', user.id)
             .single()
 
-        member = memberFallbackResult.data as { id: string; member_id: string; full_name: string } | null
+        member = (memberFallbackResult as unknown as QueryResult<{
+            id: string
+            member_id: string
+            full_name: string
+        } | null>).data
     }
 
     if (!member) return null
 
     // Fetch referrals with the referred member's name (admin bypasses RLS on the join)
-    const { data: referrals } = await admin
+    const referralsResult = await admin
         .from('referrals')
         .select(`
             id, status, created_at,
             referred:members!referrals_referred_id_fkey(full_name)
         `)
         .eq('referrer_id', member.id)
-        .order('created_at', { ascending: false }) as {
-            data: {
-                id: string
-                status: 'pending' | 'applied' | 'expired'
-                created_at: string
-                referred: { full_name: string } | null
-            }[] | null,
-            error: unknown
-        }
+        .order('created_at', { ascending: false })
+
+    const { data: referrals } = referralsResult as unknown as QueryResult<{
+        id: string
+        status: 'pending' | 'applied' | 'expired'
+        created_at: string
+        referred: { full_name: string } | null
+    }[] | null>
 
     const refs = referrals || []
     const totalCoinsEarned = refs.filter(r => r.status === 'applied').length * 500

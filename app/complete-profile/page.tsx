@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import type { QueryResult } from '@/lib/types'
 import CompleteProfileForm from './CompleteProfileForm'
 
 type ProfileRole = { role: 'admin' | 'member' }
@@ -14,19 +15,21 @@ export default async function CompleteProfilePage() {
     }
 
     // Check if the member profile is already complete
-    const { data: member } = await supabase
+    const memberResult = await supabase
         .from('members')
         .select('id')
         .eq('user_id', user.id)
         .single()
+    const { data: member } = memberResult as unknown as QueryResult<{ id: string } | null>
 
     if (member) {
         // Find role to redirect appropriately
-        const { data: profile } = await supabase
+        const profileResult = await supabase
             .from('profiles')
             .select('role')
             .eq('id', user.id)
-            .single() as { data: ProfileRole | null; error: unknown }
+            .single()
+        const { data: profile } = profileResult as unknown as QueryResult<ProfileRole | null>
         
         if (profile?.role === 'admin') {
             redirect('/admin/dashboard')

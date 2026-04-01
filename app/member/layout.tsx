@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import type { QueryResult } from '@/lib/types'
 import MemberSidebar from '@/components/layout/MemberSidebar'
 import MemberHeader from '@/components/layout/MemberHeader'
 import { SidebarProvider } from '@/components/layout/SidebarContext'
@@ -20,22 +21,28 @@ export default async function MemberLayout({
         redirect('/login')
     }
 
-    const { data: profile } = await supabase
+    const profileResult = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .single() as { data: { role: 'admin' | 'member'; full_name: string; photo_url: string | null } | null, error: unknown }
+        .single()
+    const { data: profile } = profileResult as unknown as QueryResult<{
+        role: 'admin' | 'member'
+        full_name: string
+        photo_url: string | null
+    } | null>
 
     if (!profile || profile.role !== 'member') {
         redirect('/admin/dashboard')
     }
 
     // Get member record for member_id
-    const { data: member } = await supabase
+    const memberResult = await supabase
         .from('members')
         .select('*')
         .eq('user_id', user.id)
-        .single() as { data: { member_id: string } | null, error: unknown }
+        .single()
+    const { data: member } = memberResult as unknown as QueryResult<{ member_id: string } | null>
 
     // If there is no member record, they need to complete their profile
     if (!member) {

@@ -3,6 +3,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import type { InsertTables, UpdateTables } from '@/lib/types'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -105,6 +106,12 @@ function isThisWeek(iso: string) {
     const now = new Date()
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
     return new Date(iso) >= weekAgo
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+    return error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+        ? error.message
+        : fallback
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -263,17 +270,20 @@ function CheckInModal({
         setSubmitting(true)
         try {
             const supabase = createClient()
-            const { error } = await supabase.from('check_ins').insert({
+            const payload: InsertTables<'check_ins'> = {
                 member_id: selectedId,
                 entry_method: 'manual',
                 notes: notes.trim() || null,
-            })
+            }
+            const { error } = await supabase.from('check_ins').insert({
+                ...payload,
+            } as never)
             if (error) throw error
             toast.success(`${selected?.full_name} checked in successfully`)
             onSuccess()
             onClose()
-        } catch {
-            toast.error('Failed to record check-in')
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Failed to record check-in'))
         } finally {
             setSubmitting(false)
         }
@@ -450,13 +460,15 @@ export default function CheckInsTable({ checkIns, activeMembers }: CheckInsTable
             const supabase = createClient()
             const { error } = await supabase
                 .from('check_ins')
-                .update({ check_out_time: new Date().toISOString() })
+                .update(({
+                    check_out_time: new Date().toISOString(),
+                } satisfies UpdateTables<'check_ins'>) as never)
                 .eq('id', id)
             if (error) throw error
             toast.success(`${memberName} checked out`)
             router.refresh()
-        } catch {
-            toast.error('Failed to record check-out')
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Failed to record check-out'))
         } finally {
             setCheckingOutId(null)
         }

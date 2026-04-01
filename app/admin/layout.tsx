@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import type { QueryResult } from '@/lib/types'
 import AdminSidebar from '@/components/layout/AdminSidebar'
 import AdminHeader from '@/components/layout/AdminHeader'
 import { SidebarProvider } from '@/components/layout/SidebarContext'
@@ -25,11 +26,12 @@ export default async function AdminLayout({
         redirect('/login')
     }
 
-    const { data: profile } = await supabase
+    const profileResult = await supabase
         .from('profiles')
         .select('role, full_name, photo_url')
         .eq('id', user.id)
-        .single() as { data: AdminProfile | null; error: unknown }
+        .single()
+    const { data: profile } = profileResult as unknown as QueryResult<AdminProfile | null>
 
     if (!profile || profile.role !== 'admin') {
         redirect('/member/dashboard')

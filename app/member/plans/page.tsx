@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import type { QueryResult } from '@/lib/types'
 import PlansClient from './PlansClient'
 
 type MemberPlanData = {
@@ -27,18 +28,20 @@ export default async function PlansPage() {
     if (!user) redirect('/login')
 
     // Get current member record
-    const { data: member } = await supabase
+    const memberResult = await supabase
         .from('members')
         .select('id, membership_plan_id, membership_expiry_date, status, referral_coins_balance')
         .eq('user_id', user.id)
-        .single() as { data: MemberPlanData | null; error: unknown }
+        .single()
+    const { data: member } = memberResult as unknown as QueryResult<MemberPlanData | null>
 
     // Get all active plans
-    const { data: plans } = await supabase
+    const plansResult = await supabase
         .from('membership_plans')
         .select('*')
         .eq('is_active', true)
-        .order('price', { ascending: true }) as { data: ActivePlan[] | null; error: unknown }
+        .order('price', { ascending: true })
+    const { data: plans } = plansResult as unknown as QueryResult<ActivePlan[] | null>
 
     return (
         <PlansClient

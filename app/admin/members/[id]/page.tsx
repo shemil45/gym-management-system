@@ -5,11 +5,29 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
+type MemberDetail = {
+    id: string
+    member_id: string
+    full_name: string
+    email: string | null
+    phone: string
+    gender: 'male' | 'female' | 'other' | null
+    date_of_birth: string | null
+    status: string
+    photo_url: string | null
+    membership_start_date: string | null
+    membership_expiry_date: string | null
+    emergency_contact_name: string | null
+    emergency_contact_phone: string | null
+    address: string | null
+    membership_plan: { name: string } | null
+}
+
 export default async function MemberDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
     const supabase = await createClient()
 
-    const { data: member } = await supabase
+    const memberResult = await supabase
         .from('members')
         .select(`
             *,
@@ -17,6 +35,8 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
         `)
         .eq('id', id)
         .single()
+
+    const { data: member } = memberResult as unknown as { data: MemberDetail | null; error: unknown }
 
     if (!member) {
         notFound()
