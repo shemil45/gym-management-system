@@ -4,6 +4,12 @@ import AdminSidebar from '@/components/layout/AdminSidebar'
 import AdminHeader from '@/components/layout/AdminHeader'
 import { SidebarProvider } from '@/components/layout/SidebarContext'
 
+type AdminProfile = {
+    role: 'admin' | 'member'
+    full_name: string
+    photo_url: string | null
+}
+
 export default async function AdminLayout({
     children,
 }: {
@@ -23,7 +29,7 @@ export default async function AdminLayout({
         .from('profiles')
         .select('role, full_name, photo_url')
         .eq('id', user.id)
-        .single()
+        .single() as { data: AdminProfile | null; error: unknown }
 
     if (!profile || profile.role !== 'admin') {
         redirect('/member/dashboard')
