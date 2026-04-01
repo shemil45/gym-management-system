@@ -16,7 +16,6 @@ import {
     MessageSquare,
     Zap,
     Salad,
-    TrendingUp,
     Activity,
     X,
 } from 'lucide-react'
@@ -35,7 +34,6 @@ const aiNav = [
     { name: 'AI Trainer', href: '/member/ai-trainer', icon: MessageSquare },
     { name: 'Workout', href: '/member/workout', icon: Zap },
     { name: 'Nutrition', href: '/member/nutrition', icon: Salad },
-    { name: 'Progress', href: '/member/progress', icon: TrendingUp },
     { name: 'Fit Profile', href: '/member/fitness-profile', icon: Activity },
 ]
 

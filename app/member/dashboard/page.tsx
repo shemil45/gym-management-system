@@ -18,11 +18,11 @@ import {
     MessageSquare,
     Zap,
     Salad,
-    TrendingUp,
     ArrowRight,
     Dumbbell,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { HoverBorderGradient } from '@/components/ui/hover-border-gradient'
 
 interface MemberData {
     member_id: string
@@ -369,23 +369,45 @@ export default function MemberDashboard() {
                     <h2 className="text-sm font-bold text-gray-900">AI Features</h2>
                     <span className="ml-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">Powered by Gemini</span>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                    {[
-                        { href: '/member/ai-trainer', icon: MessageSquare, label: 'Ask AI Trainer', desc: 'Chat with your personal AI coach', color: 'bg-violet-500', shadow: 'shadow-violet-500/25' },
-                        { href: '/member/workout', icon: Dumbbell, label: 'Generate Workout', desc: 'AI-tailored weekly plan', color: 'bg-emerald-500', shadow: 'shadow-emerald-500/25' },
-                        { href: '/member/nutrition', icon: Salad, label: 'Meal Plan', desc: '7-day nutrition planner', color: 'bg-orange-500', shadow: 'shadow-orange-500/25' },
-                        { href: '/member/progress', icon: TrendingUp, label: 'Track Progress', desc: 'Log workouts & weight', color: 'bg-blue-500', shadow: 'shadow-blue-500/25' },
-                    ].map(({ href, icon: Icon, label, desc, color, shadow }) => (
-                        <Link key={href} href={href} className="group flex items-center gap-3 rounded-xl border border-gray-100 p-3 hover:shadow-md hover:border-gray-200 transition-all duration-200">
-                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${color} text-white shadow-md ${shadow} group-hover:scale-105 transition-transform`}>
-                                <Icon className="h-5 w-5" />
+                <div className="space-y-3">
+                    <Link href="/member/ai-trainer" className="block">
+                        <HoverBorderGradient
+                            duration={1.8}
+                            containerClassName="group w-full rounded-2xl border-0 bg-transparent p-[1px] transition-transform duration-200 hover:-translate-y-0.5"
+                            className="flex min-h-28 w-full flex-col items-center justify-center gap-4 rounded-2xl bg-white px-4 py-5 text-center shadow-sm"
+                        >
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500 text-white shadow-md shadow-violet-500/25 transition-transform group-hover:scale-105">
+                                <MessageSquare className="h-5 w-5" />
                             </div>
-                            <div className="min-w-0">
-                                <p className="text-xs font-semibold text-gray-900 leading-tight">{label}</p>
-                                <p className="text-[10px] text-gray-400 leading-tight mt-0.5 truncate">{desc}</p>
+                            <div className="min-w-0 space-y-1">
+                                <p className="text-sm font-semibold text-gray-900 leading-tight">Ask AI Trainer</p>
+                                <p className="text-xs text-gray-400 leading-relaxed">Chat with your personal AI coach</p>
                             </div>
-                        </Link>
-                    ))}
+                        </HoverBorderGradient>
+                    </Link>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        {[
+                            { href: '/member/workout', icon: Dumbbell, label: 'Generate Workout', desc: 'AI-tailored weekly plan', color: 'bg-emerald-500', shadow: 'shadow-emerald-500/25' },
+                            { href: '/member/nutrition', icon: Salad, label: 'Meal Plan', desc: '7-day nutrition planner', color: 'bg-orange-500', shadow: 'shadow-orange-500/25' },
+                        ].map(({ href, icon: Icon, label, desc, color, shadow }) => (
+                            <Link key={href} href={href} className="block">
+                                <HoverBorderGradient
+                                    duration={1.8}
+                                    containerClassName="group w-full rounded-2xl border-0 bg-transparent p-[1px] transition-transform duration-200 hover:-translate-y-0.5"
+                                    className="flex min-h-28 w-full flex-col items-center justify-center gap-4 rounded-2xl bg-white px-4 py-5 text-center shadow-sm"
+                                >
+                                    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${color} text-white shadow-md ${shadow} transition-transform group-hover:scale-105`}>
+                                        <Icon className="h-5 w-5" />
+                                    </div>
+                                    <div className="min-w-0 space-y-1">
+                                        <p className="text-sm font-semibold text-gray-900 leading-tight">{label}</p>
+                                        <p className="text-xs text-gray-400 leading-relaxed">{desc}</p>
+                                    </div>
+                                </HoverBorderGradient>
+                            </Link>
+                        ))}
+                    </div>
                 </div>
             </div>
 
