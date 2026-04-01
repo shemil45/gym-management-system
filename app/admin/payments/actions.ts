@@ -24,6 +24,37 @@ export async function recordPayment(formData: FormData) {
         const dateStr = paymentDate.replace(/-/g, '')
         const rand = Math.floor(1000 + Math.random() * 9000)
         const invoiceNumber = `INV-${dateStr}-${rand}`
+        let membershipStartDate: string | null = null
+        let membershipEndDate: string | null = null
+
+        if (renewMembership && planId && paymentStatus === 'paid') {
+            const { data: member, error: memberError } = await supabase
+                .from('members')
+                .select('membership_expiry_date')
+                .eq('id', memberId)
+                .single()
+
+            if (memberError) return { error: memberError.message }
+
+            const { data: plan } = await supabase
+                .from('membership_plans')
+                .select('duration_days')
+                .eq('id', planId)
+                .single()
+
+            if (plan) {
+                const paymentStartDate = new Date(paymentDate)
+                const currentExpiry = member?.membership_expiry_date ? new Date(member.membership_expiry_date) : null
+                const startDate =
+                    currentExpiry && currentExpiry > paymentStartDate
+                        ? currentExpiry
+                        : paymentStartDate
+                const expiryDate = new Date(startDate)
+                expiryDate.setDate(expiryDate.getDate() + plan.duration_days)
+                membershipStartDate = startDate.toISOString().split('T')[0]
+                membershipEndDate = expiryDate.toISOString().split('T')[0]
+            }
+        }
 
         // Build payment insert payload
         const paymentPayload: Record<string, unknown> = {
@@ -34,6 +65,8 @@ export async function recordPayment(formData: FormData) {
             payment_date: paymentDate,
             invoice_number: invoiceNumber,
             notes,
+            membership_start_date: membershipStartDate,
+            membership_end_date: membershipEndDate,
         }
 
         const { error: paymentError } = await supabase
@@ -42,29 +75,18 @@ export async function recordPayment(formData: FormData) {
 
         if (paymentError) return { error: paymentError.message }
 
-        // Optionally renew the membership
-        if (renewMembership && planId && paymentStatus === 'paid') {
-            const { data: plan } = await supabase
-                .from('membership_plans')
-                .select('duration_days')
-                .eq('id', planId)
-                .single()
+        if (renewMembership && planId && paymentStatus === 'paid' && membershipStartDate && membershipEndDate) {
+            const { error: updateMemberError } = await supabase
+                .from('members')
+                .update({
+                    membership_plan_id: planId,
+                    membership_start_date: membershipStartDate,
+                    membership_expiry_date: membershipEndDate,
+                    status: 'active',
+                })
+                .eq('id', memberId)
 
-            if (plan) {
-                const startDate = new Date(paymentDate)
-                const expiryDate = new Date(startDate)
-                expiryDate.setDate(expiryDate.getDate() + plan.duration_days)
-
-                await supabase
-                    .from('members')
-                    .update({
-                        membership_plan_id: planId,
-                        membership_start_date: startDate.toISOString().split('T')[0],
-                        membership_expiry_date: expiryDate.toISOString().split('T')[0],
-                        status: 'active',
-                    })
-                    .eq('id', memberId)
-            }
+            if (updateMemberError) return { error: updateMemberError.message }
         }
 
         revalidatePath('/admin/payments')
