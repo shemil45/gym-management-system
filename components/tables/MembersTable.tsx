@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { startTransition, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -14,7 +14,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
-import { Search, Plus, Eye, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, Plus, Eye, Pencil, Trash2, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/date'
 import { toast } from 'sonner'
 
@@ -149,6 +149,7 @@ export default function MembersTable({ members, plans }: MembersTableProps) {
     const [planFilter, setPlanFilter] = useState('all')
     const [currentPage, setCurrentPage] = useState(1)
     const [deletingId, setDeletingId] = useState<string | null>(null)
+    const [openingAddMember, setOpeningAddMember] = useState(false)
 
     useEffect(() => {
         router.prefetch('/admin/members/add')
@@ -199,6 +200,13 @@ export default function MembersTable({ members, plans }: MembersTableProps) {
         }
     }
 
+    const handleOpenAddMember = () => {
+        setOpeningAddMember(true)
+        startTransition(() => {
+            router.push('/admin/members/add')
+        })
+    }
+
     return (
         <div className="space-y-5">
             {/* Page Header */}
@@ -206,12 +214,19 @@ export default function MembersTable({ members, plans }: MembersTableProps) {
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900">Members</h1>
                 </div>
-                <Link href="/admin/members/add">
-                    <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm gap-1.5 px-4">
+                <Button
+                    type="button"
+                    onClick={handleOpenAddMember}
+                    disabled={openingAddMember}
+                    className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm gap-1.5 px-4"
+                >
+                    {openingAddMember ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
                         <Plus className="h-4 w-4" />
-                        Add Member
-                    </Button>
-                </Link>
+                    )}
+                    {openingAddMember ? 'Opening...' : 'Add Member'}
+                </Button>
             </div>
 
             {/* Filters */}
