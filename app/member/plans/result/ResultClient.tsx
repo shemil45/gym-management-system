@@ -1,14 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { jsPDF } from 'jspdf'
 import {
     CheckCircle2,
     Coins,
     Download,
+    Loader2,
     XCircle,
 } from 'lucide-react'
+import { markRazorpayPaymentFailed, verifyRazorpayPayment } from '../actions'
 
 type PaymentResult = {
     amount: number
@@ -29,8 +32,18 @@ type ResultClientProps = {
     invoiceNumber?: string
     payment?: PaymentResult | null
     reason?: string
-    status: 'success' | 'failure'
+    status: 'success' | 'failure' | 'processing'
 }
+
+type StoredVerificationPayload = {
+    planId: string
+    razorpayOrderId: string
+    razorpayPaymentId: string
+    razorpaySignature: string
+    useReferralCoins: boolean
+}
+
+const getVerificationStorageKey = (invoiceNumber: string) => `razorpay-result:${invoiceNumber}`
 
 function formatDate(value: string | null) {
     if (!value) return '-'
@@ -66,10 +79,13 @@ function statusLabel(status: PaymentResult['paymentStatus']) {
     return status.charAt(0).toUpperCase() + status.slice(1)
 }
 
-export default function ResultClient({ payment, reason, status }: ResultClientProps) {
+export default function ResultClient({ invoiceNumber, payment, reason, status }: ResultClientProps) {
+    const router = useRouter()
     const [downloading, setDownloading] = useState(false)
+    const [processingError, setProcessingError] = useState<string | null>(null)
+    const processingInvoiceNumber = invoiceNumber ?? null
     const hasDiscount = payment && payment.coinsUsed > 0
-    const resolvedStatus = payment?.paymentStatus ?? (status === 'success' ? 'paid' : 'failed')
+    const resolvedStatus = payment?.paymentStatus ?? (status === 'failure' ? 'failed' : 'paid')
     const bannerTone =
         resolvedStatus === 'paid'
             ? 'success'
@@ -111,6 +127,62 @@ export default function ResultClient({ payment, reason, status }: ResultClientPr
             message: reason || 'We could not confirm your payment. Please try again.',
         },
     } as const
+
+    useEffect(() => {
+        if (status !== 'processing' || !processingInvoiceNumber) {
+            return
+        }
+
+        let cancelled = false
+        const invoice = processingInvoiceNumber
+
+        async function finalizePayment() {
+            const storedPayload = sessionStorage.getItem(getVerificationStorageKey(invoice))
+
+            if (!storedPayload) {
+                if (!cancelled) {
+                    setProcessingError('We could not resume the Razorpay confirmation. Please check your payment history.')
+                }
+                return
+            }
+
+            let payload: StoredVerificationPayload
+
+            try {
+                payload = JSON.parse(storedPayload) as StoredVerificationPayload
+            } catch {
+                sessionStorage.removeItem(getVerificationStorageKey(invoice))
+                if (!cancelled) {
+                    setProcessingError('The saved payment confirmation details were invalid. Please check your payment history.')
+                }
+                return
+            }
+
+            const verifyResult = await verifyRazorpayPayment(payload)
+            sessionStorage.removeItem(getVerificationStorageKey(invoice))
+
+            if (cancelled) {
+                return
+            }
+
+            if ('error' in verifyResult) {
+                await markRazorpayPaymentFailed({
+                    razorpayOrderId: payload.razorpayOrderId,
+                    reason: verifyResult.error,
+                })
+                router.replace(`/member/plans/result?status=failure&invoice=${encodeURIComponent(invoice)}&reason=${encodeURIComponent(verifyResult.error)}`)
+                return
+            }
+
+            router.replace(`/member/plans/result?status=success&invoice=${encodeURIComponent(verifyResult.invoiceNumber)}`)
+        }
+
+        void finalizePayment()
+
+        return () => {
+            cancelled = true
+        }
+    }, [processingInvoiceNumber, router, status])
 
     const handleDownload = async () => {
         if (!payment) return
@@ -301,6 +373,49 @@ export default function ResultClient({ payment, reason, status }: ResultClientPr
         } finally {
             setDownloading(false)
         }
+    }
+
+    if (status === 'processing') {
+        return (
+            <div className="mx-auto max-w-3xl">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div className="flex items-start gap-4">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white">
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                        </div>
+                        <div className="space-y-2">
+                            <h2 className="text-lg font-bold text-slate-950">Confirming your payment</h2>
+                            <p className="text-sm text-slate-500">
+                                Your payment was received by Razorpay. We&apos;re generating the invoice and updating your membership now.
+                            </p>
+                            {processingError ? (
+                                <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                                    {processingError}
+                                </div>
+                            ) : (
+                                <p className="text-xs text-slate-400">
+                                    Invoice: {processingInvoiceNumber}
+                                </p>
+                            )}
+                            <div className="flex flex-wrap gap-3 pt-2">
+                                <Link
+                                    href="/member/payments"
+                                    className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                                >
+                                    Open payment history
+                                </Link>
+                                <Link
+                                    href="/member/plans"
+                                    className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
+                                >
+                                    Back to plans
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
     }
 
     return (

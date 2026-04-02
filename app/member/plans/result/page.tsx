@@ -5,7 +5,7 @@ import ResultClient from './ResultClient'
 type SearchParams = Promise<{
     invoice?: string
     reason?: string
-    status?: string
+    status?: 'failure' | 'processing' | 'success'
 }>
 
 export default async function PaymentResultPage({
@@ -15,13 +15,21 @@ export default async function PaymentResultPage({
 }) {
     const params = await searchParams
     const invoiceNumber = params.invoice
-    const status = params.status === 'failure' ? 'failure' : 'success'
+    const status =
+        params.status === 'failure'
+            ? 'failure'
+            : params.status === 'processing'
+                ? 'processing'
+                : 'success'
 
     if (!invoiceNumber && status === 'success') {
         redirect('/member/plans')
     }
 
-    const paymentResult = invoiceNumber ? await getPaymentResult(invoiceNumber) : null
+    const paymentResult =
+        invoiceNumber && status !== 'processing'
+            ? await getPaymentResult(invoiceNumber)
+            : null
 
     return (
         <div className="space-y-6">

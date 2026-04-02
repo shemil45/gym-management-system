@@ -1,50 +1,25 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
-import type { QueryResult } from '@/lib/types'
 import MemberSidebar from '@/components/layout/MemberSidebar'
 import MemberHeader from '@/components/layout/MemberHeader'
 import { SidebarProvider } from '@/components/layout/SidebarContext'
 import { Toaster } from 'sonner'
+import { getCurrentMemberContext } from '@/lib/auth/member-server'
 
 export default async function MemberLayout({
     children,
 }: {
     children: React.ReactNode
 }) {
-    const supabase = await createClient()
-
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
+    const { user, profile, member } = await getCurrentMemberContext()
 
     if (!user) {
         redirect('/login')
     }
 
-    const profileResult = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-    const { data: profile } = profileResult as unknown as QueryResult<{
-        role: 'admin' | 'member'
-        full_name: string
-        photo_url: string | null
-    } | null>
-
     if (!profile || profile.role !== 'member') {
         redirect('/admin/dashboard')
     }
 
-    // Get member record for member_id
-    const memberResult = await supabase
-        .from('members')
-        .select('*')
-        .eq('user_id', user.id)
-        .single()
-    const { data: member } = memberResult as unknown as QueryResult<{ member_id: string } | null>
-
-    // If there is no member record, they need to complete their profile
     if (!member) {
         redirect('/complete-profile')
     }

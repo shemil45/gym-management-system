@@ -9,11 +9,14 @@ type PurchaseContext = {
     availableCoins: number
     coinsUsed: number
     currentExpiry: string | null
+    email: string
     expiryDate: string
     finalAmount: number
+    fullName: string
     invoiceNumber: string
     memberId: string
     paymentDate: string
+    phone: string
     planDurationDays: number
     planId: string
     planName: string
@@ -129,11 +132,14 @@ async function getPurchaseContext(planId: string, useReferralCoins: boolean): Pr
         availableCoins,
         coinsUsed,
         currentExpiry: member.membership_expiry_date,
+        email: member.email || '',
         expiryDate: expiryStr,
         finalAmount,
+        fullName: member.full_name || '',
         invoiceNumber: generateInvoiceNumber(today),
         memberId: member.id,
         paymentDate: today.toISOString().split('T')[0],
+        phone: member.phone || '',
         planDurationDays: plan.duration_days,
         planId: plan.id,
         planName: plan.name,
@@ -220,23 +226,7 @@ export async function createRazorpayOrder(planId: string, useReferralCoins = tru
     try {
         ensureRazorpayConfig()
 
-        const supabase = await createClient()
-        const supabaseAdmin = getSupabaseAdmin()
         const context = await getPurchaseContext(planId, useReferralCoins)
-
-        const {
-            data: { user },
-        } = await supabase.auth.getUser()
-
-        const { data: member } = await supabaseAdmin
-            .from('members')
-            .select('full_name, email, phone')
-            .eq('user_id', user!.id)
-            .single()
-
-        if (!member) {
-            return { error: 'Member record not found' }
-        }
 
         if (context.finalAmount <= 0) {
             await applyMembershipAfterPayment(context, null, null)
@@ -248,12 +238,14 @@ export async function createRazorpayOrder(planId: string, useReferralCoins = tru
                 keyId: process.env.RAZORPAY_KEY_ID!,
                 orderId: 'FREE_PLAN',
                 prefills: {
-                    email: member.email || '',
-                    name: member.full_name || '',
-                    phone: member.phone || '',
+                    email: context.email,
+                    name: context.fullName,
+                    phone: context.phone,
                 },
             }
         }
+
+        const supabaseAdmin = getSupabaseAdmin()
 
         const auth = Buffer.from(`${process.env.RAZORPAY_KEY_ID!}:${process.env.RAZORPAY_KEY_SECRET!}`).toString('base64')
         const orderResponse = await fetch('https://api.razorpay.com/v1/orders', {
@@ -314,9 +306,9 @@ export async function createRazorpayOrder(planId: string, useReferralCoins = tru
             keyId: process.env.RAZORPAY_KEY_ID!,
             orderId: payload.id,
             prefills: {
-                email: member.email || '',
-                name: member.full_name || '',
-                phone: member.phone || '',
+                email: context.email,
+                name: context.fullName,
+                phone: context.phone,
             },
         }
     } catch (error) {

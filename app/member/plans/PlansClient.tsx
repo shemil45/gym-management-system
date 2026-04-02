@@ -1,10 +1,10 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef, useState, startTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, Zap, Star, Crown, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { createRazorpayOrder, markRazorpayPaymentFailed, verifyRazorpayPayment } from './actions'
+import { createRazorpayOrder, markRazorpayPaymentFailed } from './actions'
 
 declare global {
     interface Window {
@@ -66,6 +66,16 @@ interface PlansClientProps {
     memberStatus: string
     referralCoinsBalance: number
 }
+
+type RazorpayVerificationPayload = {
+    planId: string
+    razorpayOrderId: string
+    razorpayPaymentId: string
+    razorpaySignature: string
+    useReferralCoins: boolean
+}
+
+const getVerificationStorageKey = (invoiceNumber: string) => `razorpay-result:${invoiceNumber}`
 
 const planIcon = (index: number) => {
     const icons = [Zap, Star, Crown]
@@ -180,29 +190,25 @@ export default function PlansClient({ plans, currentPlanId, membershipExpiry, me
                 },
                 handler: async (response) => {
                     failureReasonRef.current = null
-                    const verifyResult = await verifyRazorpayPayment({
+                    setLoading(false)
+                    redirectHandledRef.current = true
+                    const payload: RazorpayVerificationPayload = {
                         planId: selectedPlan.id,
                         razorpayOrderId: response.razorpay_order_id,
                         razorpayPaymentId: response.razorpay_payment_id,
                         razorpaySignature: response.razorpay_signature,
                         useReferralCoins,
-                    })
-
-                    setLoading(false)
-
-                    if ('error' in verifyResult) {
-                        redirectHandledRef.current = true
-                        await markRazorpayPaymentFailed({
-                            razorpayOrderId: response.razorpay_order_id,
-                            reason: verifyResult.error,
-                        })
-                        router.push(`/member/plans/result?status=failure&invoice=${encodeURIComponent(orderResult.invoiceNumber)}&reason=${encodeURIComponent(verifyResult.error)}`)
-                        return
                     }
 
+                    sessionStorage.setItem(
+                        getVerificationStorageKey(orderResult.invoiceNumber),
+                        JSON.stringify(payload)
+                    )
+                    setLoading(false)
                     setSelectedPlanId(null)
-                    redirectHandledRef.current = true
-                    router.push(`/member/plans/result?status=success&invoice=${encodeURIComponent(verifyResult.invoiceNumber)}`)
+                    startTransition(() => {
+                        router.push(`/member/plans/result?status=processing&invoice=${encodeURIComponent(orderResult.invoiceNumber)}`)
+                    })
                 },
             })
 
