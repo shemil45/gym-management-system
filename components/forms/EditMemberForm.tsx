@@ -1,13 +1,13 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Loader2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateMember } from '@/app/admin/members/actions'
 import { Button } from '@/components/ui/button'
+import LoadingLinkButton from '@/components/ui/loading-link-button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -76,16 +76,15 @@ export default function EditMemberForm({ member, plans }: EditMemberFormProps) {
         formData.set('existing_photo_url', member.photo_url || '')
 
         const result = await updateMember(formData)
-        setLoading(false)
 
         if (result.error) {
             toast.error(result.error)
+            setLoading(false)
             return
         }
 
         toast.success('Member updated successfully')
         router.push(`/admin/members/${member.id}`)
-        router.refresh()
     }
 
     return (
@@ -214,11 +213,9 @@ export default function EditMemberForm({ member, plans }: EditMemberFormProps) {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <Link href={`/admin/members/${member.id}`}>
-                        <Button type="button" variant="outline" disabled={loading}>
-                            Cancel
-                        </Button>
-                    </Link>
+                    <LoadingLinkButton href={`/admin/members/${member.id}`} loadingText="Leaving..." type="button" variant="outline" disabled={loading}>
+                        Cancel
+                    </LoadingLinkButton>
                     <Button type="submit" disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white">
                         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Save Changes

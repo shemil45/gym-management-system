@@ -1,9 +1,8 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import Link from 'next/link'
 import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
+import LoadingLinkButton from '@/components/ui/loading-link-button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
     Select,
@@ -208,12 +207,10 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal }: Paym
                     <h1 className="text-3xl font-bold text-gray-900">Payments</h1>
                     <p className="text-sm text-gray-500 mt-0.5">Track all membership payments</p>
                 </div>
-                <Link href="/admin/payments/record">
-                    <Button className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm gap-1.5 px-4">
-                        <Plus className="h-4 w-4" />
-                        Record Payment
-                    </Button>
-                </Link>
+                <LoadingLinkButton href="/admin/payments/record" loadingText="Opening..." className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm gap-1.5 px-4">
+                    <Plus className="h-4 w-4" />
+                    Record Payment
+                </LoadingLinkButton>
             </div>
 
             {/* Stats */}

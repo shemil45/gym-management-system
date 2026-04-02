@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils/currency'
+import LoadingLinkButton from '@/components/ui/loading-link-button'
 import {
     Users,
     DollarSign,
@@ -413,24 +414,24 @@ export default function AdminDashboard() {
                 <div className="rounded-xl bg-white p-5 shadow-sm border border-gray-100">
                     <h2 className="text-sm font-semibold text-gray-900 mb-4">Quick Actions</h2>
                     <div className="grid grid-cols-3 gap-3">
-                        <Link href="/admin/members/add" className="group flex flex-col items-center gap-2">
-                            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-600/30 group-hover:bg-blue-700 transition-colors">
+                        <LoadingLinkButton href="/admin/members/add" loadingText="" className="group flex h-auto flex-col items-center gap-2 bg-transparent p-0 text-inherit shadow-none hover:bg-transparent">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-600/30 transition-colors group-hover:bg-blue-700">
                                 <Plus className="h-6 w-6" />
                             </div>
                             <span className="text-[11px] font-medium text-gray-600 text-center leading-tight">Add Member</span>
-                        </Link>
-                        <Link href="/admin/payments/record" className="group flex flex-col items-center gap-2">
-                            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-md shadow-emerald-500/30 group-hover:bg-emerald-600 transition-colors">
+                        </LoadingLinkButton>
+                        <LoadingLinkButton href="/admin/payments/record" loadingText="" className="group flex h-auto flex-col items-center gap-2 bg-transparent p-0 text-inherit shadow-none hover:bg-transparent">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-md shadow-emerald-500/30 transition-colors group-hover:bg-emerald-600">
                                 <CreditCard className="h-6 w-6" />
                             </div>
                             <span className="text-[11px] font-medium text-gray-600 text-center leading-tight">Record Payment</span>
-                        </Link>
-                        <Link href="/admin/check-ins" className="group flex flex-col items-center gap-2">
-                            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-violet-500 text-white shadow-md shadow-violet-500/30 group-hover:bg-violet-600 transition-colors">
+                        </LoadingLinkButton>
+                        <LoadingLinkButton href="/admin/check-ins" loadingText="" className="group flex h-auto flex-col items-center gap-2 bg-transparent p-0 text-inherit shadow-none hover:bg-transparent">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-violet-500 text-white shadow-md shadow-violet-500/30 transition-colors group-hover:bg-violet-600">
                                 <LogIn className="h-6 w-6" />
                             </div>
                             <span className="text-[11px] font-medium text-gray-600 text-center leading-tight">Manual Check-in</span>
-                        </Link>
+                        </LoadingLinkButton>
                     </div>
 
                     {/* Mini stats */}

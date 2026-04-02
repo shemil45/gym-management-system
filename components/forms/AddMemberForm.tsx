@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
+import LoadingLinkButton from '@/components/ui/loading-link-button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -15,7 +16,6 @@ import {
 } from '@/components/ui/select'
 import { Loader2, Upload, ImageIcon, Camera, Gift } from 'lucide-react'
 import { toast } from 'sonner'
-import Link from 'next/link'
 import { createMember } from '@/app/admin/members/actions'
 
 interface AddMemberFormProps {
@@ -356,16 +356,16 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
 
                     {/* ── Action Buttons ── */}
                     <div className="flex items-center gap-3 pt-1">
-                        <Link href="/admin/members">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                disabled={loading}
-                                className="h-10 px-5 border-gray-300 text-gray-700 hover:bg-gray-50"
-                            >
-                                Cancel
-                            </Button>
-                        </Link>
+                        <LoadingLinkButton
+                            href="/admin/members"
+                            loadingText="Leaving..."
+                            type="button"
+                            variant="outline"
+                            disabled={loading}
+                            className="h-10 px-5 border-gray-300 text-gray-700 hover:bg-gray-50"
+                        >
+                            Cancel
+                        </LoadingLinkButton>
                         <Button
                             type="submit"
                             disabled={loading}

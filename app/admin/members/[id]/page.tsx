@@ -1,9 +1,8 @@
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import LoadingLinkButton from '@/components/ui/loading-link-button'
 
 type MemberDetail = {
     id: string
@@ -83,12 +82,12 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
                     </div>
                 </div>
                 <div className="flex w-full items-center gap-3 sm:w-auto sm:justify-end">
-                    <Link href="/admin/members">
-                        <Button variant="outline" className="w-full sm:w-auto">Back</Button>
-                    </Link>
-                    <Link href={`/admin/members/${member.id}/edit`}>
-                        <Button className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto">Edit</Button>
-                    </Link>
+                    <LoadingLinkButton href="/admin/members" loadingText="Going back..." variant="outline" className="w-full sm:w-auto">
+                        Back
+                    </LoadingLinkButton>
+                    <LoadingLinkButton href={`/admin/members/${member.id}/edit`} loadingText="Opening..." className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto">
+                        Edit
+                    </LoadingLinkButton>
                 </div>
             </div>
 
