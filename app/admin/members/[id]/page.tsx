@@ -67,25 +67,27 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-4">
                     <Avatar className="h-16 w-16 ring-2 ring-gray-100">
                         <AvatarImage src={member.photo_url || undefined} alt={member.full_name} />
                         <AvatarFallback className="bg-blue-600 text-white text-lg font-semibold">
                             {initials}
                         </AvatarFallback>
                     </Avatar>
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900">{member.full_name}</h1>
-                        <p className="text-sm text-gray-500 mt-1">{member.member_id}</p>
+                    <div className="min-w-0">
+                        <h1 className="text-2xl font-bold leading-tight text-gray-900 sm:text-3xl break-words">
+                            {member.full_name}
+                        </h1>
+                        <p className="mt-1 break-all text-sm text-gray-500">{member.member_id}</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex w-full items-center gap-3 sm:w-auto sm:justify-end">
                     <Link href="/admin/members">
-                        <Button variant="outline">Back</Button>
+                        <Button variant="outline" className="w-full sm:w-auto">Back</Button>
                     </Link>
                     <Link href={`/admin/members/${member.id}/edit`}>
-                        <Button className="bg-blue-600 hover:bg-blue-700 text-white">Edit Member</Button>
+                        <Button className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto">Edit</Button>
                     </Link>
                 </div>
             </div>
