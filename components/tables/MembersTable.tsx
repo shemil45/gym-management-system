@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -149,6 +149,10 @@ export default function MembersTable({ members, plans }: MembersTableProps) {
     const [planFilter, setPlanFilter] = useState('all')
     const [currentPage, setCurrentPage] = useState(1)
     const [deletingId, setDeletingId] = useState<string | null>(null)
+
+    useEffect(() => {
+        router.prefetch('/admin/members/add')
+    }, [router])
 
     // Filter
     const filtered = useMemo(() => {
