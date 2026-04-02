@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -112,10 +113,10 @@ export default function AdminHeader({ user }: AdminHeaderProps) {
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem asChild>
-                            <a href="/admin/settings" className="cursor-pointer">
+                            <Link href="/admin/settings" className="cursor-pointer">
                                 <User className="mr-2 h-4 w-4" />
                                 <span>Profile Settings</span>
-                            </a>
+                            </Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">

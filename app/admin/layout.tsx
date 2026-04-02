@@ -1,37 +1,19 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
-import type { QueryResult } from '@/lib/types'
 import AdminSidebar from '@/components/layout/AdminSidebar'
 import AdminHeader from '@/components/layout/AdminHeader'
 import { SidebarProvider } from '@/components/layout/SidebarContext'
-
-type AdminProfile = {
-    role: 'admin' | 'member'
-    full_name: string
-    photo_url: string | null
-}
+import { getCurrentAdminContext } from '@/lib/auth/admin-server'
 
 export default async function AdminLayout({
     children,
 }: {
     children: React.ReactNode
 }) {
-    const supabase = await createClient()
-
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
+    const { user, profile } = await getCurrentAdminContext()
 
     if (!user) {
         redirect('/login')
     }
-
-    const profileResult = await supabase
-        .from('profiles')
-        .select('role, full_name, photo_url')
-        .eq('id', user.id)
-        .single()
-    const { data: profile } = profileResult as unknown as QueryResult<AdminProfile | null>
 
     if (!profile || profile.role !== 'admin') {
         redirect('/member/dashboard')
