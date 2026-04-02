@@ -1,10 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { startTransition, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import type { Profile, QueryResult } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -35,26 +34,11 @@ export default function LoginPage() {
             })
 
             if (authError) throw authError
+            if (!authData.user) throw new Error('Login succeeded but no user session was returned.')
 
-            // Get user profile to determine role
-            const profileResult = await supabase
-                .from('profiles')
-                .select('role')
-                .eq('id', authData.user.id)
-                .single()
-            const { data: profile, error: profileError } = profileResult as unknown as QueryResult<Pick<Profile, 'role'> | null>
-
-            if (profileError) throw profileError
-            if (!profile) throw new Error('Profile not found for this user.')
-
-            // Redirect based on role
-            if (profile.role === 'admin') {
-                router.push('/admin/dashboard')
-            } else {
-                router.push('/member/dashboard')
-            }
-
-            router.refresh()
+            startTransition(() => {
+                router.replace('/redirect')
+            })
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to login. Please check your credentials.'
             setError(message)
