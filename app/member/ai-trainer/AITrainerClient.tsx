@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import { Loader2, Send, MessageSquare, Trash2, Bot, User } from 'lucide-react'
 import { sendChatMessage, clearChatHistory } from './actions'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface Message {
     role: 'user' | 'model'
@@ -47,6 +48,7 @@ function renderMarkdown(text: string): string {
 }
 
 export default function AITrainerClient({ hasProfile, initialHistory }: Props) {
+    const { confirm, dialog } = useConfirmDialog()
     const [messages, setMessages] = useState<Message[]>(initialHistory)
     const [input, setInput] = useState('')
     const [loading, setLoading] = useState(false)
@@ -76,7 +78,13 @@ export default function AITrainerClient({ hasProfile, initialHistory }: Props) {
     }
 
     const handleClear = async () => {
-        if (!confirm('Clear chat history?')) return
+        const confirmed = await confirm({
+            title: 'Clear chat history?',
+            description: 'This will remove your current AI trainer conversation.',
+            confirmLabel: 'Clear',
+            tone: 'danger',
+        })
+        if (!confirmed) return
         await clearChatHistory()
         setMessages([])
         toast.success('Chat cleared')
@@ -100,7 +108,9 @@ export default function AITrainerClient({ hasProfile, initialHistory }: Props) {
     }
 
     return (
-        <div className="flex flex-col h-[calc(100vh-7rem)]">
+        <>
+            {dialog}
+            <div className="flex flex-col h-[calc(100vh-7rem)]">
             {/* Header */}
             <div className="flex items-center justify-between pb-3 border-b border-gray-200 mb-4">
                 <div className="flex items-center gap-3">
@@ -198,6 +208,7 @@ export default function AITrainerClient({ hasProfile, initialHistory }: Props) {
                     </button>
                 </div>
             </div>
-        </div>
+            </div>
+        </>
     )
 }

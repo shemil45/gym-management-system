@@ -19,6 +19,7 @@ import {
 import { toast } from 'sonner'
 import { createPlan, updatePlan, togglePlanStatus, deletePlan } from '@/app/admin/plans/actions'
 import { formatCurrency } from '@/lib/utils/currency'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -170,6 +171,7 @@ function PlanModal({ plan, onClose }: { plan?: Plan | null; onClose: () => void 
 
 export default function PlansManager({ plans }: { plans: Plan[] }) {
     const router = useRouter()
+    const { confirm, dialog } = useConfirmDialog()
     const [showModal, setShowModal] = useState(false)
     const [editingPlan, setEditingPlan] = useState<Plan | null>(null)
     const [togglingId, setTogglingId] = useState<string | null>(null)
@@ -184,7 +186,13 @@ export default function PlansManager({ plans }: { plans: Plan[] }) {
     }
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Delete this plan? Members on this plan will keep their existing membership.')) return
+        const confirmed = await confirm({
+            title: 'Delete plan?',
+            description: 'Delete this plan? Members on this plan will keep their existing membership.',
+            confirmLabel: 'Delete',
+            tone: 'danger',
+        })
+        if (!confirmed) return
         setDeletingId(id)
         const result = await deletePlan(id)
         if (result.error) toast.error(result.error)
@@ -197,6 +205,7 @@ export default function PlansManager({ plans }: { plans: Plan[] }) {
 
     return (
         <div className="space-y-6">
+            {dialog}
             {/* Header */}
             <div className="flex items-center justify-between gap-6">
                 <div>

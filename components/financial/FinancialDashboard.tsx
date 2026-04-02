@@ -32,6 +32,7 @@ import {
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Label } from '@/components/ui/label'
 import {
     Select,
@@ -347,6 +348,7 @@ function CategoryBadge({ category }: { category: ExpenseCategory }) {
 
 export default function FinancialDashboard({ payments, expenses }: FinancialDashboardProps) {
     const router = useRouter()
+    const { confirm, dialog } = useConfirmDialog()
     const [showModal, setShowModal] = useState(false)
     const [categoryFilter, setCategoryFilter] = useState('all')
     const [searchQuery, setSearchQuery] = useState('')
@@ -417,7 +419,13 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
 
     // ── Delete ───────────────────────────────────────────────────────────────
     const handleDelete = async (id: string) => {
-        if (!confirm('Delete this expense? This cannot be undone.')) return
+        const confirmed = await confirm({
+            title: 'Delete expense?',
+            description: 'Delete this expense? This cannot be undone.',
+            confirmLabel: 'Delete',
+            tone: 'danger',
+        })
+        if (!confirmed) return
         setDeletingId(id)
         const result = await deleteExpense(id)
         if (result.error) {
@@ -441,7 +449,9 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
     }, [expenses])
 
     return (
-        <div className="space-y-6">
+        <>
+            {dialog}
+            <div className="space-y-6">
             {/* ── Header ── */}
             <div className="flex items-center justify-between gap-6">
                 <div>
@@ -647,6 +657,7 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
 
             {/* Add Expense Modal */}
             {showModal && <AddExpenseModal onClose={() => setShowModal(false)} />}
-        </div>
+            </div>
+        </>
     )
 }

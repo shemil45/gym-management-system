@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
     Select,
@@ -144,6 +145,7 @@ function PaginationBar({
 
 export default function MembersTable({ members, plans }: MembersTableProps) {
     const router = useRouter()
+    const { confirm, dialog } = useConfirmDialog()
     const [searchQuery, setSearchQuery] = useState('')
     const [statusFilter, setStatusFilter] = useState('all')
     const [planFilter, setPlanFilter] = useState('all')
@@ -185,7 +187,13 @@ export default function MembersTable({ members, plans }: MembersTableProps) {
     const handlePlan = (v: string) => { setPlanFilter(v); setCurrentPage(1) }
 
     const handleDelete = async (id: string, name: string) => {
-        if (!confirm(`Delete member "${name}"? This cannot be undone.`)) return
+        const confirmed = await confirm({
+            title: 'Delete member?',
+            description: `Delete member "${name}"? This cannot be undone.`,
+            confirmLabel: 'Delete',
+            tone: 'danger',
+        })
+        if (!confirmed) return
         setDeletingId(id)
         try {
             const supabase = createClient()
@@ -209,6 +217,7 @@ export default function MembersTable({ members, plans }: MembersTableProps) {
 
     return (
         <div className="space-y-5">
+            {dialog}
             {/* Page Header */}
             <div className="flex items-center justify-between">
                 <div>
