@@ -523,11 +523,11 @@ export default function AdminDashboard() {
 
                                     <div className="min-w-0 flex-1">
                                         <p className="truncate text-base font-medium text-blue-600">{member.full_name}</p>
-                                        <p className="truncate text-[15px] text-slate-900">
+                                        <p className="truncate text-[13px] text-slate-900">
                                             {(member.membership_plan as { name?: string } | null)?.name || 'Membership Plan'}
                                         </p>
-                                        <p className="text-[15px] text-slate-900">Monthly Fees</p>
-                                        <p className="mt-1 text-[15px] text-slate-400">
+                                        <p className="text-[13px] text-slate-900">Monthly Fees</p>
+                                        <p className="mt-1 text-[13px] text-slate-400">
                                             ends on {formatExpiryDate(member.membership_expiry_date)}
                                         </p>
                                     </div>
@@ -535,7 +535,7 @@ export default function AdminDashboard() {
                                     <LoadingLinkButton
                                         href="/admin/payments/record"
                                         loadingText=""
-                                        className="rounded-full bg-slate-200 px-5 py-2 text-base font-medium text-slate-800 shadow-none hover:bg-slate-300"
+                                        className="rounded-full bg-slate-200 px-4 py-2 text-sm font-medium text-slate-800 shadow-none hover:bg-slate-300"
                                     >
                                         Renew
                                     </LoadingLinkButton>
