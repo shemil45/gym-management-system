@@ -401,13 +401,13 @@ export default function AdminDashboard() {
                     }
                     mobileStackAction
                     action={
-                        <div className="w-full sm:w-auto sm:max-w-[20rem]">
-                            <div className="flex w-full items-center gap-1 rounded-2xl bg-slate-100 p-1">
+                        <div className="w-full sm:w-auto sm:min-w-[20rem] sm:max-w-[24rem]">
+                            <div className="flex w-full items-center gap-1 rounded-2xl bg-slate-100 p-1 sm:gap-1.5 sm:p-1.5">
                                 {RANGES.map((range) => (
                                     <button
                                         key={range.label}
                                         onClick={() => setChartRange(range.label)}
-                                        className={`min-w-0 flex-1 rounded-xl px-0 py-1.5 text-[8px] font-medium transition sm:text-[6px] ${
+                                        className={`min-w-0 flex-1 rounded-xl px-0 py-1.5 text-[10px] font-medium transition sm:px-2 sm:py-2 ${
                                             chartRange === range.label
                                                 ? 'bg-white text-slate-900 shadow-sm'
                                                 : 'text-slate-500 hover:text-slate-700'
