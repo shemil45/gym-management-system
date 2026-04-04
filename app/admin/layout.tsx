@@ -21,11 +21,11 @@ export default async function AdminLayout({
 
     return (
         <SidebarProvider>
-            <div className="min-h-screen bg-[#f4f6fa]">
+            <div className="min-h-screen bg-[#eef3fb]">
                 <AdminSidebar />
                 <div className="lg:pl-[100px] xl:pl-[110px]">
                     <AdminHeader user={{ ...user, ...profile }} />
-                    <main className="p-6">
+                    <main className="px-4 pb-24 pt-4 sm:px-6 sm:pb-8 sm:pt-6">
                         {children}
                     </main>
                 </div>

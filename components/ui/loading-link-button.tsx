@@ -8,6 +8,7 @@ import { Button, type ButtonProps } from '@/components/ui/button'
 type LoadingLinkButtonProps = Omit<ButtonProps, 'onClick'> & {
     href: string
     loadingText?: string
+    showDefaultLoader?: boolean
 }
 
 export default function LoadingLinkButton({
@@ -17,6 +18,7 @@ export default function LoadingLinkButton({
     href,
     loadingText,
     size,
+    showDefaultLoader = true,
     variant,
     ...props
 }: LoadingLinkButtonProps) {
@@ -38,13 +40,14 @@ export default function LoadingLinkButton({
     return (
         <Button
             className={className}
+            data-loading={loading ? 'true' : 'false'}
             disabled={disabled || loading}
             onClick={handleClick}
             size={size}
             variant={variant}
             {...props}
         >
-            {loading ? <Loader2 className="animate-spin" /> : null}
+            {loading && showDefaultLoader ? <Loader2 className="animate-spin" /> : null}
             {loading && loadingText ? loadingText : children}
         </Button>
     )
