@@ -165,6 +165,7 @@ export default function MembersTable({ members, plans }: MembersTableProps) {
     const [currentPage, setCurrentPage] = useState(1)
     const [deletingId, setDeletingId] = useState<string | null>(null)
     const [openingAddMember, setOpeningAddMember] = useState(false)
+    const [navigatingMemberId, setNavigatingMemberId] = useState<string | null>(null)
     const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
 
     // Draft state — only committed to real filters on "Apply Search"
@@ -325,6 +326,14 @@ export default function MembersTable({ members, plans }: MembersTableProps) {
         setOpeningAddMember(true)
         startTransition(() => {
             router.push('/admin/members/add')
+        })
+    }
+
+    const handleViewMember = (id: string) => {
+        if (navigatingMemberId) return
+        setNavigatingMemberId(id)
+        startTransition(() => {
+            router.push(`/admin/members/${id}`)
         })
     }
 
@@ -569,14 +578,24 @@ export default function MembersTable({ members, plans }: MembersTableProps) {
                                 .slice(0, 2)
                             const planName = member.membership_plan?.name
                             const planColor = planName ? getPlanColor(planName) : 'text-gray-400'
+                            const isNavigating = navigatingMemberId === member.id
 
                             return (
-                                <div key={member.id} className="px-4 py-3">
-                                    <div className="flex items-start justify-between gap-3">
-                                        <Link
-                                            href={`/admin/members/${member.id}`}
-                                            className="flex min-w-0 flex-1 items-start gap-3"
-                                        >
+                                <div
+                                    key={member.id}
+                                    onClick={() => handleViewMember(member.id)}
+                                    className={`relative cursor-pointer px-4 py-3 transition-colors ${
+                                        isNavigating ? 'bg-blue-50/60' : 'hover:bg-slate-50'
+                                    }`}
+                                >
+                                    {/* Loading overlay for mobile card */}
+                                    {isNavigating && (
+                                        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-white/70">
+                                            <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
+                                        </div>
+                                    )}
+                                    <div className={`flex items-start justify-between gap-3 ${isNavigating ? 'opacity-40' : ''}`}>
+                                        <div className="flex min-w-0 flex-1 items-start gap-3">
                                             <Avatar className="h-11 w-11 shrink-0 ring-2 ring-slate-100">
                                                 <AvatarImage src={member.photo_url || undefined} alt={member.full_name} />
                                                 <AvatarFallback className="bg-gradient-to-br from-blue-500 to-violet-500 text-xs font-semibold text-white">
@@ -587,12 +606,9 @@ export default function MembersTable({ members, plans }: MembersTableProps) {
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex items-start justify-between gap-2">
                                                     <div className="min-w-0">
-                                                        <Link
-                                                            href={`/admin/members/${member.id}`}
-                                                            className="truncate text-[15px] font-medium leading-tight text-blue-600"
-                                                        >
+                                                        <p className="truncate text-[15px] font-medium leading-tight text-blue-600">
                                                             {member.full_name}
-                                                        </Link>
+                                                        </p>
                                                         <p className="mt-0.5 text-[11px] font-medium leading-tight text-slate-400">
                                                             {member.member_id}
                                                         </p>
@@ -607,13 +623,16 @@ export default function MembersTable({ members, plans }: MembersTableProps) {
                                                     {member.membership_expiry_date ? formatDate(member.membership_expiry_date) : '-'}
                                                 </p>
                                             </div>
-                                        </Link>
+                                        </div>
 
-                                        <div className="flex items-center gap-1 pl-2">
+                                        <div
+                                            className="flex items-center gap-1 pl-2"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
                                             <StatusBadge status={member.status} />
                                             <button
                                                 title="Delete"
-                                                disabled={deletingId === member.id}
+                                                disabled={deletingId === member.id || !!navigatingMemberId}
                                                 onClick={() => handleDelete(member.id, member.full_name)}
                                                 className="flex h-8 w-8 items-center justify-center rounded-lg text-red-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
                                             >
@@ -659,9 +678,18 @@ export default function MembersTable({ members, plans }: MembersTableProps) {
                                         .slice(0, 2)
                                     const planName = member.membership_plan?.name
                                     const planColor = planName ? getPlanColor(planName) : 'text-gray-400'
+                                    const isNavigating = navigatingMemberId === member.id
 
                                     return (
-                                        <tr key={member.id} className="group transition-colors hover:bg-blue-50/30">
+                                        <tr
+                                            key={member.id}
+                                            onClick={() => handleViewMember(member.id)}
+                                            className={`group cursor-pointer transition-colors ${
+                                                isNavigating
+                                                    ? 'bg-blue-50/60 opacity-60'
+                                                    : 'hover:bg-blue-50/30'
+                                            }`}
+                                        >
                                             <td className="py-3 pl-5 pr-3">
                                                 <Avatar className="h-9 w-9 ring-2 ring-gray-100">
                                                     <AvatarImage src={member.photo_url || undefined} alt={member.full_name} />
@@ -674,12 +702,7 @@ export default function MembersTable({ members, plans }: MembersTableProps) {
                                                 <span className="text-sm font-semibold text-gray-800">{member.member_id}</span>
                                             </td>
                                             <td className="px-3 py-3">
-                                                <Link
-                                                    href={`/admin/members/${member.id}`}
-                                                    className="text-sm font-medium text-gray-800 transition-colors hover:text-gray-600"
-                                                >
-                                                    {member.full_name}
-                                                </Link>
+                                                <span className="text-sm font-medium text-gray-800">{member.full_name}</span>
                                             </td>
                                             <td className="px-3 py-3">
                                                 <span className="text-sm text-gray-500">{member.phone}</span>
@@ -698,33 +721,38 @@ export default function MembersTable({ members, plans }: MembersTableProps) {
                                             <td className="px-3 py-3">
                                                 <StatusBadge status={member.status} />
                                             </td>
-                                            <td className="px-3 py-3 pr-5">
-                                                <div className="flex items-center justify-end gap-1">
-                                                    <Link href={`/admin/members/${member.id}`}>
+                                            <td className="px-3 py-3 pr-5" onClick={(e) => e.stopPropagation()}>
+                                                {isNavigating ? (
+                                                    <div className="flex items-center justify-end pr-1">
+                                                        <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center justify-end gap-1">
                                                         <button
                                                             title="View"
+                                                            onClick={() => handleViewMember(member.id)}
                                                             className="flex h-8 w-8 items-center justify-center rounded-lg text-blue-500 transition-colors hover:bg-blue-50"
                                                         >
                                                             <Eye className="h-4 w-4" />
                                                         </button>
-                                                    </Link>
-                                                    <Link href={`/admin/members/${member.id}/edit`}>
+                                                        <Link href={`/admin/members/${member.id}/edit`}>
+                                                            <button
+                                                                title="Edit"
+                                                                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600"
+                                                            >
+                                                                <Pencil className="h-3.5 w-3.5" />
+                                                            </button>
+                                                        </Link>
                                                         <button
-                                                            title="Edit"
-                                                            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600"
+                                                            title="Delete"
+                                                            disabled={deletingId === member.id || !!navigatingMemberId}
+                                                            onClick={() => handleDelete(member.id, member.full_name)}
+                                                            className="flex h-8 w-8 items-center justify-center rounded-lg text-red-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
                                                         >
-                                                            <Pencil className="h-3.5 w-3.5" />
+                                                            <Trash2 className="h-4 w-4" />
                                                         </button>
-                                                    </Link>
-                                                    <button
-                                                        title="Delete"
-                                                        disabled={deletingId === member.id}
-                                                        onClick={() => handleDelete(member.id, member.full_name)}
-                                                        className="flex h-8 w-8 items-center justify-center rounded-lg text-red-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </button>
-                                                </div>
+                                                    </div>
+                                                )}
                                             </td>
                                         </tr>
                                     )
