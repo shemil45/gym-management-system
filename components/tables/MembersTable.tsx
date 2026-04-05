@@ -784,7 +784,9 @@ export default function MembersTable({ members, plans }: MembersTableProps) {
                         of <span className="font-medium text-gray-700">{filtered.length}</span> members
                     </p>
                     {totalPages > 1 ? (
-                        <PaginationBar currentPage={safePage} totalPages={totalPages} onPageChange={handlePageChange} />
+                        <div className="self-end sm:ml-auto">
+                            <PaginationBar currentPage={safePage} totalPages={totalPages} onPageChange={handlePageChange} />
+                        </div>
                     ) : null}
                 </div>
             </div>
