@@ -17,6 +17,8 @@ import {
     TrendingDown,
     Wallet,
     ArrowUpRight,
+    ChevronLeft,
+    ChevronRight,
     Plus,
     Trash2,
     X,
@@ -170,12 +172,12 @@ function StatCard({
     highlight?: 'green' | 'red'
 }) {
     return (
-        <div className="flex items-start gap-3 rounded-xl bg-white px-5 py-4 shadow-sm border border-gray-100">
-            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${iconBg}`}>
+        <div className="flex items-start gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-4 shadow-[0_14px_32px_rgba(15,23,42,0.07)] sm:px-5">
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>
                 {icon}
             </div>
             <div className="min-w-0">
-                <p className="text-xs text-gray-500">{label}</p>
+                <p className="text-[11px] font-medium text-gray-500">{label}</p>
                 <p
                     className={`text-xl font-bold truncate ${highlight === 'green'
                         ? 'text-emerald-600'
@@ -186,7 +188,7 @@ function StatCard({
                 >
                     {value}
                 </p>
-                {sub && <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>}
+                {sub && <p className="mt-0.5 text-[11px] text-gray-400">{sub}</p>}
             </div>
         </div>
     )
@@ -229,7 +231,7 @@ function AddExpenseModal({ onClose }: { onClose: () => void }) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-gray-900/50 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
+            <div className="relative max-h-[90vh] w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
                     <div className="flex items-center gap-2">
@@ -246,7 +248,7 @@ function AddExpenseModal({ onClose }: { onClose: () => void }) {
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                <form onSubmit={handleSubmit} className="max-h-[calc(90vh-72px)] space-y-4 overflow-y-auto p-5 sm:p-6">
                     {/* Category */}
                     <div className="space-y-1.5">
                         <Label className="text-xs font-medium text-gray-700">
@@ -310,18 +312,18 @@ function AddExpenseModal({ onClose }: { onClose: () => void }) {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center justify-end gap-3 pt-1">
+                    <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:items-center sm:justify-end">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                            className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             disabled={pending}
-                            className="flex items-center gap-1.5 rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-rose-700 disabled:opacity-50 transition-colors"
+                            className="flex items-center justify-center gap-1.5 rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-rose-700 disabled:opacity-50"
                         >
                             {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
                             {pending ? 'Saving…' : 'Add Expense'}
@@ -353,20 +355,10 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
     const [categoryFilter, setCategoryFilter] = useState('all')
     const [searchQuery, setSearchQuery] = useState('')
     const [deletingId, setDeletingId] = useState<string | null>(null)
+    const [chartWindowIndex, setChartWindowIndex] = useState(0)
 
     // ── Build last-12-months chart data ──────────────────────────────────────
     const chartData = useMemo(() => {
-        const months: { label: string; key: string }[] = []
-        for (let i = 11; i >= 0; i--) {
-            const d = new Date()
-            d.setDate(1)
-            d.setMonth(d.getMonth() - i)
-            months.push({
-                key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-                label: d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }),
-            })
-        }
-
         const revenueByMonth: Record<string, number> = {}
         payments.forEach((p) => {
             const key = p.payment_date.slice(0, 7)
@@ -379,12 +371,40 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
             expensesByMonth[key] = (expensesByMonth[key] || 0) + Number(e.amount)
         })
 
+        const allKeys = [...new Set([...Object.keys(revenueByMonth), ...Object.keys(expensesByMonth)])].sort()
+        const currentMonth = new Date()
+        currentMonth.setDate(1)
+        const fallbackKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`
+        const lastKey = allKeys.at(-1) ?? fallbackKey
+        const [lastYear, lastMonth] = lastKey.split('-').map(Number)
+        const anchor = new Date(lastYear, lastMonth - 1, 1)
+        const months: { label: string; key: string; rangeLabel: string }[] = []
+
+        for (let i = 17; i >= 0; i--) {
+            const d = new Date(anchor)
+            d.setMonth(anchor.getMonth() - i)
+            months.push({
+                key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+                label: d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }),
+                rangeLabel: d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }),
+            })
+        }
+
         return months.map((m) => ({
             month: m.label,
+            rangeLabel: m.rangeLabel,
             Revenue: Math.round(revenueByMonth[m.key] || 0),
             Expenses: Math.round(expensesByMonth[m.key] || 0),
         }))
     }, [payments, expenses])
+
+    const chartWindowCount = Math.max(1, Math.ceil(chartData.length / 6))
+    const safeChartWindowIndex = Math.min(chartWindowIndex, chartWindowCount - 1)
+    const visibleChartData = chartData.slice(safeChartWindowIndex * 6, safeChartWindowIndex * 6 + 6)
+    const chartRangeLabel =
+        visibleChartData.length > 0
+            ? `${visibleChartData[0].rangeLabel} - ${visibleChartData[visibleChartData.length - 1].rangeLabel}`
+            : 'No data available'
 
     // ── Summary stats ────────────────────────────────────────────────────────
     const totalRevenue = useMemo(
@@ -453,21 +473,23 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
             {dialog}
             <div className="space-y-6">
             {/* ── Header ── */}
-            <div className="flex items-center justify-between gap-6">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Financial</h1>
-                    <p className="text-sm text-gray-500 mt-0.5">Revenue, expenses & profitability</p>
+            <div className="rounded-[1.75rem] bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 sm:p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Financial</h1>
+                        <p className="mt-1 text-sm text-slate-400">Revenue, expenses and profitability in one place.</p>
+                    </div>
+                    <Button
+                        onClick={() => setShowModal(true)}
+                        className="h-12 w-full gap-2 rounded-2xl bg-rose-600 px-4 text-white shadow-[0_16px_32px_rgba(225,29,72,0.22)] hover:bg-rose-700 sm:w-auto"
+                    >
+                        <Plus className="h-4 w-4" /> Add Expense
+                    </Button>
                 </div>
-                <Button
-                    onClick={() => setShowModal(true)}
-                    className="bg-rose-600 hover:bg-rose-700 text-white shadow-sm gap-1.5 px-4 shrink-0"
-                >
-                    <Plus className="h-4 w-4" /> Add Expense
-                </Button>
             </div>
 
             {/* ── Stats ── */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard
                     label="Total Revenue"
                     value={formatCurrency(totalRevenue)}
@@ -498,21 +520,48 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
             </div>
 
             {/* ── Chart + Breakdown ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
                 {/* Bar chart */}
-                <div className="lg:col-span-2 rounded-xl bg-white p-5 shadow-sm border border-gray-100">
-                    <h2 className="text-sm font-semibold text-gray-900 mb-1">Revenue vs Expenses</h2>
-                    <p className="text-xs text-gray-400 mb-4">Last 12 months</p>
+                <div className="rounded-[1.75rem] border border-gray-100 bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.07)] sm:p-5 xl:col-span-2">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <h2 className="text-sm font-semibold text-gray-900 sm:text-base">Revenue vs Expenses</h2>
+                            <p className="mt-1 text-xs text-gray-400 sm:text-sm">{chartRangeLabel}</p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setChartWindowIndex((value) => Math.max(0, value - 1))}
+                                disabled={safeChartWindowIndex === 0}
+                                className="h-9 w-9 rounded-xl border-gray-200"
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setChartWindowIndex((value) => Math.min(chartWindowCount - 1, value + 1))}
+                                disabled={safeChartWindowIndex >= chartWindowCount - 1}
+                                className="h-9 w-9 rounded-xl border-gray-200"
+                            >
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                    <div className="mt-4">
                     <ResponsiveContainer width="100%" height={240}>
-                        <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }} barCategoryGap="30%">
+                        <BarChart data={visibleChartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barCategoryGap="18%">
                             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-                            <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
+                            <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#9ca3af' }} tickLine={false} axisLine={false} interval={0} />
                             <YAxis
-                                tick={{ fontSize: 10, fill: '#9ca3af' }}
+                                tick={{ fontSize: 9, fill: '#9ca3af' }}
                                 tickLine={false}
                                 axisLine={false}
                                 tickFormatter={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
-                                width={44}
+                                width={34}
                             />
                             <Tooltip content={<CustomTooltip />} />
                             <Legend
@@ -524,15 +573,17 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
                             <Bar dataKey="Expenses" fill="#f43f5e" radius={[4, 4, 0, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
+                    </div>
                 </div>
 
                 {/* Category breakdown */}
-                <div className="rounded-xl bg-white p-5 shadow-sm border border-gray-100">
-                    <h2 className="text-sm font-semibold text-gray-900 mb-4">Expense Breakdown</h2>
+                <div className="rounded-[1.75rem] border border-gray-100 bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.07)] sm:p-5">
+                    <h2 className="text-sm font-semibold text-gray-900">Expense Breakdown</h2>
+                    <p className="mt-1 text-xs text-gray-400">Category share of all recorded expenses.</p>
                     {categoryTotals.length === 0 ? (
-                        <p className="text-xs text-gray-400 text-center py-8">No expenses yet</p>
+                        <p className="py-8 text-center text-xs text-gray-400">No expenses yet</p>
                     ) : (
-                        <div className="space-y-3">
+                        <div className="mt-4 space-y-3">
                             {categoryTotals.map(({ cat, amt }) => {
                                 const pct = totalExpenses > 0 ? Math.round((amt / totalExpenses) * 100) : 0
                                 const cfg = CATEGORY_CONFIG[cat]
@@ -560,10 +611,14 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
             </div>
 
             {/* ── Expenses Table ── */}
-            <div className="space-y-3">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <h2 className="text-base font-bold text-gray-900">All Expenses</h2>
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="overflow-hidden rounded-[1.75rem] border border-gray-100 bg-white shadow-[0_14px_32px_rgba(15,23,42,0.07)]">
+                <div className="border-b border-slate-100 p-4 sm:p-5">
+                    <div className="flex flex-col gap-3">
+                        <div>
+                            <h2 className="text-base font-semibold text-gray-900">All Expenses</h2>
+                            <p className="mt-1 text-xs text-gray-400">Track every outgoing payment with category and date.</p>
+                        </div>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
                             <Input
@@ -584,11 +639,43 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
                                 ))}
                             </SelectContent>
                         </Select>
+                        </div>
                     </div>
                 </div>
 
-                <div className="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
+                <div className="divide-y divide-slate-100 md:hidden">
+                    {filteredExpenses.length === 0 ? (
+                        <div className="px-4 py-14 text-center text-sm text-gray-400">
+                            No expenses found
+                        </div>
+                    ) : (
+                        filteredExpenses.map((expense) => (
+                            <div key={expense.id} className="space-y-3 px-4 py-4">
+                                <div className="flex items-start justify-between gap-3">
+                                    <CategoryBadge category={expense.category} />
+                                    <button
+                                        title="Delete expense"
+                                        disabled={deletingId === expense.id}
+                                        onClick={() => handleDelete(expense.id)}
+                                        className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-red-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </button>
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-gray-800">{expense.description}</p>
+                                    <p className="mt-1 text-xs text-gray-400">{formatDate(expense.expense_date)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">Amount</p>
+                                    <p className="text-lg font-bold text-rose-600">{formatCurrency(Number(expense.amount))}</p>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                <div className="hidden overflow-x-auto md:block">
                         <table className="w-full">
                             <thead>
                                 <tr className="border-b border-gray-100 bg-gray-50/60">
@@ -651,8 +738,13 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
                                 </tfoot>
                             )}
                         </table>
-                    </div>
                 </div>
+
+                {filteredExpenses.length > 0 && (
+                    <div className="border-t border-slate-100 px-4 py-3 text-xs text-slate-500 md:hidden">
+                        {filteredExpenses.length} expense{filteredExpenses.length !== 1 ? 's' : ''} · Total {formatCurrency(filteredExpenses.reduce((s, e) => s + Number(e.amount), 0))}
+                    </div>
+                )}
             </div>
 
             {/* Add Expense Modal */}
