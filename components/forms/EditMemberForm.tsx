@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { Loader2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateMember } from '@/app/admin/members/actions'
+import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
 import { Button } from '@/components/ui/button'
 import LoadingLinkButton from '@/components/ui/loading-link-button'
 import { Input } from '@/components/ui/input'
@@ -45,6 +46,7 @@ export default function EditMemberForm({ member, plans }: EditMemberFormProps) {
     const [gender, setGender] = useState(member.gender || '')
     const [selectedPlan, setSelectedPlan] = useState(member.membership_plan_id || 'none')
     const [photoPreview, setPhotoPreview] = useState(member.photo_url)
+    const [photoError, setPhotoError] = useState<string | null>(null)
 
     const initials = member.full_name
         .split(' ')
@@ -57,34 +59,48 @@ export default function EditMemberForm({ member, plans }: EditMemberFormProps) {
         const file = e.target.files?.[0]
         if (!file) return
 
-        if (file.size > 5 * 1024 * 1024) {
-            toast.error('Photo must be under 5MB')
+        if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+            const message = `Photo must be under ${MAX_UPLOAD_SIZE_LABEL}.`
+            setPhotoError(message)
+            e.target.value = ''
+            toast.error(message)
             return
         }
 
+        setPhotoError(null)
         const reader = new FileReader()
         reader.onload = () => setPhotoPreview(reader.result as string)
         reader.readAsDataURL(file)
     }
 
     const handleSubmit = async (formData: FormData) => {
-        setLoading(true)
-        formData.set('id', member.id)
-        formData.set('status', status)
-        formData.set('gender', gender)
-        formData.set('membership_plan_id', selectedPlan === 'none' ? '' : selectedPlan)
-        formData.set('existing_photo_url', member.photo_url || '')
-
-        const result = await updateMember(formData)
-
-        if (result.error) {
-            toast.error(result.error)
-            setLoading(false)
+        if (photoError) {
+            toast.error(photoError)
             return
         }
 
-        toast.success('Member updated successfully')
-        router.push(`/admin/members/${member.id}`)
+        setLoading(true)
+        try {
+            formData.set('id', member.id)
+            formData.set('status', status)
+            formData.set('gender', gender)
+            formData.set('membership_plan_id', selectedPlan === 'none' ? '' : selectedPlan)
+            formData.set('existing_photo_url', member.photo_url || '')
+
+            const result = await updateMember(formData)
+
+            if (result.error) {
+                toast.error(result.error)
+                setLoading(false)
+                return
+            }
+
+            toast.success('Member updated successfully')
+            router.push(`/admin/members/${member.id}`)
+        } catch {
+            toast.error(UPLOAD_FAILURE_MESSAGE)
+            setLoading(false)
+        }
     }
 
     return (
@@ -107,7 +123,8 @@ export default function EditMemberForm({ member, plans }: EditMemberFormProps) {
                                 <Upload className="mr-2 h-4 w-4" />
                                 Change Photo
                             </Button>
-                            <p className="text-xs text-gray-400">JPG, PNG or GIF up to 5MB</p>
+                            <p className="text-xs text-gray-400">JPG, PNG or GIF up to {MAX_UPLOAD_SIZE_LABEL}</p>
+                            {photoError ? <p className="text-xs text-red-500">{photoError}</p> : null}
                         </div>
                     </div>
                     <input

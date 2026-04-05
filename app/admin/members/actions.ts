@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import type { InsertTables, QueryResult, UpdateTables } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
+import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
 
 type MemberIdRow = Pick<InsertTables<'members'>, 'member_id'>
 type PlanLookup = Pick<InsertTables<'membership_plans'>, 'duration_days' | 'price'>
@@ -198,6 +199,10 @@ export async function updateMember(formData: FormData) {
         let photoUrl = (formData.get('existing_photo_url') as string) || null
         const photoFile = formData.get('photo') as File | null
         if (photoFile && photoFile.size > 0) {
+            if (photoFile.size > MAX_UPLOAD_SIZE_BYTES) {
+                return { error: `Photo must be under ${MAX_UPLOAD_SIZE_LABEL}.` }
+            }
+
             const fileExt = photoFile.name.split('.').pop()
             const fileName = `member-${memberId}-${Date.now()}.${fileExt}`
 
@@ -206,7 +211,7 @@ export async function updateMember(formData: FormData) {
                 .upload(fileName, photoFile, { upsert: true })
 
             if (uploadError) {
-                return { error: getErrorMessage(uploadError, 'Failed to upload member photo') }
+                return { error: getErrorMessage(uploadError, UPLOAD_FAILURE_MESSAGE) }
             }
 
             const { data: { publicUrl } } = supabaseAdmin.storage

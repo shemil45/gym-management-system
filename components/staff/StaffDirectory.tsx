@@ -1,11 +1,13 @@
 'use client'
 
 import Link from 'next/link'
+import { startTransition, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { formatRoleLabel } from '@/lib/auth/roles'
-import { Plus, Phone } from 'lucide-react'
+import { Loader2, Plus, Phone } from 'lucide-react'
 
 type StaffMember = {
     id: string
@@ -29,6 +31,17 @@ function getRoleBadgeClass(role: string) {
 }
 
 export default function StaffDirectory({ staff }: { staff: StaffMember[] }) {
+    const router = useRouter()
+    const [navigatingStaffId, setNavigatingStaffId] = useState<string | null>(null)
+
+    const handleViewStaff = (id: string) => {
+        if (navigatingStaffId) return
+        setNavigatingStaffId(id)
+        startTransition(() => {
+            router.push(`/admin/staff/${id}`)
+        })
+    }
+
     return (
         <div className="space-y-5">
             <div className="flex items-center justify-between gap-3">
@@ -64,8 +77,20 @@ export default function StaffDirectory({ staff }: { staff: StaffMember[] }) {
                                 .toUpperCase()
 
                             return (
-                                <div key={member.id} className="px-4 py-4">
-                                    <div className="flex items-start gap-3">
+                                <div
+                                    key={member.id}
+                                    onClick={() => handleViewStaff(member.id)}
+                                    className={`relative cursor-pointer px-4 py-4 transition-colors ${
+                                        navigatingStaffId === member.id ? 'bg-blue-50/60' : 'hover:bg-slate-50'
+                                    }`}
+                                >
+                                    {navigatingStaffId === member.id ? (
+                                        <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70">
+                                            <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
+                                        </div>
+                                    ) : null}
+
+                                    <div className={`flex items-start gap-3 ${navigatingStaffId === member.id ? 'opacity-40' : ''}`}>
                                         <Avatar className="h-12 w-12 shrink-0 ring-2 ring-slate-100">
                                             <AvatarImage src={member.photo_url || undefined} alt={member.full_name} />
                                             <AvatarFallback className="bg-gradient-to-br from-blue-500 to-cyan-500 text-xs font-semibold text-white">
@@ -119,7 +144,13 @@ export default function StaffDirectory({ staff }: { staff: StaffMember[] }) {
                                         .toUpperCase()
 
                                     return (
-                                        <tr key={member.id} className="hover:bg-slate-50/70">
+                                        <tr
+                                            key={member.id}
+                                            onClick={() => handleViewStaff(member.id)}
+                                            className={`cursor-pointer transition-colors ${
+                                                navigatingStaffId === member.id ? 'bg-blue-50/60 opacity-60' : 'hover:bg-slate-50/70'
+                                            }`}
+                                        >
                                             <td className="py-3 pl-6 pr-3">
                                                 <Avatar className="h-10 w-10 ring-2 ring-slate-100">
                                                     <AvatarImage src={member.photo_url || undefined} alt={member.full_name} />
@@ -134,7 +165,16 @@ export default function StaffDirectory({ staff }: { staff: StaffMember[] }) {
                                                     {formatRoleLabel(member.role)}
                                                 </Badge>
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-slate-500">{member.phone || 'No phone added'}</td>
+                                            <td className="px-6 py-4 text-sm text-slate-500">
+                                                {navigatingStaffId === member.id ? (
+                                                    <span className="inline-flex items-center gap-2 text-blue-500">
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                        Opening...
+                                                    </span>
+                                                ) : (
+                                                    member.phone || 'No phone added'
+                                                )}
+                                            </td>
                                         </tr>
                                     )
                                 })

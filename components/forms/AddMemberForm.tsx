@@ -17,6 +17,7 @@ import {
 import { Loader2, Upload, ImageIcon, Camera, Gift } from 'lucide-react'
 import { toast } from 'sonner'
 import { createMember } from '@/app/admin/members/actions'
+import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
 
 interface AddMemberFormProps {
     plans: { id: string; name: string; duration_days: number; price: number }[]
@@ -33,6 +34,7 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
     const [gender, setGender] = useState<'male' | 'female' | 'other'>('male')
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
     const [paymentAmount, setPaymentAmount] = useState('')
+    const [photoError, setPhotoError] = useState<string | null>(null)
 
     // Auto-fill amount when plan is chosen
     const handlePlanChange = (value: string) => {
@@ -44,10 +46,15 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
     const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
-        if (file.size > 5 * 1024 * 1024) {
-            toast.error('Photo must be under 5MB')
+        if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+            const message = `Photo must be under ${MAX_UPLOAD_SIZE_LABEL}.`
+            setPhotoError(message)
+            setPhotoPreview(null)
+            e.target.value = ''
+            toast.error(message)
             return
         }
+        setPhotoError(null)
         const reader = new FileReader()
         reader.onload = () => setPhotoPreview(reader.result as string)
         reader.readAsDataURL(file)
@@ -57,21 +64,27 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
         e.preventDefault()
         if (!selectedPlan) { toast.error('Please select a membership plan'); return }
         if (!paymentMethod) { toast.error('Please select a payment method'); return }
+        if (photoError) { toast.error(photoError); return }
 
         setLoading(true)
-        const formData = new FormData(e.currentTarget)
-        formData.append('membership_plan_id', selectedPlan)
-        formData.append('payment_method', paymentMethod)
-        formData.append('gender', gender)
+        try {
+            const formData = new FormData(e.currentTarget)
+            formData.append('membership_plan_id', selectedPlan)
+            formData.append('payment_method', paymentMethod)
+            formData.append('gender', gender)
 
-        const result = await createMember(formData)
+            const result = await createMember(formData)
 
-        if (result.error) {
-            toast.error(result.error)
+            if (result.error) {
+                toast.error(result.error)
+                setLoading(false)
+            } else {
+                toast.success('Member added successfully!')
+                router.push(`/admin/members/${result.memberId}`)
+            }
+        } catch {
+            toast.error(UPLOAD_FAILURE_MESSAGE)
             setLoading(false)
-        } else {
-            toast.success('Member added successfully!')
-            router.push(`/admin/members/${result.memberId}`)
         }
     }
 
@@ -101,6 +114,7 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
                                     <button
                                         type="button"
                                         onClick={() => fileInputRef.current?.click()}
+                                        disabled={loading}
                                         className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                                     >
                                         <Upload className="h-3.5 w-3.5" />
@@ -109,13 +123,15 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
                                     <button
                                         type="button"
                                         onClick={() => cameraInputRef.current?.click()}
+                                        disabled={loading}
                                         className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                                     >
                                         <Camera className="h-3.5 w-3.5" />
                                         Capture Photo
                                     </button>
                                 </div>
-                                <p className="mt-1 text-xs text-gray-400">JPG, PNG or GIF (Max. 5MB)</p>
+                                <p className="mt-1 text-xs text-gray-400">JPG, PNG or GIF (Max. {MAX_UPLOAD_SIZE_LABEL})</p>
+                                {photoError ? <p className="mt-1 text-xs text-red-500">{photoError}</p> : null}
                                 {/* Upload from gallery */}
                                 <input
                                     ref={fileInputRef}

@@ -7,6 +7,7 @@ import { Camera, ImageIcon, Loader2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { createStaff } from '@/app/admin/staff/actions'
 import { STAFF_ROLES, formatRoleLabel, type StaffRole } from '@/lib/auth/roles'
+import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -27,17 +28,22 @@ export default function AddStaffForm() {
     const [password, setPassword] = useState('')
     const [confirmPassword, setConfirmPassword] = useState('')
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+    const [photoError, setPhotoError] = useState<string | null>(null)
 
     const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0]
         if (!file) return
 
-        if (file.size > 5 * 1024 * 1024) {
-            toast.error('Photo must be under 5MB')
+        if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+            const message = `Photo must be under ${MAX_UPLOAD_SIZE_LABEL}.`
+            setPhotoError(message)
+            setPhotoPreview(null)
             event.target.value = ''
+            toast.error(message)
             return
         }
 
+        setPhotoError(null)
         const reader = new FileReader()
         reader.onload = () => setPhotoPreview(reader.result as string)
         reader.readAsDataURL(file)
@@ -50,23 +56,31 @@ export default function AddStaffForm() {
             toast.error('Passwords do not match.')
             return
         }
-
-        setLoading(true)
-
-        const formData = new FormData(event.currentTarget)
-        formData.set('role', role)
-
-        const result = await createStaff(formData)
-
-        if (result.error) {
-            toast.error(result.error)
-            setLoading(false)
+        if (photoError) {
+            toast.error(photoError)
             return
         }
 
-        toast.success('Staff account created successfully.')
-        router.push('/admin/staff')
-        router.refresh()
+        setLoading(true)
+        try {
+            const formData = new FormData(event.currentTarget)
+            formData.set('role', role)
+
+            const result = await createStaff(formData)
+
+            if (result.error) {
+                toast.error(result.error)
+                setLoading(false)
+                return
+            }
+
+            toast.success('Staff account created successfully.')
+            router.push('/admin/staff')
+            router.refresh()
+        } catch {
+            toast.error(UPLOAD_FAILURE_MESSAGE)
+            setLoading(false)
+        }
     }
 
     return (
@@ -95,6 +109,7 @@ export default function AddStaffForm() {
                                     <button
                                         type="button"
                                         onClick={() => fileInputRef.current?.click()}
+                                        disabled={loading}
                                         className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
                                     >
                                         <Upload className="h-3.5 w-3.5" />
@@ -103,13 +118,15 @@ export default function AddStaffForm() {
                                     <button
                                         type="button"
                                         onClick={() => cameraInputRef.current?.click()}
+                                        disabled={loading}
                                         className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
                                     >
                                         <Camera className="h-3.5 w-3.5" />
                                         Capture Photo
                                     </button>
                                 </div>
-                                <p className="mt-1 text-xs text-slate-400">JPG, PNG or GIF (Max. 5MB)</p>
+                                <p className="mt-1 text-xs text-slate-400">JPG, PNG or GIF (Max. {MAX_UPLOAD_SIZE_LABEL})</p>
+                                {photoError ? <p className="mt-1 text-xs text-red-500">{photoError}</p> : null}
                                 <input
                                     ref={fileInputRef}
                                     type="file"
