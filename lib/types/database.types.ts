@@ -12,7 +12,7 @@ export interface Database {
             profiles: {
                 Row: {
                     id: string
-                    role: 'admin' | 'member'
+                    role: 'admin' | 'owner' | 'manager' | 'receptionist' | 'trainer' | 'house_keeper' | 'member'
                     full_name: string
                     phone: string | null
                     photo_url: string | null
@@ -21,7 +21,7 @@ export interface Database {
                 }
                 Insert: {
                     id: string
-                    role: 'admin' | 'member'
+                    role: 'admin' | 'owner' | 'manager' | 'receptionist' | 'trainer' | 'house_keeper' | 'member'
                     full_name: string
                     phone?: string | null
                     photo_url?: string | null
@@ -30,7 +30,7 @@ export interface Database {
                 }
                 Update: {
                     id?: string
-                    role?: 'admin' | 'member'
+                    role?: 'admin' | 'owner' | 'manager' | 'receptionist' | 'trainer' | 'house_keeper' | 'member'
                     full_name?: string
                     phone?: string | null
                     photo_url?: string | null

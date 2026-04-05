@@ -9,6 +9,7 @@ import { User, Lock, ShieldCheck, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { updateProfile } from '@/app/admin/settings/actions'
+import { formatRoleLabel } from '@/lib/auth/roles'
 
 interface Profile {
     id: string
@@ -126,7 +127,7 @@ export default function SettingsDashboard({ profile, email }: SettingsDashboardP
             {/* Header */}
             <div>
                 <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-                <p className="text-sm text-gray-500 mt-0.5">Manage your admin profile and password</p>
+                <p className="text-sm text-gray-500 mt-0.5">Manage your staff profile and password</p>
             </div>
 
             <div className="max-w-lg space-y-5">
@@ -181,7 +182,7 @@ export default function SettingsDashboard({ profile, email }: SettingsDashboardP
                         <div className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2">
                             <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
                             <p className="text-xs text-emerald-700 font-medium capitalize">
-                                Role: {profile.role}
+                                Role: {formatRoleLabel(profile.role)}
                             </p>
                         </div>
 

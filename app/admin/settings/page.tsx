@@ -1,12 +1,13 @@
 import { redirect } from 'next/navigation'
 import SettingsDashboard from '@/components/settings/SettingsDashboard'
 import { getCurrentAdminContext } from '@/lib/auth/admin-server'
+import { isStaffRole } from '@/lib/auth/roles'
 
 export default async function SettingsPage() {
     const { user, profile } = await getCurrentAdminContext()
 
     if (!user) redirect('/login')
-    if (!profile || profile.role !== 'admin') redirect('/member/dashboard')
+    if (!profile || !isStaffRole(profile.role)) redirect('/member/dashboard')
 
     return (
         <SettingsDashboard

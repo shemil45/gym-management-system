@@ -3,6 +3,8 @@ import AdminSidebar from '@/components/layout/AdminSidebar'
 import AdminHeader from '@/components/layout/AdminHeader'
 import { SidebarProvider } from '@/components/layout/SidebarContext'
 import { getCurrentAdminContext } from '@/lib/auth/admin-server'
+import { isStaffRole } from '@/lib/auth/roles'
+import { Toaster } from 'sonner'
 
 export default async function AdminLayout({
     children,
@@ -15,13 +17,14 @@ export default async function AdminLayout({
         redirect('/login')
     }
 
-    if (!profile || profile.role !== 'admin') {
+    if (!profile || !isStaffRole(profile.role)) {
         redirect('/member/dashboard')
     }
 
     return (
         <SidebarProvider>
             <div className="min-h-screen bg-[#eef3fb]">
+                <Toaster richColors position="top-right" />
                 <AdminSidebar />
                 <div className="lg:pl-[100px] xl:pl-[110px]">
                     <AdminHeader user={{ ...user, ...profile }} />

@@ -1,8 +1,10 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { QueryResult } from '@/lib/types'
+import type { ProfileRole } from '@/lib/auth/roles'
+import { isStaffRole } from '@/lib/auth/roles'
 
-type ProfileRole = { role: 'admin' | 'member' }
+type ViewerProfile = { role: ProfileRole }
 
 export default async function AuthRedirectPage() {
     const supabase = await createClient()
@@ -20,13 +22,13 @@ export default async function AuthRedirectPage() {
         .select('role')
         .eq('id', user.id)
         .single()
-    const { data: profile } = profileResult as unknown as QueryResult<ProfileRole | null>
+    const { data: profile } = profileResult as unknown as QueryResult<ViewerProfile | null>
 
     if (!profile) {
         redirect('/login')
     }
 
-    if (profile.role === 'admin') {
+    if (isStaffRole(profile.role)) {
         redirect('/admin/dashboard')
     }
 

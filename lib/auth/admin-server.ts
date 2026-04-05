@@ -1,10 +1,11 @@
 import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import type { QueryResult } from '@/lib/types'
+import type { ProfileRole } from '@/lib/auth/roles'
 
 type AdminProfile = {
     id: string
-    role: 'admin' | 'member'
+    role: ProfileRole
     full_name: string
     phone: string | null
     photo_url: string | null

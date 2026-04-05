@@ -2,8 +2,10 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { QueryResult } from '@/lib/types'
 import CompleteProfileForm from './CompleteProfileForm'
+import type { ProfileRole } from '@/lib/auth/roles'
+import { isStaffRole } from '@/lib/auth/roles'
 
-type ProfileRole = { role: 'admin' | 'member' }
+type ViewerProfile = { role: ProfileRole }
 
 export default async function CompleteProfilePage() {
     const supabase = await createClient()
@@ -29,9 +31,9 @@ export default async function CompleteProfilePage() {
             .select('role')
             .eq('id', user.id)
             .single()
-        const { data: profile } = profileResult as unknown as QueryResult<ProfileRole | null>
+        const { data: profile } = profileResult as unknown as QueryResult<ViewerProfile | null>
         
-        if (profile?.role === 'admin') {
+        if (profile && isStaffRole(profile.role)) {
             redirect('/admin/dashboard')
         } else {
             redirect('/member/dashboard')

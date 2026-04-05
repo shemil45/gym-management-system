@@ -10,7 +10,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- =============================================
 CREATE TABLE profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  role TEXT NOT NULL CHECK (role IN ('admin', 'member')),
+  role TEXT NOT NULL CHECK (role IN ('admin', 'owner', 'manager', 'receptionist', 'trainer', 'house_keeper', 'member')),
   full_name TEXT NOT NULL,
   phone TEXT,
   photo_url TEXT,
@@ -201,6 +201,21 @@ CREATE TRIGGER update_expenses_updated_at BEFORE UPDATE ON expenses
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- =============================================
 
+CREATE OR REPLACE FUNCTION public.is_staff_user()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.profiles
+    WHERE id = auth.uid()
+      AND role <> 'member'
+  );
+$$;
+
 -- Enable RLS on all tables
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE membership_plans ENABLE ROW LEVEL SECURITY;
@@ -210,94 +225,149 @@ ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE referrals ENABLE ROW LEVEL SECURITY;
 
--- Profiles: Users can read their own profile, admins can read all
-CREATE POLICY "Users can view own profile" ON profiles
-  FOR SELECT USING (auth.uid() = id);
+-- Profiles: users can read their own profile, staff can read all
+CREATE POLICY "Users can read own profile" ON profiles
+  FOR SELECT
+  TO authenticated
+  USING (id = auth.uid());
 
-CREATE POLICY "Admins can view all profiles" ON profiles
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
+CREATE POLICY "Staff can read all profiles" ON profiles
+  FOR SELECT
+  TO authenticated
+  USING (public.is_staff_user());
 
 CREATE POLICY "Users can update own profile" ON profiles
-  FOR UPDATE USING (auth.uid() = id);
+  FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id);
 
--- Membership Plans: Everyone can read active plans, admins can manage
+-- Membership Plans: everyone can read active plans, staff can manage all
 CREATE POLICY "Anyone can view active plans" ON membership_plans
-  FOR SELECT USING (is_active = true);
+  FOR SELECT
+  TO authenticated
+  USING (is_active = true OR public.is_staff_user());
 
-CREATE POLICY "Admins can manage plans" ON membership_plans
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
+CREATE POLICY "Staff can manage plans" ON membership_plans
+  FOR ALL
+  TO authenticated
+  USING (public.is_staff_user())
+  WITH CHECK (public.is_staff_user());
 
--- Members: Admins can manage all, members can view their own
-CREATE POLICY "Admins can manage all members" ON members
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
+-- Members: staff can manage all, members can view/update their own
+CREATE POLICY "Staff can read all data" ON members
+  FOR SELECT
+  TO authenticated
+  USING (public.is_staff_user());
 
 CREATE POLICY "Members can view own data" ON members
-  FOR SELECT USING (user_id = auth.uid());
+  FOR SELECT
+  TO authenticated
+  USING (user_id = auth.uid());
+
+CREATE POLICY "Staff can insert data" ON members
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (public.is_staff_user());
+
+CREATE POLICY "Staff can update data" ON members
+  FOR UPDATE
+  TO authenticated
+  USING (public.is_staff_user())
+  WITH CHECK (public.is_staff_user());
+
+CREATE POLICY "Staff can delete data" ON members
+  FOR DELETE
+  TO authenticated
+  USING (public.is_staff_user());
 
 CREATE POLICY "Members can update own data" ON members
-  FOR UPDATE USING (user_id = auth.uid());
+  FOR UPDATE
+  TO authenticated
+  USING (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
 
--- Check-ins: Admins can manage all, members can view their own
-CREATE POLICY "Admins can manage check-ins" ON check_ins
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
+-- Check-ins: staff can manage all, members can view their own
+CREATE POLICY "Staff can manage check-ins" ON check_ins
+  FOR ALL
+  TO authenticated
+  USING (public.is_staff_user())
+  WITH CHECK (public.is_staff_user());
 
 CREATE POLICY "Members can view own check-ins" ON check_ins
-  FOR SELECT USING (
+  FOR SELECT
+  TO authenticated
+  USING (
     EXISTS (
       SELECT 1 FROM members WHERE id = check_ins.member_id AND user_id = auth.uid()
     )
   );
 
--- Payments: Admins can manage all, members can view their own
-CREATE POLICY "Admins can manage payments" ON payments
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
+-- Payments: staff can manage all, members can view their own
+CREATE POLICY "Staff can read all data" ON payments
+  FOR SELECT
+  TO authenticated
+  USING (public.is_staff_user());
 
 CREATE POLICY "Members can view own payments" ON payments
-  FOR SELECT USING (
+  FOR SELECT
+  TO authenticated
+  USING (
     EXISTS (
       SELECT 1 FROM members WHERE id = payments.member_id AND user_id = auth.uid()
     )
   );
 
--- Expenses: Admin only
-CREATE POLICY "Admins can manage expenses" ON expenses
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
+CREATE POLICY "Staff can insert data" ON payments
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (public.is_staff_user());
 
--- Referrals: Admins can manage all, members can view their own
-CREATE POLICY "Admins can manage referrals" ON referrals
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
+CREATE POLICY "Staff can update data" ON payments
+  FOR UPDATE
+  TO authenticated
+  USING (public.is_staff_user())
+  WITH CHECK (public.is_staff_user());
+
+CREATE POLICY "Staff can delete data" ON payments
+  FOR DELETE
+  TO authenticated
+  USING (public.is_staff_user());
+
+-- Expenses: staff can manage all
+CREATE POLICY "Staff can manage expenses" ON expenses
+  FOR ALL
+  TO authenticated
+  USING (public.is_staff_user())
+  WITH CHECK (public.is_staff_user());
+
+-- Referrals: staff can manage all, members can view their own
+CREATE POLICY "Staff can read all data" ON referrals
+  FOR SELECT
+  TO authenticated
+  USING (public.is_staff_user());
 
 CREATE POLICY "Members can view own referrals" ON referrals
-  FOR SELECT USING (
+  FOR SELECT
+  TO authenticated
+  USING (
     EXISTS (
       SELECT 1 FROM members WHERE id = referrals.referrer_id AND user_id = auth.uid()
     )
   );
+
+CREATE POLICY "Staff can insert data" ON referrals
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (public.is_staff_user());
+
+CREATE POLICY "Staff can update data" ON referrals
+  FOR UPDATE
+  TO authenticated
+  USING (public.is_staff_user())
+  WITH CHECK (public.is_staff_user());
+
+CREATE POLICY "Staff can delete data" ON referrals
+  FOR DELETE
+  TO authenticated
+  USING (public.is_staff_user());

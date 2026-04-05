@@ -15,6 +15,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Bell, ChevronDown, LogOut, Menu, Search, Settings2, User } from 'lucide-react'
 import { useSidebar } from '@/components/layout/SidebarContext'
+import { formatRoleLabel } from '@/lib/auth/roles'
 
 interface AdminHeaderProps {
     user: {
@@ -109,7 +110,7 @@ export default function AdminHeader({ user }: AdminHeaderProps) {
                                         {user.full_name || 'Admin'}
                                     </span>
                                     <span className="text-[10px] capitalize leading-tight text-gray-400">
-                                        {user.role || 'admin'}
+                                        {formatRoleLabel(user.role || 'admin')}
                                     </span>
                                 </div>
                                 <ChevronDown className="h-3 w-3 text-gray-400" />

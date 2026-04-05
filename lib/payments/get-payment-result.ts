@@ -3,6 +3,8 @@ import 'server-only'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import type { QueryResult } from '@/lib/types'
+import type { ProfileRole } from '@/lib/auth/roles'
+import { isStaffRole } from '@/lib/auth/roles'
 
 export type PaymentResult =
     | {
@@ -44,9 +46,7 @@ export async function getPaymentResultForViewer(invoiceNumber: string): Promise<
             return { error: 'Not authenticated' }
         }
 
-        type ViewerProfile = {
-            role: 'admin' | 'member'
-        }
+        type ViewerProfile = { role: ProfileRole }
 
         const profileResult = await supabase
             .from('profiles')
@@ -64,7 +64,7 @@ export async function getPaymentResultForViewer(invoiceNumber: string): Promise<
             .select('member_id, amount, invoice_number, membership_start_date, membership_end_date, payment_date, payment_method, payment_status, razorpay_order_id, razorpay_payment_id, notes')
             .eq('invoice_number', invoiceNumber)
 
-        if (profile.role !== 'admin') {
+        if (!isStaffRole(profile.role)) {
             const { data: member } = await supabaseAdmin
                 .from('members')
                 .select('id')

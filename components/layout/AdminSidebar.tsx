@@ -16,6 +16,7 @@ import {
     Settings,
     TrendingUp,
     UserCheck,
+    UserRoundCog,
     Users,
     X,
 } from 'lucide-react'
@@ -30,6 +31,7 @@ type NavigationItem = {
 const navigation = [
     { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
     { name: 'Members', href: '/admin/members', icon: Users },
+    { name: 'Staff', href: '/admin/staff', icon: UserRoundCog },
     { name: 'Check-ins', href: '/admin/check-ins', icon: UserCheck },
     {
         name: 'Finances',
