@@ -11,7 +11,7 @@ import {
     Loader2,
     XCircle,
 } from 'lucide-react'
-import { markRazorpayPaymentFailed, verifyRazorpayPayment } from '../actions'
+import { markRazorpayPaymentFailed, verifyRazorpayPayment } from '../member/plans/actions'
 
 type PaymentResult = {
     amount: number
@@ -31,6 +31,7 @@ type PaymentResult = {
 type ResultClientProps = {
     invoiceNumber?: string
     payment?: PaymentResult | null
+    portal: 'admin' | 'member'
     reason?: string
     status: 'success' | 'failure' | 'processing'
 }
@@ -79,11 +80,13 @@ function statusLabel(status: PaymentResult['paymentStatus']) {
     return status.charAt(0).toUpperCase() + status.slice(1)
 }
 
-export default function ResultClient({ invoiceNumber, payment, reason, status }: ResultClientProps) {
+export default function ResultClient({ invoiceNumber, payment, portal, reason, status }: ResultClientProps) {
     const router = useRouter()
     const [downloading, setDownloading] = useState(false)
     const [processingError, setProcessingError] = useState<string | null>(null)
     const processingInvoiceNumber = invoiceNumber ?? null
+    const historyHref = portal === 'admin' ? '/admin/payments' : '/member/payments'
+    const fallbackHref = portal === 'admin' ? '/admin/payments' : '/member/plans'
     const hasDiscount = payment && payment.coinsUsed > 0
     const resolvedStatus = payment?.paymentStatus ?? (status === 'failure' ? 'failed' : 'paid')
     const bannerTone =
@@ -129,7 +132,7 @@ export default function ResultClient({ invoiceNumber, payment, reason, status }:
     } as const
 
     useEffect(() => {
-        if (status !== 'processing' || !processingInvoiceNumber) {
+            if (status !== 'processing' || !processingInvoiceNumber) {
             return
         }
 
@@ -170,11 +173,11 @@ export default function ResultClient({ invoiceNumber, payment, reason, status }:
                     razorpayOrderId: payload.razorpayOrderId,
                     reason: verifyResult.error,
                 })
-                router.replace(`/member/plans/result?status=failure&invoice=${encodeURIComponent(invoice)}&reason=${encodeURIComponent(verifyResult.error)}`)
+                router.replace(`/invoice?status=failure&portal=${portal}&invoice=${encodeURIComponent(invoice)}&reason=${encodeURIComponent(verifyResult.error)}`)
                 return
             }
 
-            router.replace(`/member/plans/result?status=success&invoice=${encodeURIComponent(verifyResult.invoiceNumber)}`)
+            router.replace(`/invoice?status=success&portal=${portal}&invoice=${encodeURIComponent(verifyResult.invoiceNumber)}`)
         }
 
         void finalizePayment()
@@ -182,7 +185,7 @@ export default function ResultClient({ invoiceNumber, payment, reason, status }:
         return () => {
             cancelled = true
         }
-    }, [processingInvoiceNumber, router, status])
+    }, [portal, processingInvoiceNumber, router, status])
 
     const handleDownload = async () => {
         if (!payment) return
@@ -399,16 +402,16 @@ export default function ResultClient({ invoiceNumber, payment, reason, status }:
                             )}
                             <div className="flex flex-wrap gap-3 pt-2">
                                 <Link
-                                    href="/member/payments"
+                                    href={historyHref}
                                     className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
                                 >
                                     Open payment history
                                 </Link>
                                 <Link
-                                    href="/member/plans"
+                                    href={fallbackHref}
                                     className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
                                 >
-                                    Back to plans
+                                    {portal === 'admin' ? 'Back to payments' : 'Back to plans'}
                                 </Link>
                             </div>
                         </div>
@@ -451,7 +454,7 @@ export default function ResultClient({ invoiceNumber, payment, reason, status }:
                             </button>
                         )}
                         <Link
-                            href="/member/payments"
+                            href={historyHref}
                             className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:w-auto sm:justify-start"
                         >
                             Payment history
@@ -631,13 +634,13 @@ export default function ResultClient({ invoiceNumber, payment, reason, status }:
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <div className="flex flex-wrap gap-3">
                         <Link
-                            href="/member/plans"
+                            href={fallbackHref}
                             className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
                         >
-                            Return to plans
+                            {portal === 'admin' ? 'Back to payments' : 'Return to plans'}
                         </Link>
                         <Link
-                            href="/member/payments"
+                            href={historyHref}
                             className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
                         >
                             Open payment history

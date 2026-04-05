@@ -149,7 +149,7 @@ export default function PlansClient({ plans, currentPlanId, membershipExpiry, me
 
             if (orderResult.amount === 0) {
                 setSelectedPlanId(null)
-                router.push(`/member/plans/result?status=success&invoice=${encodeURIComponent(orderResult.invoiceNumber)}`)
+                router.push(`/invoice?status=success&invoice=${encodeURIComponent(orderResult.invoiceNumber)}`)
                 return
             }
 
@@ -185,7 +185,7 @@ export default function PlansClient({ plans, currentPlanId, membershipExpiry, me
                             reason: failureReason || 'Checkout window closed before payment completion.',
                         })
                         setLoading(false)
-                        router.push(`/member/plans/result?status=failure&invoice=${encodeURIComponent(orderResult.invoiceNumber)}&reason=${encodeURIComponent(failureReason || 'Payment was cancelled before completion.')}`)
+                        router.push(`/invoice?status=failure&invoice=${encodeURIComponent(orderResult.invoiceNumber)}&reason=${encodeURIComponent(failureReason || 'Payment was cancelled before completion.')}`)
                     },
                 },
                 handler: async (response) => {
@@ -207,7 +207,7 @@ export default function PlansClient({ plans, currentPlanId, membershipExpiry, me
                     setLoading(false)
                     setSelectedPlanId(null)
                     startTransition(() => {
-                        router.push(`/member/plans/result?status=processing&invoice=${encodeURIComponent(orderResult.invoiceNumber)}`)
+                        router.push(`/invoice?status=processing&invoice=${encodeURIComponent(orderResult.invoiceNumber)}`)
                     })
                 },
             })

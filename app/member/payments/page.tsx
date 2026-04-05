@@ -45,7 +45,7 @@ function getInvoiceHref(payment: Payment) {
     if (!payment.invoice_number) return null
 
     const status = payment.payment_status === 'paid' ? 'success' : 'failure'
-    return `/member/plans/result?invoice=${encodeURIComponent(payment.invoice_number)}&status=${status}`
+    return `/invoice?portal=member&invoice=${encodeURIComponent(payment.invoice_number)}&status=${status}`
 }
 
 export default function MemberPayments() {
