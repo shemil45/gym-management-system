@@ -21,6 +21,8 @@ type PaymentTableRow = {
         member_id: string
         full_name: string
         photo_url: string | null
+        membership_start_date: string | null
+        membership_expiry_date: string | null
         membership_plan: { name: string } | null
     } | null
 }
@@ -38,6 +40,8 @@ export default async function PaymentsPage() {
                 member_id,
                 full_name,
                 photo_url,
+                membership_start_date,
+                membership_expiry_date,
                 membership_plan:membership_plans(name)
             )
         `)

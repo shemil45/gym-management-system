@@ -27,7 +27,6 @@ import {
     Wallet,
     SlidersHorizontal,
     X,
-    CalendarDays,
     Loader2,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils/currency'
@@ -42,6 +41,8 @@ interface MemberSnippet {
     member_id: string
     full_name: string
     photo_url?: string | null
+    membership_start_date?: string | null
+    membership_expiry_date?: string | null
     membership_plan?: { name: string } | null
 }
 
@@ -81,6 +82,13 @@ function isThisMonth(dateStr: string) {
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
 }
 
+function formatTime(dateStr: string) {
+    return new Date(dateStr).toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+    })
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: PaymentRow['payment_status'] }) {
@@ -116,11 +124,11 @@ function MethodBadge({ method }: { method: PaymentRow['payment_method'] }) {
 
 function StatCard({ icon, label, value, iconBg }: { icon: React.ReactNode; label: string; value: string; iconBg: string }) {
     return (
-        <div className="flex flex-1 items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3.5 ring-1 ring-slate-100">
+        <div className="flex flex-1 items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3.5 pr-5 ring-1 ring-slate-100">
             <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>{icon}</div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1 pr-2">
                 <p className="truncate text-[11px] font-medium text-slate-400">{label}</p>
-                <p className="text-lg font-bold text-slate-900">{value}</p>
+                <p className="text-[1.6rem] font-bold leading-tight text-slate-900 sm:text-[1.7rem]">{value}</p>
             </div>
         </div>
     )
@@ -195,12 +203,17 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal }: Paym
     const [navigatingInvoiceId, setNavigatingInvoiceId] = useState<string | null>(null)
     const [statusFilter, setStatusFilter] = useState('all')
     const [methodFilter, setMethodFilter] = useState('all')
+    const [dateFrom, setDateFrom] = useState('')
+    const [dateTo, setDateTo] = useState('')
     const [currentPage, setCurrentPage] = useState(1)
     const [showFilterModal, setShowFilterModal] = useState(false)
 
     // Draft state for modal
     const [draftStatus, setDraftStatus] = useState('all')
     const [draftMethod, setDraftMethod] = useState('all')
+    const [draftDateFrom, setDraftDateFrom] = useState('')
+    const [draftDateTo, setDraftDateTo] = useState('')
+    const [dateError, setDateError] = useState('')
 
     // Lock body scroll when modal is open
     useEffect(() => {
@@ -239,9 +252,11 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal }: Paym
                 (p.invoice_number?.toLowerCase().includes(q) ?? false)
             const matchStatus = statusFilter === 'all' || p.payment_status === statusFilter
             const matchMethod = methodFilter === 'all' || p.payment_method === methodFilter
-            return matchSearch && matchStatus && matchMethod
+            const matchDateFrom = !dateFrom || p.payment_date >= dateFrom
+            const matchDateTo = !dateTo || p.payment_date <= dateTo
+            return matchSearch && matchStatus && matchMethod && matchDateFrom && matchDateTo
         })
-    }, [payments, searchQuery, statusFilter, methodFilter])
+    }, [payments, searchQuery, statusFilter, methodFilter, dateFrom, dateTo])
 
     const sortedFiltered = useMemo(() => {
         return [...filtered].sort((a, b) => {
@@ -273,29 +288,49 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal }: Paym
         })
     }
 
-    const hasActiveFilters = statusFilter !== 'all' || methodFilter !== 'all'
+    const hasActiveFilters = statusFilter !== 'all' || methodFilter !== 'all' || !!dateFrom || !!dateTo
+    const activeFilterCount =
+        (statusFilter !== 'all' ? 1 : 0) +
+        (methodFilter !== 'all' ? 1 : 0) +
+        ((dateFrom || dateTo) ? 1 : 0)
 
     const handleOpenFilterModal = () => {
         setDraftStatus(statusFilter)
         setDraftMethod(methodFilter)
+        setDraftDateFrom(dateFrom)
+        setDraftDateTo(dateTo)
+        setDateError('')
         setShowFilterModal(true)
     }
 
     const handleApplyFilters = () => {
+        if (draftDateFrom && draftDateTo && draftDateTo < draftDateFrom) {
+            setDateError('"To" date cannot be earlier than "From" date.')
+            return
+        }
+
         setStatusFilter(draftStatus)
         setMethodFilter(draftMethod)
+        setDateFrom(draftDateFrom)
+        setDateTo(draftDateTo)
         resetPage()
+        setDateError('')
         setShowFilterModal(false)
     }
 
     const handleResetDraft = () => {
         setDraftStatus('all')
         setDraftMethod('all')
+        setDraftDateFrom('')
+        setDraftDateTo('')
+        setDateError('')
     }
 
     const handleClearAllFilters = () => {
         setStatusFilter('all')
         setMethodFilter('all')
+        setDateFrom('')
+        setDateTo('')
         resetPage()
     }
 
@@ -361,6 +396,55 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal }: Paym
                                         <SelectItem value="online">Online</SelectItem>
                                     </SelectContent>
                                 </Select>
+                            </div>
+
+                            <div className="rounded-xl bg-slate-50 p-3 shadow-sm">
+                                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Payment Date Range</p>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-xs font-medium text-slate-500">From</label>
+                                            {draftDateFrom && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDraftDateFrom('')}
+                                                    className="rounded px-1 py-0.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                                                >
+                                                    Reset
+                                                </button>
+                                            )}
+                                        </div>
+                                        <Input
+                                            type="date"
+                                            value={draftDateFrom}
+                                            onChange={(e) => setDraftDateFrom(e.target.value)}
+                                            className="h-10 w-[90%] rounded-xl border-slate-200 bg-white text-sm"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-xs font-medium text-slate-500">To</label>
+                                            {draftDateTo && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDraftDateTo('')}
+                                                    className="rounded px-1 py-0.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                                                >
+                                                    Reset
+                                                </button>
+                                            )}
+                                        </div>
+                                        <Input
+                                            type="date"
+                                            value={draftDateTo}
+                                            onChange={(e) => setDraftDateTo(e.target.value)}
+                                            className="h-10 w-[90%] rounded-xl border-slate-200 bg-white text-sm"
+                                        />
+                                    </div>
+                                </div>
+                                {dateError && (
+                                    <p className="mt-2 text-xs font-medium text-red-500">{dateError}</p>
+                                )}
                             </div>
                         </div>
 
@@ -467,7 +551,7 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal }: Paym
                                 <span className="hidden xl:inline whitespace-nowrap">Filter</span>
                                 {hasActiveFilters && (
                                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white">
-                                        {(statusFilter !== 'all' ? 1 : 0) + (methodFilter !== 'all' ? 1 : 0)}
+                                        {activeFilterCount}
                                     </span>
                                 )}
                             </button>
@@ -497,6 +581,14 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal }: Paym
                             const isPaid = payment.payment_status === 'paid'
                             const isRefunded = payment.payment_status === 'refunded'
                             const isNavigating = navigatingInvoiceId === payment.id
+                            const membershipRange =
+                                member?.membership_start_date && member?.membership_expiry_date
+                                    ? `${formatDate(member.membership_start_date)} - ${formatDate(member.membership_expiry_date)}`
+                                    : member?.membership_start_date
+                                        ? `From ${formatDate(member.membership_start_date)}`
+                                        : member?.membership_expiry_date
+                                            ? `Until ${formatDate(member.membership_expiry_date)}`
+                                            : 'Membership period unavailable'
                             return (
                                 <div 
                                     key={payment.id} 
@@ -517,7 +609,7 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal }: Paym
                                         </Avatar>
 
                                         <div className="min-w-0 flex-1">
-                                            {/* Row 1: Name + Amount */}
+                                            {/* Row 1: Name + payment date/time */}
                                             <div className="flex items-start justify-between gap-2">
                                                 <div className="min-w-0">
                                                     <p className="truncate text-[15px] font-medium leading-tight text-slate-800">
@@ -527,43 +619,46 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal }: Paym
                                                         {member?.member_id ?? '—'}
                                                     </p>
                                                 </div>
+                                                <div className="shrink-0 text-right">
+                                                    <p className="text-[11px] font-medium leading-tight text-slate-500">
+                                                        {formatDate(payment.payment_date)}
+                                                    </p>
+                                                    <p className="mt-0.5 text-[11px] leading-tight text-slate-400">
+                                                        {formatTime(payment.created_at || payment.payment_date)}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {/* Row 2: Membership period + amount */}
+                                            <div className="mt-1 flex items-center justify-between gap-2">
+                                                <p className="min-w-0 truncate text-[12px] leading-tight text-slate-400">
+                                                    {membershipRange}
+                                                </p>
                                                 <p
                                                     className={`shrink-0 text-[15px] font-bold leading-tight ${
                                                         isPaid
                                                             ? 'text-emerald-600'
                                                             : isRefunded
-                                                            ? 'text-slate-400 line-through'
-                                                            : 'text-slate-800'
+                                                                ? 'text-slate-400 line-through'
+                                                                : 'text-slate-800'
                                                     }`}
                                                 >
                                                     {formatCurrency(Number(payment.amount))}
                                                 </p>
                                             </div>
 
-                                            {/* Row 2: Plan */}
-                                            {member?.membership_plan?.name && (
-                                                <p className="mt-1 truncate text-[13px] leading-tight text-slate-500">
-                                                    {member.membership_plan.name}
-                                                </p>
-                                            )}
-
-                                            {/* Row 3: Date + Method + Status */}
-                                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                                                <span className="flex items-center gap-1 text-[12px] text-slate-400">
-                                                    <CalendarDays className="h-3 w-3" />
-                                                    {formatDate(payment.payment_date)}
-                                                </span>
-                                                <span className="text-slate-200">·</span>
-                                                <MethodBadge method={payment.payment_method} />
-                                                <StatusBadge status={payment.payment_status} />
-                                            </div>
-
-                                            {/* Row 4: Invoice */}
+                                            {/* Row 3: Invoice */}
                                             {payment.invoice_number && (
                                                 <p className="mt-1 font-mono text-[11px] text-slate-400">
                                                     {payment.invoice_number}
                                                 </p>
                                             )}
+
+                                            {/* Row 4: Method + Status */}
+                                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                                <MethodBadge method={payment.payment_method} />
+                                                <StatusBadge status={payment.payment_status} />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -692,13 +787,15 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal }: Paym
                         of <span className="font-medium text-gray-700">{sortedFiltered.length}</span> payments
                     </p>
                     {totalPages > 1 && (
-                        <PaginationBar
-                            currentPage={safePage}
-                            totalPages={totalPages}
-                            onPageChange={(p) => {
-                                if (p >= 1 && p <= totalPages) setCurrentPage(p)
-                            }}
-                        />
+                        <div className="sm:ml-auto">
+                            <PaginationBar
+                                currentPage={safePage}
+                                totalPages={totalPages}
+                                onPageChange={(p) => {
+                                    if (p >= 1 && p <= totalPages) setCurrentPage(p)
+                                }}
+                            />
+                        </div>
                     )}
                 </div>
             </div>
