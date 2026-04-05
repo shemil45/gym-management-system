@@ -294,7 +294,7 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal }: Paym
     const handleOpenRecordPayment = () => {
         setOpeningRecordPayment(true)
         startTransition(() => {
-            router.push('/admin/payments/record')
+            router.push('/admin/finances/payments/record')
         })
     }
 

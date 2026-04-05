@@ -38,7 +38,7 @@ export async function addExpense(formData: FormData) {
 
     if (error) return { error: error.message }
 
-    revalidatePath('/admin/financial')
+    revalidatePath('/admin/finances/expenses')
     return { success: true }
 }
 
@@ -46,6 +46,6 @@ export async function deleteExpense(id: string) {
     const supabase = await createClient()
     const { error } = await supabase.from('expenses').delete().eq('id', id)
     if (error) return { error: error.message }
-    revalidatePath('/admin/financial')
+    revalidatePath('/admin/finances/expenses')
     return { success: true }
 }

@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/select'
 import { Loader2, Search, ArrowLeft, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
-import { recordPayment } from '@/app/admin/payments/actions'
+import { recordPayment } from '@/app/admin/finances/payments/actions'
 
 interface MemberOption {
     id: string
@@ -64,7 +64,7 @@ export default function RecordPaymentForm({ members, plans }: RecordPaymentFormP
     const handleBack = () => {
         setNavigatingBack(true)
         startTransition(() => {
-            router.push('/admin/payments')
+            router.push('/admin/finances/payments')
         })
     }
 
@@ -119,7 +119,7 @@ export default function RecordPaymentForm({ members, plans }: RecordPaymentFormP
             setLoading(false)
         } else {
             toast.success(`Payment recorded! Invoice: ${result.invoiceNumber}`)
-            router.push('/admin/payments')
+            router.push('/admin/finances/payments')
         }
     }
 

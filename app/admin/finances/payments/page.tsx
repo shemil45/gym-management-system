@@ -27,10 +27,9 @@ type PaymentTableRow = {
     } | null
 }
 
-export default async function PaymentsPage() {
+export default async function FinancesPaymentsPage() {
     const supabase = await createClient()
 
-    // Fetch payments with member details, newest records first
     const paymentsResult = await supabase
         .from('payments')
         .select(`
@@ -49,7 +48,6 @@ export default async function PaymentsPage() {
         .limit(500)
     const { data: payments } = paymentsResult as unknown as QueryResult<PaymentTableRow[] | null>
 
-    // Totals for stats
     const today = new Date().toISOString().split('T')[0]
     const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
         .toISOString()

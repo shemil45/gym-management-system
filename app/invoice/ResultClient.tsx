@@ -85,8 +85,8 @@ export default function ResultClient({ invoiceNumber, payment, portal, reason, s
     const [downloading, setDownloading] = useState(false)
     const [processingError, setProcessingError] = useState<string | null>(null)
     const processingInvoiceNumber = invoiceNumber ?? null
-    const historyHref = portal === 'admin' ? '/admin/payments' : '/member/payments'
-    const fallbackHref = portal === 'admin' ? '/admin/payments' : '/member/plans'
+    const historyHref = portal === 'admin' ? '/admin/finances/payments' : '/member/payments'
+    const fallbackHref = portal === 'admin' ? '/admin/finances/payments' : '/member/plans'
     const hasDiscount = payment && payment.coinsUsed > 0
     const resolvedStatus = payment?.paymentStatus ?? (status === 'failure' ? 'failed' : 'paid')
     const bannerTone =

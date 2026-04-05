@@ -1,24 +1,22 @@
 import { createClient } from '@/lib/supabase/server'
-import FinancialDashboard from '@/components/financial/FinancialDashboard'
+import ExpenseDashboard from '@/components/financial/ExpenseDashboard'
 
-export default async function FinancialPage() {
+export default async function FinancesExpensesPage() {
     const supabase = await createClient()
 
-    // Fetch all paid payments (for revenue)
     const { data: payments } = await supabase
         .from('payments')
         .select('amount, payment_date')
         .eq('payment_status', 'paid')
         .order('payment_date', { ascending: true })
 
-    // Fetch all expenses
     const { data: expenses } = await supabase
         .from('expenses')
         .select('*')
         .order('expense_date', { ascending: false })
 
     return (
-        <FinancialDashboard
+        <ExpenseDashboard
             payments={payments || []}
             expenses={expenses || []}
         />

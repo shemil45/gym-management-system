@@ -45,7 +45,7 @@ import {
 } from '@/components/ui/select'
 import { formatCurrency } from '@/lib/utils/currency'
 import { formatDate } from '@/lib/utils/date'
-import { addExpense, deleteExpense } from '@/app/admin/financial/actions'
+import { addExpense, deleteExpense } from '@/app/admin/finances/expenses/actions'
 import { toast } from 'sonner'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ interface PaymentRow {
     payment_date: string
 }
 
-interface FinancialDashboardProps {
+interface ExpenseDashboardProps {
     payments: PaymentRow[]
     expenses: ExpenseRow[]
 }
@@ -453,7 +453,7 @@ function CategoryBadge({ category }: { category: ExpenseCategory }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function FinancialDashboard({ payments, expenses }: FinancialDashboardProps) {
+export default function ExpenseDashboard({ payments, expenses }: ExpenseDashboardProps) {
     const router = useRouter()
     const { confirm, dialog } = useConfirmDialog()
     const [showModal, setShowModal] = useState(false)
@@ -658,12 +658,12 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
 
     const breakdownLabel = useMemo(() => {
         if (breakdownRange === 'MAX') {
-            return 'All recorded expenses excluding marketing.'
+            return 'Where your money is going.'
         }
 
         const rangeStart = getRangeStartDate(breakdownRange, now)
         if (!rangeStart) {
-            return 'All recorded expenses excluding marketing.'
+            return 'Where your money is going.'
         }
 
         return `${formatDateKey(rangeStart)} to ${formatDateKey(now)}`
@@ -802,7 +802,7 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
                 <div className="rounded-[1.75rem] bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 sm:p-5">
                     <div className="flex items-start justify-between gap-3">
                         <div>
-                            <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Financial</h1>
+                            <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Expenses</h1>
                             <p className="mt-1 text-sm text-slate-400">Revenue, expenses and profitability in one place.</p>
                         </div>
                         <Button

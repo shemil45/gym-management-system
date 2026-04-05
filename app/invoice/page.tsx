@@ -25,7 +25,7 @@ export default async function PaymentResultPage({
                 : 'success'
 
     if (!invoiceNumber && status === 'success') {
-        redirect(portal === 'admin' ? '/admin/payments' : '/member/plans')
+        redirect(portal === 'admin' ? '/admin/finances/payments' : '/member/plans')
     }
 
     const paymentResult =

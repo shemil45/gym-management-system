@@ -533,7 +533,7 @@ export default function AdminDashboard() {
                                     </div>
 
                                     <LoadingLinkButton
-                                        href="/admin/payments/record"
+                                        href="/admin/finances/payments/record"
                                         loadingText=""
                                         className="rounded-full bg-slate-200 px-4 py-2 text-sm font-medium text-slate-800 shadow-none hover:bg-slate-300"
                                     >
@@ -555,7 +555,7 @@ export default function AdminDashboard() {
                     {quickActionsOpen ? (
                         <>
                             <LoadingLinkButton
-                                href="/admin/payments/record"
+                                href="/admin/finances/payments/record"
                                 loadingText=""
                                 showDefaultLoader={false}
                                 className="group flex h-auto w-24 flex-col items-center gap-1.5 bg-transparent p-0 text-slate-800 shadow-none hover:bg-transparent"

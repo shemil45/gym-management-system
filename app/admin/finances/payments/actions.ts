@@ -98,7 +98,7 @@ export async function recordPayment(formData: FormData) {
             if (updateMemberError) return { error: getErrorMessage(updateMemberError, 'Failed to update member membership') }
         }
 
-        revalidatePath('/admin/payments')
+        revalidatePath('/admin/finances/payments')
         revalidatePath('/admin/members')
         return { success: true, invoiceNumber }
     } catch (err: unknown) {
