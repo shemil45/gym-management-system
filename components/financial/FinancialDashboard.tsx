@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useTransition } from 'react'
+import { useEffect, useState, useMemo, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
     BarChart,
@@ -17,8 +17,6 @@ import {
     TrendingDown,
     Wallet,
     ArrowUpRight,
-    ChevronLeft,
-    ChevronRight,
     Plus,
     Trash2,
     X,
@@ -26,11 +24,13 @@ import {
     Zap,
     Users,
     Wrench,
-    Megaphone,
     Home,
     Package,
     MoreHorizontal,
     Search,
+    SlidersHorizontal,
+    ChevronLeft,
+    ChevronRight,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -78,10 +78,14 @@ interface FinancialDashboardProps {
     expenses: ExpenseRow[]
 }
 
+type ChartRange = '1D' | '1W' | '1M' | '3M' | '6M' | '1Y' | 'MAX'
+
+type VisibleExpenseCategory = Exclude<ExpenseCategory, 'marketing'>
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CATEGORY_CONFIG: Record<
-    ExpenseCategory,
+    VisibleExpenseCategory,
     { label: string; icon: React.ReactNode; color: string; bg: string }
 > = {
     utilities: {
@@ -108,12 +112,6 @@ const CATEGORY_CONFIG: Record<
         color: 'text-orange-600',
         bg: 'bg-orange-50 border-orange-100',
     },
-    marketing: {
-        label: 'Marketing',
-        icon: <Megaphone className="h-3.5 w-3.5" />,
-        color: 'text-pink-600',
-        bg: 'bg-pink-50 border-pink-100',
-    },
     rent: {
         label: 'Rent',
         icon: <Home className="h-3.5 w-3.5" />,
@@ -126,6 +124,52 @@ const CATEGORY_CONFIG: Record<
         color: 'text-gray-600',
         bg: 'bg-gray-50 border-gray-100',
     },
+}
+
+const CHART_RANGE_OPTIONS: ChartRange[] = ['1D', '1W', '1M', '3M', '6M', '1Y', 'MAX']
+const ITEMS_PER_PAGE = 20
+
+function getCategoryConfig(category: ExpenseCategory) {
+    return CATEGORY_CONFIG[category as VisibleExpenseCategory] ?? CATEGORY_CONFIG.other
+}
+
+function formatDateKey(date: Date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function addDays(date: Date, days: number) {
+    const next = new Date(date)
+    next.setDate(next.getDate() + days)
+    return next
+}
+
+function addMonths(date: Date, months: number) {
+    const next = new Date(date)
+    next.setMonth(next.getMonth() + months)
+    return next
+}
+
+function getRangeStartDate(range: ChartRange, anchor: Date) {
+    const baseDate = new Date(anchor)
+    baseDate.setHours(0, 0, 0, 0)
+
+    switch (range) {
+        case '1D':
+            return addDays(baseDate, -1)
+        case '1W':
+            return addDays(baseDate, -7)
+        case '1M':
+            return addMonths(baseDate, -1)
+        case '3M':
+            return addMonths(baseDate, -3)
+        case '6M':
+            return addMonths(baseDate, -6)
+        case '1Y':
+            return addMonths(baseDate, -12)
+        case 'MAX':
+        default:
+            return null
+    }
 }
 
 // ─── Chart tooltip ────────────────────────────────────────────────────────────
@@ -172,14 +216,14 @@ function StatCard({
     highlight?: 'green' | 'red'
 }) {
     return (
-        <div className="flex items-start gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-4 shadow-[0_14px_32px_rgba(15,23,42,0.07)] sm:px-5">
-            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>
+        <div className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-4 pr-6 shadow-[0_14px_32px_rgba(15,23,42,0.07)] sm:px-5 sm:pr-7">
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl sm:h-11 sm:w-11 ${iconBg}`}>
                 {icon}
             </div>
-            <div className="min-w-0">
-                <p className="text-[11px] font-medium text-gray-500">{label}</p>
+            <div className="min-w-0 flex-1 pr-3 sm:pr-4">
+                <p className="line-clamp-2 min-h-[2rem] text-[11px] font-medium leading-4 text-gray-500">{label}</p>
                 <p
-                    className={`text-xl font-bold truncate ${highlight === 'green'
+                    className={`mt-1 text-base font-bold leading-tight sm:text-lg xl:text-xl ${highlight === 'green'
                         ? 'text-emerald-600'
                         : highlight === 'red'
                             ? 'text-red-500'
@@ -190,6 +234,67 @@ function StatCard({
                 </p>
                 {sub && <p className="mt-0.5 text-[11px] text-gray-400">{sub}</p>}
             </div>
+        </div>
+    )
+}
+
+function PaginationBar({
+    currentPage,
+    totalPages,
+    onPageChange,
+}: {
+    currentPage: number
+    totalPages: number
+    onPageChange: (p: number) => void
+}) {
+    const pages: (number | '...')[] = []
+    if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i)
+    } else {
+        pages.push(1)
+        if (currentPage > 3) pages.push('...')
+        for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+            pages.push(i)
+        }
+        if (currentPage < totalPages - 2) pages.push('...')
+        pages.push(totalPages)
+    }
+
+    return (
+        <div className="flex items-center gap-1">
+            <button
+                onClick={() => onPageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+                <ChevronLeft className="h-3.5 w-3.5" /> Previous
+            </button>
+            {pages.map((p, idx) =>
+                p === '...' ? (
+                    <span key={`expense-ellipsis-${idx}`} className="px-2 text-xs text-gray-400">
+                        ...
+                    </span>
+                ) : (
+                    <button
+                        key={p}
+                        onClick={() => onPageChange(p as number)}
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-semibold transition-colors ${
+                            currentPage === p
+                                ? 'bg-rose-600 text-white shadow-sm'
+                                : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                        }`}
+                    >
+                        {p}
+                    </button>
+                )
+            )}
+            <button
+                onClick={() => onPageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+                Next <ChevronRight className="h-3.5 w-3.5" />
+            </button>
         </div>
     )
 }
@@ -338,7 +443,7 @@ function AddExpenseModal({ onClose }: { onClose: () => void }) {
 // ─── Category Badge ───────────────────────────────────────────────────────────
 
 function CategoryBadge({ category }: { category: ExpenseCategory }) {
-    const cfg = CATEGORY_CONFIG[category]
+    const cfg = getCategoryConfig(category)
     return (
         <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${cfg.color} ${cfg.bg}`}>
             {cfg.icon} {cfg.label}
@@ -352,10 +457,31 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
     const router = useRouter()
     const { confirm, dialog } = useConfirmDialog()
     const [showModal, setShowModal] = useState(false)
+    const [showFilterModal, setShowFilterModal] = useState(false)
+    const [breakdownRange, setBreakdownRange] = useState<ChartRange>('MAX')
     const [categoryFilter, setCategoryFilter] = useState('all')
+    const [dateFrom, setDateFrom] = useState('')
+    const [dateTo, setDateTo] = useState('')
+    const [draftCategory, setDraftCategory] = useState('all')
+    const [draftDateFrom, setDraftDateFrom] = useState('')
+    const [draftDateTo, setDraftDateTo] = useState('')
+    const [dateError, setDateError] = useState('')
     const [searchQuery, setSearchQuery] = useState('')
     const [deletingId, setDeletingId] = useState<string | null>(null)
     const [chartWindowIndex, setChartWindowIndex] = useState(0)
+    const [currentPage, setCurrentPage] = useState(1)
+
+    useEffect(() => {
+        if (showFilterModal || showModal) {
+            document.body.style.overflow = 'hidden'
+        } else {
+            document.body.style.overflow = ''
+        }
+
+        return () => {
+            document.body.style.overflow = ''
+        }
+    }, [showFilterModal, showModal])
 
     // ── Build last-12-months chart data ──────────────────────────────────────
     const chartData = useMemo(() => {
@@ -405,6 +531,12 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
         visibleChartData.length > 0
             ? `${visibleChartData[0].rangeLabel} - ${visibleChartData[visibleChartData.length - 1].rangeLabel}`
             : 'No data available'
+    const hasActiveFilters = categoryFilter !== 'all' || !!dateFrom || !!dateTo
+    const activeFilterCount = (categoryFilter !== 'all' ? 1 : 0) + ((dateFrom || dateTo) ? 1 : 0)
+
+    useEffect(() => {
+        setChartWindowIndex(chartWindowCount - 1)
+    }, [chartWindowCount])
 
     // ── Summary stats ────────────────────────────────────────────────────────
     const totalRevenue = useMemo(
@@ -417,7 +549,7 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
     )
     const netProfit = totalRevenue - totalExpenses
 
-    const now = new Date()
+    const now = useMemo(() => new Date(), [])
     const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
     const monthRevenue = payments
         .filter((p) => p.payment_date.startsWith(monthKey))
@@ -427,15 +559,75 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
         .reduce((s, e) => s + Number(e.amount), 0)
     const monthNet = monthRevenue - monthExpenses
 
+    const breakdownExpenses = useMemo(() => {
+        const rangeStart = getRangeStartDate(breakdownRange, now)
+        return expenses.filter((expense) => {
+            if (expense.category === 'marketing') {
+                return false
+            }
+
+            if (!rangeStart) {
+                return true
+            }
+
+            return new Date(expense.expense_date) >= rangeStart
+        })
+    }, [expenses, breakdownRange, now])
+
     // ── Filtered expenses table ──────────────────────────────────────────────
     const filteredExpenses = useMemo(() => {
         const q = searchQuery.toLowerCase()
         return expenses.filter((e) => {
             const matchCat = categoryFilter === 'all' || e.category === categoryFilter
             const matchSearch = !q || e.description.toLowerCase().includes(q)
-            return matchCat && matchSearch
+            const matchDateFrom = !dateFrom || e.expense_date >= dateFrom
+            const matchDateTo = !dateTo || e.expense_date <= dateTo
+            return matchCat && matchSearch && matchDateFrom && matchDateTo
         })
-    }, [expenses, searchQuery, categoryFilter])
+    }, [expenses, searchQuery, categoryFilter, dateFrom, dateTo])
+
+    const totalExpensePages = Math.max(1, Math.ceil(filteredExpenses.length / ITEMS_PER_PAGE))
+    const safeExpensePage = Math.min(currentPage, totalExpensePages)
+    const paginatedExpenses = filteredExpenses.slice(
+        (safeExpensePage - 1) * ITEMS_PER_PAGE,
+        safeExpensePage * ITEMS_PER_PAGE
+    )
+
+    const handleOpenFilterModal = () => {
+        setDraftCategory(categoryFilter)
+        setDraftDateFrom(dateFrom)
+        setDraftDateTo(dateTo)
+        setDateError('')
+        setShowFilterModal(true)
+    }
+
+    const handleApplyFilters = () => {
+        if (draftDateFrom && draftDateTo && draftDateTo < draftDateFrom) {
+            setDateError('"To" date cannot be earlier than "From" date.')
+            return
+        }
+
+        setCategoryFilter(draftCategory)
+        setDateFrom(draftDateFrom)
+        setDateTo(draftDateTo)
+        setCurrentPage(1)
+        setDateError('')
+        setShowFilterModal(false)
+    }
+
+    const handleResetDraft = () => {
+        setDraftCategory('all')
+        setDraftDateFrom('')
+        setDraftDateTo('')
+        setDateError('')
+    }
+
+    const handleClearAllFilters = () => {
+        setCategoryFilter('all')
+        setDateFrom('')
+        setDateTo('')
+        setCurrentPage(1)
+    }
 
     // ── Delete ───────────────────────────────────────────────────────────────
     const handleDelete = async (id: string) => {
@@ -460,222 +652,452 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
     // ── Expense breakdown by category ────────────────────────────────────────
     const categoryTotals = useMemo(() => {
         const totals: Record<string, number> = {}
-        expenses.forEach((e) => {
+        breakdownExpenses.forEach((e) => {
             totals[e.category] = (totals[e.category] || 0) + Number(e.amount)
         })
         return Object.entries(totals)
             .sort(([, a], [, b]) => b - a)
-            .map(([cat, amt]) => ({ cat: cat as ExpenseCategory, amt }))
-    }, [expenses])
+            .slice(0, 6)
+            .map(([cat, amt]) => ({ cat: cat as VisibleExpenseCategory, amt }))
+    }, [breakdownExpenses])
+
+    const breakdownTotal = useMemo(
+        () => categoryTotals.reduce((sum, category) => sum + category.amt, 0),
+        [categoryTotals]
+    )
+
+    const breakdownLabel = useMemo(() => {
+        if (breakdownRange === 'MAX') {
+            return 'All recorded expenses excluding marketing.'
+        }
+
+        const rangeStart = getRangeStartDate(breakdownRange, now)
+        if (!rangeStart) {
+            return 'All recorded expenses excluding marketing.'
+        }
+
+        return `${formatDateKey(rangeStart)} to ${formatDateKey(now)}`
+    }, [breakdownRange, now])
+
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [searchQuery, categoryFilter, dateFrom, dateTo])
 
     return (
         <>
             {dialog}
             <div className="space-y-6">
-            {/* ── Header ── */}
-            <div className="rounded-[1.75rem] bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 sm:p-5">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Financial</h1>
-                        <p className="mt-1 text-sm text-slate-400">Revenue, expenses and profitability in one place.</p>
-                    </div>
-                    <Button
-                        onClick={() => setShowModal(true)}
-                        className="h-12 w-full gap-2 rounded-2xl bg-rose-600 px-4 text-white shadow-[0_16px_32px_rgba(225,29,72,0.22)] hover:bg-rose-700 sm:w-auto"
+                {showFilterModal && (
+                    <div
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md"
+                        onClick={() => setShowFilterModal(false)}
                     >
-                        <Plus className="h-4 w-4" /> Add Expense
-                    </Button>
-                </div>
-            </div>
+                        <div
+                            className="relative max-h-[88vh] w-full max-w-sm overflow-y-auto rounded-2xl bg-white p-6 shadow-[0_24px_60px_rgba(15,23,42,0.25)] [&::-webkit-scrollbar]:hidden"
+                            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="mb-5 flex items-center justify-between">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-50">
+                                        <SlidersHorizontal className="h-4 w-4 text-rose-600" />
+                                    </div>
+                                    <h2 className="text-base font-semibold text-slate-800">Filter Expenses</h2>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowFilterModal(false)}
+                                    className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
 
-            {/* ── Stats ── */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <StatCard
-                    label="Total Revenue"
-                    value={formatCurrency(totalRevenue)}
-                    icon={<TrendingUp className="h-5 w-5 text-emerald-600" />}
-                    iconBg="bg-emerald-50"
-                />
-                <StatCard
-                    label="Total Expenses"
-                    value={formatCurrency(totalExpenses)}
-                    icon={<TrendingDown className="h-5 w-5 text-rose-600" />}
-                    iconBg="bg-rose-50"
-                />
-                <StatCard
-                    label="Net Profit"
-                    value={formatCurrency(netProfit)}
-                    icon={<Wallet className="h-5 w-5 text-blue-600" />}
-                    iconBg="bg-blue-50"
-                    highlight={netProfit >= 0 ? 'green' : 'red'}
-                />
-                <StatCard
-                    label="This Month Net"
-                    value={formatCurrency(monthNet)}
-                    icon={<ArrowUpRight className="h-5 w-5 text-violet-600" />}
-                    iconBg="bg-violet-50"
-                    sub={`Rev: ${formatCurrency(monthRevenue)} | Exp: ${formatCurrency(monthExpenses)}`}
-                    highlight={monthNet >= 0 ? 'green' : 'red'}
-                />
-            </div>
+                            <div className="space-y-3">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-slate-500">Expense Category</label>
+                                    <Select value={draftCategory} onValueChange={setDraftCategory}>
+                                        <SelectTrigger className="h-10 w-full rounded-xl border-slate-200 bg-slate-50 text-sm">
+                                            <SelectValue placeholder="All Categories" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Categories</SelectItem>
+                                            {Object.entries(CATEGORY_CONFIG).map(([key, cfg]) => (
+                                                <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
 
-            {/* ── Chart + Breakdown ── */}
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-                {/* Bar chart */}
-                <div className="rounded-[1.75rem] border border-gray-100 bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.07)] sm:p-5 xl:col-span-2">
-                    <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                            <h2 className="text-sm font-semibold text-gray-900 sm:text-base">Revenue vs Expenses</h2>
-                            <p className="mt-1 text-xs text-gray-400 sm:text-sm">{chartRangeLabel}</p>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                onClick={() => setChartWindowIndex((value) => Math.max(0, value - 1))}
-                                disabled={safeChartWindowIndex === 0}
-                                className="h-9 w-9 rounded-xl border-gray-200"
-                            >
-                                <ChevronLeft className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                onClick={() => setChartWindowIndex((value) => Math.min(chartWindowCount - 1, value + 1))}
-                                disabled={safeChartWindowIndex >= chartWindowCount - 1}
-                                className="h-9 w-9 rounded-xl border-gray-200"
-                            >
-                                <ChevronRight className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </div>
-                    <div className="mt-4">
-                    <ResponsiveContainer width="100%" height={240}>
-                        <BarChart data={visibleChartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barCategoryGap="18%">
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-                            <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#9ca3af' }} tickLine={false} axisLine={false} interval={0} />
-                            <YAxis
-                                tick={{ fontSize: 9, fill: '#9ca3af' }}
-                                tickLine={false}
-                                axisLine={false}
-                                tickFormatter={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
-                                width={34}
-                            />
-                            <Tooltip content={<CustomTooltip />} />
-                            <Legend
-                                wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
-                                iconType="circle"
-                                iconSize={8}
-                            />
-                            <Bar dataKey="Revenue" fill="#1d4ed8" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="Expenses" fill="#f43f5e" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
-                    </div>
-                </div>
-
-                {/* Category breakdown */}
-                <div className="rounded-[1.75rem] border border-gray-100 bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.07)] sm:p-5">
-                    <h2 className="text-sm font-semibold text-gray-900">Expense Breakdown</h2>
-                    <p className="mt-1 text-xs text-gray-400">Category share of all recorded expenses.</p>
-                    {categoryTotals.length === 0 ? (
-                        <p className="py-8 text-center text-xs text-gray-400">No expenses yet</p>
-                    ) : (
-                        <div className="mt-4 space-y-3">
-                            {categoryTotals.map(({ cat, amt }) => {
-                                const pct = totalExpenses > 0 ? Math.round((amt / totalExpenses) * 100) : 0
-                                const cfg = CATEGORY_CONFIG[cat]
-                                return (
-                                    <div key={cat}>
-                                        <div className="flex items-center justify-between mb-1">
-                                            <span className={`flex items-center gap-1 text-xs font-medium ${cfg.color}`}>
-                                                {cfg.icon} {cfg.label}
-                                            </span>
-                                            <span className="text-xs text-gray-600 font-semibold">{formatCurrency(amt)}</span>
-                                        </div>
-                                        <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                                            <div
-                                                className="h-full rounded-full bg-rose-400 transition-all duration-500"
-                                                style={{ width: `${pct}%` }}
+                                <div className="rounded-xl bg-slate-50 p-3 shadow-sm">
+                                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Expense Date Range</p>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <div className="flex items-center justify-between">
+                                                <label className="text-xs font-medium text-slate-500">From</label>
+                                                {draftDateFrom && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setDraftDateFrom('')}
+                                                        className="rounded px-1 py-0.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                                                    >
+                                                        Reset
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <Input
+                                                type="date"
+                                                value={draftDateFrom}
+                                                onChange={(e) => setDraftDateFrom(e.target.value)}
+                                                className="h-10 w-[90%] rounded-xl border-slate-200 bg-white text-sm"
                                             />
                                         </div>
-                                        <p className="text-[10px] text-gray-400 mt-0.5 text-right">{pct}%</p>
+                                        <div className="space-y-1">
+                                            <div className="flex items-center justify-between">
+                                                <label className="text-xs font-medium text-slate-500">To</label>
+                                                {draftDateTo && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setDraftDateTo('')}
+                                                        className="rounded px-1 py-0.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                                                    >
+                                                        Reset
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <Input
+                                                type="date"
+                                                value={draftDateTo}
+                                                onChange={(e) => setDraftDateTo(e.target.value)}
+                                                className="h-10 w-[90%] rounded-xl border-slate-200 bg-white text-sm"
+                                            />
+                                        </div>
                                     </div>
-                                )
-                            })}
-                        </div>
-                    )}
-                </div>
-            </div>
+                                    {dateError && (
+                                        <p className="mt-2 text-xs font-medium text-red-500">{dateError}</p>
+                                    )}
+                                </div>
+                            </div>
 
-            {/* ── Expenses Table ── */}
-            <div className="overflow-hidden rounded-[1.75rem] border border-gray-100 bg-white shadow-[0_14px_32px_rgba(15,23,42,0.07)]">
-                <div className="border-b border-slate-100 p-4 sm:p-5">
-                    <div className="flex flex-col gap-3">
+                            <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
+                                <button
+                                    type="button"
+                                    onClick={handleResetDraft}
+                                    className="text-sm font-medium text-slate-400 transition-colors hover:text-slate-600"
+                                >
+                                    Reset all
+                                </button>
+                                <div className="flex gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setShowFilterModal(false)}
+                                        className="h-10 rounded-xl border-slate-200 text-sm"
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        onClick={handleApplyFilters}
+                                        className="h-10 rounded-xl bg-rose-600 px-5 text-sm text-white hover:bg-rose-700"
+                                    >
+                                        Apply Filters
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {/* ── Header ── */}
+                <div className="rounded-[1.75rem] bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 sm:p-5">
+                    <div className="flex items-start justify-between gap-3">
                         <div>
+                            <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Financial</h1>
+                            <p className="mt-1 text-sm text-slate-400">Revenue, expenses and profitability in one place.</p>
+                        </div>
+                        <Button
+                            onClick={() => setShowModal(true)}
+                            className="h-14 w-14 shrink-0 rounded-full bg-rose-600 p-0 text-white shadow-[0_16px_32px_rgba(225,29,72,0.22)] hover:bg-rose-700 sm:h-14 sm:w-auto sm:rounded-2xl sm:px-4 sm:gap-1.5"
+                        >
+                            <Plus className="h-5 w-5" />
+                            <span className="ml-1 hidden sm:inline">Add Expense</span>
+                        </Button>
+                    </div>
+
+                    <div className="mt-4 space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                            <StatCard
+                                label="Month Revenue"
+                                value={formatCurrency(monthRevenue)}
+                                icon={<TrendingUp className="h-5 w-5 text-emerald-600" />}
+                                iconBg="bg-emerald-50"
+                            />
+                            <StatCard
+                                label="Month Expenses"
+                                value={formatCurrency(monthExpenses)}
+                                icon={<TrendingDown className="h-5 w-5 text-rose-600" />}
+                                iconBg="bg-rose-50"
+                            />
+                        </div>
+                        <StatCard
+                            label="Net Profit"
+                            value={formatCurrency(netProfit)}
+                            icon={<Wallet className="h-5 w-5 text-blue-600" />}
+                            iconBg="bg-blue-50"
+                            sub={`This Month Net: ${formatCurrency(monthNet)} | Rev: ${formatCurrency(monthRevenue)} | Exp: ${formatCurrency(monthExpenses)}`}
+                            highlight={netProfit >= 0 ? 'green' : 'red'}
+                        />
+                    </div>
+                </div>
+
+                {/* ── Stats ── */}
+                <div className="hidden grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <StatCard
+                        label="Month Revenue"
+                        value={formatCurrency(monthRevenue)}
+                        icon={<TrendingUp className="h-5 w-5 text-emerald-600" />}
+                        iconBg="bg-emerald-50"
+                    />
+                    <StatCard
+                        label="Month Expenses"
+                        value={formatCurrency(monthExpenses)}
+                        icon={<TrendingDown className="h-5 w-5 text-rose-600" />}
+                        iconBg="bg-rose-50"
+                    />
+                    <StatCard
+                        label="Net Profit"
+                        value={formatCurrency(netProfit)}
+                        icon={<Wallet className="h-5 w-5 text-blue-600" />}
+                        iconBg="bg-blue-50"
+                        highlight={netProfit >= 0 ? 'green' : 'red'}
+                    />
+                    <StatCard
+                        label="Month Net"
+                        value={formatCurrency(monthNet)}
+                        icon={<ArrowUpRight className="h-5 w-5 text-violet-600" />}
+                        iconBg="bg-violet-50"
+                        sub={`Rev: ${formatCurrency(monthRevenue)} | Exp: ${formatCurrency(monthExpenses)}`}
+                        highlight={monthNet >= 0 ? 'green' : 'red'}
+                    />
+                </div>
+
+                {/* ── Chart + Breakdown ── */}
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+                    {/* Bar chart */}
+                    <div className="rounded-[1.75rem] border border-gray-100 bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.07)] sm:p-5 xl:col-span-2">
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                                <h2 className="text-sm font-semibold text-gray-900 sm:text-base">Revenue vs Expenses</h2>
+                                <p className="mt-1 text-xs text-gray-400 sm:text-sm">{chartRangeLabel}</p>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setChartWindowIndex((value) => Math.max(0, value - 1))}
+                                    disabled={safeChartWindowIndex === 0}
+                                    className="h-9 w-9 rounded-xl border-gray-200"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setChartWindowIndex((value) => Math.min(chartWindowCount - 1, value + 1))}
+                                    disabled={safeChartWindowIndex >= chartWindowCount - 1}
+                                    className="h-9 w-9 rounded-xl border-gray-200"
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+                        <div className="mt-4">
+                            <ResponsiveContainer width="100%" height={240}>
+                                <BarChart data={visibleChartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barCategoryGap="18%">
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#9ca3af' }} tickLine={false} axisLine={false} interval={0} />
+                                    <YAxis
+                                        tick={{ fontSize: 9, fill: '#9ca3af' }}
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickFormatter={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
+                                        width={34}
+                                    />
+                                    <Tooltip content={<CustomTooltip />} />
+                                    <Legend
+                                        wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
+                                        iconType="circle"
+                                        iconSize={8}
+                                    />
+                                    <Bar dataKey="Revenue" fill="#1d4ed8" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="Expenses" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+
+                    {/* Category breakdown */}
+                    <div className="rounded-[1.75rem] border border-gray-100 bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.07)] sm:p-5">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <h2 className="text-sm font-semibold text-gray-900">Expense Breakdown</h2>
+                                <p className="mt-1 text-xs text-gray-400">{breakdownLabel}</p>
+                            </div>
+                            <Select value={breakdownRange} onValueChange={(value) => setBreakdownRange(value as ChartRange)}>
+                                <SelectTrigger className="h-9 w-[88px] rounded-xl border-slate-200 bg-slate-50 text-xs font-medium text-slate-700">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {CHART_RANGE_OPTIONS.map((range) => (
+                                        <SelectItem key={range} value={range}>
+                                            {range}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        {categoryTotals.length === 0 ? (
+                            <p className="py-8 text-center text-xs text-gray-400">No expenses yet</p>
+                        ) : (
+                            <div className="mt-5">
+                                <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
+                                {categoryTotals.map(({ cat, amt }) => {
+                                    const pct = breakdownTotal > 0 ? Math.round((amt / breakdownTotal) * 100) : 0
+                                    const cfg = getCategoryConfig(cat)
+                                    return (
+                                        <div key={cat} className="space-y-1.5 rounded-2xl border border-slate-100 bg-slate-50/55 p-2.5">
+                                            <div className="space-y-1.5">
+                                                <div className="flex min-w-0 items-center gap-2">
+                                                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${cfg.bg} ${cfg.color}`}>
+                                                        {cfg.icon}
+                                                    </div>
+                                                    <p className="truncate text-[13px] font-semibold text-slate-900">{cfg.label}</p>
+                                                </div>
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <p className="truncate text-[11px] text-slate-400">{pct}%</p>
+                                                    <p className="shrink-0 text-[13px] font-bold text-slate-900">{formatCurrency(amt)}</p>
+                                                </div>
+                                            </div>
+                                            <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                                                <div
+                                                    className="h-full rounded-full bg-gradient-to-r from-rose-500 to-orange-400 transition-[width] duration-300"
+                                                    style={{ width: `${pct}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                                </div>
+                                <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
+                                    <div>
+                                        <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">Total Expense</p>
+                                        <p className="mt-1 text-[11px] text-slate-400">For the selected range</p>
+                                    </div>
+                                    <p className="text-base font-bold text-slate-900">{formatCurrency(breakdownTotal)}</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* ── Expenses Table ── */}
+                <div className="overflow-hidden rounded-[1.75rem] border border-gray-100 bg-white shadow-[0_14px_32px_rgba(15,23,42,0.07)]">
+                    <div className="border-b border-slate-100 p-4 sm:p-5">
+                        <div className="mb-4">
                             <h2 className="text-base font-semibold text-gray-900">All Expenses</h2>
                             <p className="mt-1 text-xs text-gray-400">Track every outgoing payment with category and date.</p>
                         </div>
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-                            <Input
-                                placeholder="Search description..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-9 h-9 bg-white border-gray-200 text-sm w-full sm:w-52"
-                            />
-                        </div>
-                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                            <SelectTrigger className="h-9 w-full sm:w-40 bg-white border-gray-200 text-sm">
-                                <SelectValue placeholder="All Categories" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Categories</SelectItem>
-                                {Object.entries(CATEGORY_CONFIG).map(([key, cfg]) => (
-                                    <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+
+                        <div className="flex gap-2 sm:gap-3">
+                            <div className="relative min-w-0 flex-[3]">
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                <Input
+                                    placeholder="Search description..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="h-12 w-full rounded-2xl border-slate-200 bg-slate-50 pl-10 text-sm focus:border-rose-400 focus:ring-rose-400"
+                                />
+                            </div>
+
+                            <div className="relative flex min-w-fit flex-1 items-center gap-1.5 sm:gap-2">
+                                <button
+                                    type="button"
+                                    onClick={handleOpenFilterModal}
+                                    className="flex h-12 flex-1 items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 px-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 sm:gap-2 sm:px-3"
+                                >
+                                    <SlidersHorizontal className="h-4 w-4 shrink-0 text-slate-500" />
+                                    <span className="hidden xl:inline whitespace-nowrap">Filter</span>
+                                    {hasActiveFilters && (
+                                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-600 text-[10px] font-bold text-white">
+                                            {activeFilterCount}
+                                        </span>
+                                    )}
+                                </button>
+
+                                {hasActiveFilters && (
+                                    <button
+                                        type="button"
+                                        onClick={handleClearAllFilters}
+                                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-50 px-0 text-xs font-medium text-red-500 transition-colors hover:bg-red-100 hover:text-red-700 sm:w-auto sm:px-3"
+                                        title="Clear filters"
+                                    >
+                                        <X className="h-4 w-4 shrink-0" />
+                                        <span className="ml-1 hidden whitespace-nowrap font-semibold sm:inline">Clear</span>
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div className="divide-y divide-slate-100 md:hidden">
-                    {filteredExpenses.length === 0 ? (
-                        <div className="px-4 py-14 text-center text-sm text-gray-400">
-                            No expenses found
-                        </div>
-                    ) : (
-                        filteredExpenses.map((expense) => (
-                            <div key={expense.id} className="space-y-3 px-4 py-4">
-                                <div className="flex items-start justify-between gap-3">
-                                    <CategoryBadge category={expense.category} />
-                                    <button
-                                        title="Delete expense"
-                                        disabled={deletingId === expense.id}
-                                        onClick={() => handleDelete(expense.id)}
-                                        className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-red-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </button>
-                                </div>
-                                <div>
-                                    <p className="text-sm font-medium text-gray-800">{expense.description}</p>
-                                    <p className="mt-1 text-xs text-gray-400">{formatDate(expense.expense_date)}</p>
-                                </div>
-                                <div>
-                                    <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">Amount</p>
-                                    <p className="text-lg font-bold text-rose-600">{formatCurrency(Number(expense.amount))}</p>
-                                </div>
+                    <div className="divide-y divide-slate-100 md:hidden">
+                        {paginatedExpenses.length === 0 ? (
+                            <div className="px-4 py-14 text-center text-sm text-gray-400">
+                                No expenses found
                             </div>
-                        ))
-                    )}
-                </div>
+                        ) : (
+                            paginatedExpenses.map((expense) => (
+                                <div key={expense.id} className="px-4 py-3 transition-colors hover:bg-slate-50">
+                                    <div className="min-w-0">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="min-w-0">
+                                                <p className="truncate text-[15px] font-medium leading-tight text-slate-800">
+                                                    {expense.description}
+                                                </p>
+                                                <p className="mt-0.5 text-[11px] font-medium leading-tight text-slate-400">
+                                                    {getCategoryConfig(expense.category).label}
+                                                </p>
+                                            </div>
+                                            <p className="shrink-0 text-[15px] font-bold leading-tight text-rose-600">
+                                                {formatCurrency(Number(expense.amount))}
+                                            </p>
+                                        </div>
 
-                <div className="hidden overflow-x-auto md:block">
+                                        <div className="mt-1.5 flex items-center justify-between gap-2">
+                                            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                                            <span className="text-[12px] text-slate-400">
+                                                {formatDate(expense.expense_date)}
+                                            </span>
+                                            <span className="text-slate-200">·</span>
+                                            <CategoryBadge category={expense.category} />
+                                            </div>
+                                            <button
+                                                title="Delete expense"
+                                                disabled={deletingId === expense.id}
+                                                onClick={() => handleDelete(expense.id)}
+                                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-red-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    <div className="hidden overflow-x-auto md:block">
                         <table className="w-full">
                             <thead>
                                 <tr className="border-b border-gray-100 bg-gray-50/60">
@@ -687,14 +1109,14 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                                {filteredExpenses.length === 0 ? (
+                                {paginatedExpenses.length === 0 ? (
                                     <tr>
                                         <td colSpan={5} className="py-14 text-center text-sm text-gray-400">
                                             No expenses found
                                         </td>
                                     </tr>
                                 ) : (
-                                    filteredExpenses.map((expense) => (
+                                    paginatedExpenses.map((expense) => (
                                         <tr key={expense.id} className="hover:bg-rose-50/20 transition-colors">
                                             <td className="py-3 pl-5 pr-3">
                                                 <CategoryBadge category={expense.category} />
@@ -724,31 +1146,24 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
                                     ))
                                 )}
                             </tbody>
-                            {filteredExpenses.length > 0 && (
-                                <tfoot>
-                                    <tr className="border-t border-gray-100 bg-gray-50/40">
-                                        <td colSpan={3} className="py-3 pl-5 text-xs font-semibold text-gray-500">
-                                            {filteredExpenses.length} expense{filteredExpenses.length !== 1 ? 's' : ''}
-                                        </td>
-                                        <td className="px-3 py-3 text-right text-sm font-bold text-rose-600">
-                                            {formatCurrency(filteredExpenses.reduce((s, e) => s + Number(e.amount), 0))}
-                                        </td>
-                                        <td />
-                                    </tr>
-                                </tfoot>
-                            )}
                         </table>
+                    </div>
+
+                    <div className="flex justify-end border-t border-slate-100 px-4 py-3 sm:px-5">
+                        {totalExpensePages > 1 ? (
+                            <PaginationBar
+                                currentPage={safeExpensePage}
+                                totalPages={totalExpensePages}
+                                onPageChange={(page) => {
+                                    if (page >= 1 && page <= totalExpensePages) setCurrentPage(page)
+                                }}
+                            />
+                        ) : null}
+                    </div>
                 </div>
 
-                {filteredExpenses.length > 0 && (
-                    <div className="border-t border-slate-100 px-4 py-3 text-xs text-slate-500 md:hidden">
-                        {filteredExpenses.length} expense{filteredExpenses.length !== 1 ? 's' : ''} · Total {formatCurrency(filteredExpenses.reduce((s, e) => s + Number(e.amount), 0))}
-                    </div>
-                )}
-            </div>
-
-            {/* Add Expense Modal */}
-            {showModal && <AddExpenseModal onClose={() => setShowModal(false)} />}
+                {/* Add Expense Modal */}
+                {showModal && <AddExpenseModal onClose={() => setShowModal(false)} />}
             </div>
         </>
     )
