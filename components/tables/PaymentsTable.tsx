@@ -63,6 +63,11 @@ interface PaymentsTableProps {
     payments: PaymentRow[]
     todayTotal: number
     monthTotal: number
+    initialFilters?: {
+        status?: string
+        date?: string
+        type?: string
+    }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -87,6 +92,22 @@ function formatTime(dateStr: string) {
         hour: '2-digit',
         minute: '2-digit',
     })
+}
+
+function getPresetDateRange(preset: string | null) {
+    const today = new Date()
+    const todayValue = today.toISOString().split('T')[0]
+
+    if (preset === 'today') {
+        return { from: todayValue, to: todayValue }
+    }
+
+    if (preset === 'month') {
+        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
+        return { from: monthStart, to: todayValue }
+    }
+
+    return { from: '', to: '' }
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -206,15 +227,16 @@ function PaginationBar({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function PaymentsTable({ payments, todayTotal, monthTotal }: PaymentsTableProps) {
+export default function PaymentsTable({ payments, todayTotal, monthTotal, initialFilters }: PaymentsTableProps) {
     const router = useRouter()
+    const initialDateRange = getPresetDateRange(initialFilters?.date ?? null)
     const [openingRecordPayment, setOpeningRecordPayment] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
     const [navigatingInvoiceId, setNavigatingInvoiceId] = useState<string | null>(null)
-    const [statusFilter, setStatusFilter] = useState('all')
+    const [statusFilter, setStatusFilter] = useState(initialFilters?.status || 'all')
     const [methodFilter, setMethodFilter] = useState('all')
-    const [dateFrom, setDateFrom] = useState('')
-    const [dateTo, setDateTo] = useState('')
+    const [dateFrom, setDateFrom] = useState(initialDateRange.from)
+    const [dateTo, setDateTo] = useState(initialDateRange.to)
     const [currentPage, setCurrentPage] = useState(1)
     const [showFilterModal, setShowFilterModal] = useState(false)
 

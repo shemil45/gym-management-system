@@ -1,7 +1,16 @@
 import { createClient } from '@/lib/supabase/server'
 import ExpenseDashboard from '@/components/financial/ExpenseDashboard'
 
-export default async function FinancesExpensesPage() {
+type FinancesExpensesPageProps = {
+    searchParams: Promise<{
+        category?: string
+        date?: string
+        type?: string
+    }>
+}
+
+export default async function FinancesExpensesPage({ searchParams }: FinancesExpensesPageProps) {
+    const params = await searchParams
     const supabase = await createClient()
 
     const { data: payments } = await supabase
@@ -17,8 +26,14 @@ export default async function FinancesExpensesPage() {
 
     return (
         <ExpenseDashboard
+            key={`${params.category || 'all'}:${params.date || 'none'}:${params.type || 'none'}`}
             payments={payments || []}
             expenses={expenses || []}
+            initialFilters={{
+                category: params.category,
+                date: params.date,
+                type: params.type,
+            }}
         />
     )
 }

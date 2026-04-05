@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils/currency'
+import { getExpiringMembers, getOverdueMembers } from '@/lib/utils/renewals'
 import LoadingLinkButton from '@/components/ui/loading-link-button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -44,7 +45,7 @@ interface DashboardData {
         photo_url: string | null
         status: string
         membership_expiry_date: string | null
-        membership_plan?: { name: string } | null
+        membership_plan?: { name: string; price: number } | null
     }[]
 }
 
@@ -84,11 +85,13 @@ function OverviewCard({
     value,
     icon,
     accent,
+    href,
 }: {
     title: string
     value: string
     icon: React.ReactNode
     accent: 'blue' | 'green' | 'red'
+    href?: string
 }) {
     const accents = {
         blue: {
@@ -105,19 +108,34 @@ function OverviewCard({
         },
     }
 
+    const content = (
+        <div className="flex items-start gap-3">
+            <div className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${accents[accent].iconBg}`}>
+                {icon}
+            </div>
+            <div className="min-w-0 flex-1">
+                <p className="line-clamp-2 min-h-6 text-[0.82rem] font-medium leading-snug text-slate-500 sm:text-[0.8rem]">{title}</p>
+                <p className={`mt-1 text-left text-[1.1rem] font-semibold leading-tight tracking-tight ${accents[accent].value} sm:text-[1.28rem]`}>
+                    {value}
+                </p>
+            </div>
+        </div>
+    )
+
+    if (href) {
+        return (
+            <Link
+                href={href}
+                className="block rounded-2xl bg-white px-4 py-5 shadow-[0_10px_28px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_38px_rgba(15,23,42,0.12)] sm:px-5"
+            >
+                {content}
+            </Link>
+        )
+    }
+
     return (
         <div className="rounded-2xl bg-white px-4 py-5 shadow-[0_10px_28px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 sm:px-5">
-            <div className="flex items-start gap-3">
-                <div className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${accents[accent].iconBg}`}>
-                    {icon}
-                </div>
-                <div className="min-w-0 flex-1">
-                    <p className="line-clamp-2 min-h-6 text-[0.82rem] font-medium leading-snug text-slate-500 sm:text-[0.8rem]">{title}</p>
-                    <p className={`mt-1 text-left text-[1.1rem] font-semibold leading-tight tracking-tight ${accents[accent].value} sm:text-[1.28rem]`}>
-                        {value}
-                    </p>
-                </div>
-            </div>
+            {content}
         </div>
     )
 }
@@ -193,7 +211,6 @@ export default function AdminDashboard() {
                 { count: activeMembers },
                 { count: todayCheckIns },
                 { data: todayPayments },
-                { data: pendingPayments },
                 { data: monthPayments },
                 { data: monthExpensesRows },
                 { count: expiringCount },
@@ -212,10 +229,6 @@ export default function AdminDashboard() {
                     .select('amount')
                     .eq('payment_date', today)
                     .eq('payment_status', 'paid'),
-                supabase
-                    .from('payments')
-                    .select('amount')
-                    .eq('payment_status', 'pending'),
                 supabase
                     .from('payments')
                     .select('amount')
@@ -241,11 +254,11 @@ export default function AdminDashboard() {
                         photo_url,
                         status,
                         membership_expiry_date,
-                        membership_plan:membership_plans(name)
+                        membership_plan:membership_plans(name, price)
                     `)
                     .not('membership_expiry_date', 'is', null)
                     .order('membership_expiry_date', { ascending: true })
-                    .limit(24),
+                    ,
                 supabase
                     .from('payments')
                     .select('amount, payment_date')
@@ -264,10 +277,20 @@ export default function AdminDashboard() {
                 revenue: revenueByDate[day] || 0,
             }))
 
+            const normalizedRenewalMembers = (renewalMembers || []) as DashboardData['renewals']
+            const expiringRenewals = getExpiringMembers(normalizedRenewalMembers)
+            const overdueRenewals = getOverdueMembers(normalizedRenewalMembers)
+            const combinedRenewals = [...expiringRenewals, ...overdueRenewals]
+            const uniqueRenewals = Array.from(new Map(combinedRenewals.map((member) => [member.id, member])).values())
+            const pendingCollection = uniqueRenewals.reduce(
+                (sum, member) => sum + Number(member.membership_plan?.price || 0),
+                0
+            )
+
             setData({
                 totalMembers: totalMembers || 0,
                 activeMembers: activeMembers || 0,
-                pendingCollection: sumAmounts(pendingPayments as Array<{ amount: unknown }> | null),
+                pendingCollection,
                 todayRevenue: sumAmounts(todayPayments as Array<{ amount: unknown }> | null),
                 monthRevenue: sumAmounts(monthPayments as Array<{ amount: unknown }> | null),
                 monthExpenses: sumAmounts(monthExpensesRows as Array<{ amount: unknown }> | null),
@@ -275,7 +298,7 @@ export default function AdminDashboard() {
                 todayCheckIns: todayCheckIns || 0,
                 expiringCount: expiringCount || 0,
                 revenueChart,
-                renewals: (renewalMembers || []) as DashboardData['renewals'],
+                renewals: normalizedRenewalMembers,
             })
             setLoading(false)
         }
@@ -302,23 +325,9 @@ export default function AdminDashboard() {
 
     const selectedRange = RANGES.find((range) => range.label === chartRange)?.days ?? 30
     const chartData = selectedRange === Infinity ? data.revenueChart : data.revenueChart.slice(-selectedRange)
-    const todayTs = new Date(`${new Date().toISOString().split('T')[0]}T00:00:00`).getTime()
-    const expiringMembers = data.renewals
-        .filter((member) => {
-            if (!member.membership_expiry_date) return false
-            const diffDays = Math.ceil((new Date(`${member.membership_expiry_date}T00:00:00`).getTime() - todayTs) / 86400000)
-            return diffDays >= 0 && diffDays <= 30
-        })
-        .sort((a, b) => new Date(a.membership_expiry_date || '').getTime() - new Date(b.membership_expiry_date || '').getTime())
-        .slice(0, 5)
-    const overdueMembers = data.renewals
-        .filter((member) => {
-            if (!member.membership_expiry_date) return false
-            return new Date(`${member.membership_expiry_date}T00:00:00`).getTime() < todayTs
-        })
-        .sort((a, b) => new Date(a.membership_expiry_date || '').getTime() - new Date(b.membership_expiry_date || '').getTime())
-        .slice(0, 5)
-    const visibleRenewals = renewalTab === 'expires' ? expiringMembers : overdueMembers
+    const expiringMembers = getExpiringMembers(data.renewals)
+    const overdueMembers = getOverdueMembers(data.renewals)
+    const visibleRenewals = (renewalTab === 'expires' ? expiringMembers : overdueMembers).slice(0, 5)
 
     return (
         <div className="space-y-5">
@@ -356,36 +365,42 @@ export default function AdminDashboard() {
                     value={data.activeMembers.toLocaleString()}
                     icon={<Users className="h-5 w-5" />}
                     accent="green"
+                    href="/admin/members?status=active"
                 />
                 <OverviewCard
                     title="Pending Collection"
                     value={formatCurrency(data.pendingCollection)}
                     icon={<CreditCard className="h-5 w-5" />}
                     accent={data.pendingCollection > 0 ? 'red' : 'blue'}
+                    href="/admin/members?filter=renewals"
                 />
                 <OverviewCard
                     title="Today Collection"
                     value={formatCurrency(data.todayRevenue)}
                     icon={<DollarSign className="h-5 w-5" />}
                     accent="green"
+                    href="/admin/finances/payments?date=today&type=collection"
                 />
                 <OverviewCard
                     title="Today Plan Expiry"
                     value={data.expiringCount.toLocaleString()}
                     icon={<AlertCircle className="h-5 w-5" />}
                     accent={data.expiringCount > 0 ? 'red' : 'blue'}
+                    href="/admin/members?planExpiry=today"
                 />
                 <OverviewCard
                     title="Month Collection"
                     value={formatCurrency(data.monthRevenue)}
                     icon={<DollarSign className="h-5 w-5" />}
                     accent="green"
+                    href="/admin/finances/payments?date=month&type=collection"
                 />
                 <OverviewCard
                     title="Month Expenses"
                     value={formatCurrency(data.monthExpenses)}
                     icon={<TrendingDown className="h-5 w-5" />}
                     accent={data.monthExpenses > 0 ? 'red' : 'blue'}
+                    href="/admin/finances/expenses?date=month&type=expense"
                 />
             </section>
 
@@ -468,7 +483,7 @@ export default function AdminDashboard() {
                 subtitle="Memberships that need attention"
                 action={
                     <Link
-                        href="/admin/members"
+                        href={renewalTab === 'expires' ? '/admin/members?filter=expires' : '/admin/members?filter=overdue'}
                         className="flex items-center gap-1 text-[13px] font-medium text-blue-600 transition-colors hover:text-blue-700"
                     >
                         View all <ArrowRight className="h-3 w-3" />

@@ -27,7 +27,16 @@ type PaymentTableRow = {
     } | null
 }
 
-export default async function FinancesPaymentsPage() {
+type FinancesPaymentsPageProps = {
+    searchParams: Promise<{
+        status?: string
+        date?: string
+        type?: string
+    }>
+}
+
+export default async function FinancesPaymentsPage({ searchParams }: FinancesPaymentsPageProps) {
+    const params = await searchParams
     const supabase = await createClient()
 
     const paymentsResult = await supabase
@@ -72,9 +81,15 @@ export default async function FinancesPaymentsPage() {
 
     return (
         <PaymentsTable
+            key={`${params.status || 'all'}:${params.date || 'none'}:${params.type || 'none'}`}
             payments={payments || []}
             todayTotal={todayTotal}
             monthTotal={monthTotal}
+            initialFilters={{
+                status: params.status,
+                date: params.date,
+                type: params.type,
+            }}
         />
     )
 }

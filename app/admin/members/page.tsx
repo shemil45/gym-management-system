@@ -1,7 +1,16 @@
 import { createClient } from '@/lib/supabase/server'
 import MembersTable from '@/components/tables/MembersTable'
 
-export default async function MembersPage() {
+type MembersPageProps = {
+    searchParams: Promise<{
+        status?: string
+        planExpiry?: string
+        filter?: string
+    }>
+}
+
+export default async function MembersPage({ searchParams }: MembersPageProps) {
+    const params = await searchParams
     const supabase = await createClient()
 
     // Fetch members with their membership plans
@@ -9,7 +18,7 @@ export default async function MembersPage() {
         .from('members')
         .select(`
       *,
-      membership_plan:membership_plans(id, name)
+      membership_plan:membership_plans(id, name, price)
     `)
         .order('created_at', { ascending: false })
 
@@ -21,8 +30,14 @@ export default async function MembersPage() {
 
     return (
         <MembersTable
+            key={`${params.status || 'all'}:${params.planExpiry || 'none'}:${params.filter || 'none'}`}
             members={members || []}
             plans={plans || []}
+            initialFilters={{
+                status: params.status,
+                planExpiry: params.planExpiry,
+                filter: params.filter,
+            }}
         />
     )
 }

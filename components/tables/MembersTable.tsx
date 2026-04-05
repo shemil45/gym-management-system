@@ -28,6 +28,7 @@ import {
     X,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/date'
+import { getExpiringMembers, getOverdueMembers } from '@/lib/utils/renewals'
 import { toast } from 'sonner'
 
 const ITEMS_PER_PAGE = 20
@@ -44,12 +45,17 @@ interface Member {
     membership_start_date?: string | null
     membership_expiry_date?: string | null
     membership_plan_id?: string | null
-    membership_plan?: { id: string; name: string } | null
+    membership_plan?: { id: string; name: string; price?: number } | null
 }
 
 interface MembersTableProps {
     members: Member[]
     plans: { id: string; name: string }[]
+    initialFilters?: {
+        status?: string
+        planExpiry?: string
+        filter?: string
+    }
 }
 
 function getPlanColor(name: string): string {
@@ -151,17 +157,22 @@ function PaginationBar({
     )
 }
 
-export default function MembersTable({ members, plans }: MembersTableProps) {
+export default function MembersTable({ members, plans, initialFilters }: MembersTableProps) {
     const router = useRouter()
     const { confirm, dialog } = useConfirmDialog()
+    const todayValue = new Date().toISOString().split('T')[0]
+    const initialRenewalFilter = initialFilters?.filter === 'expires' || initialFilters?.filter === 'overdue' || initialFilters?.filter === 'renewals'
+        ? initialFilters.filter
+        : 'all'
     const [searchQuery, setSearchQuery] = useState('')
-    const [statusFilter, setStatusFilter] = useState('all')
+    const [statusFilter, setStatusFilter] = useState(initialFilters?.status || 'all')
     const [planFilter, setPlanFilter] = useState('all')
     const [genderFilter, setGenderFilter] = useState('all')
     const [startFrom, setStartFrom] = useState('')
     const [startTo, setStartTo] = useState('')
-    const [endFrom, setEndFrom] = useState('')
-    const [endTo, setEndTo] = useState('')
+    const [endFrom, setEndFrom] = useState(initialFilters?.planExpiry === 'today' ? todayValue : '')
+    const [endTo, setEndTo] = useState(initialFilters?.planExpiry === 'today' ? todayValue : '')
+    const [renewalFilter, setRenewalFilter] = useState<'all' | 'expires' | 'overdue' | 'renewals'>(initialRenewalFilter)
     const [currentPage, setCurrentPage] = useState(1)
     const [deletingId, setDeletingId] = useState<string | null>(null)
     const [openingAddMember, setOpeningAddMember] = useState(false)
@@ -194,6 +205,22 @@ export default function MembersTable({ members, plans }: MembersTableProps) {
         }
     }, [showAdvancedSearch])
 
+    const renewalMemberIds = useMemo(() => {
+        if (renewalFilter === 'all') {
+            return null
+        }
+
+        if (renewalFilter === 'expires') {
+            return new Set(getExpiringMembers(members).map((member) => member.id))
+        }
+
+        if (renewalFilter === 'overdue') {
+            return new Set(getOverdueMembers(members).map((member) => member.id))
+        }
+
+        return new Set([...getExpiringMembers(members), ...getOverdueMembers(members)].map((member) => member.id))
+    }, [members, renewalFilter])
+
     const filtered = useMemo(() => {
         return members.filter((member) => {
             const q = searchQuery.toLowerCase()
@@ -211,6 +238,7 @@ export default function MembersTable({ members, plans }: MembersTableProps) {
             const matchesStartTo = !startTo || (startDate && startDate <= startTo)
             const matchesEndFrom = !endFrom || (endDate && endDate >= endFrom)
             const matchesEndTo = !endTo || (endDate && endDate <= endTo)
+            const matchesRenewalFilter = renewalMemberIds ? renewalMemberIds.has(member.id) : true
             return (
                 matchesSearch &&
                 matchesStatus &&
@@ -219,14 +247,27 @@ export default function MembersTable({ members, plans }: MembersTableProps) {
                 matchesStartFrom &&
                 matchesStartTo &&
                 matchesEndFrom &&
-                matchesEndTo
+                matchesEndTo &&
+                matchesRenewalFilter
             )
         })
-    }, [members, searchQuery, statusFilter, planFilter, genderFilter, startFrom, startTo, endFrom, endTo])
+    }, [members, searchQuery, statusFilter, planFilter, genderFilter, startFrom, startTo, endFrom, endTo, renewalMemberIds])
 
-    const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE))
+    const sortedMembers = useMemo(() => {
+        if (renewalFilter === 'all') {
+            return filtered
+        }
+
+        return [...filtered].sort((a, b) => {
+            const aTime = new Date(`${a.membership_expiry_date || '9999-12-31'}T00:00:00`).getTime()
+            const bTime = new Date(`${b.membership_expiry_date || '9999-12-31'}T00:00:00`).getTime()
+            return aTime - bTime
+        })
+    }, [filtered, renewalFilter])
+
+    const totalPages = Math.max(1, Math.ceil(sortedMembers.length / ITEMS_PER_PAGE))
     const safePage = Math.min(currentPage, totalPages)
-    const paginated = filtered.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE)
+    const paginated = sortedMembers.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE)
 
     const handlePageChange = (page: number) => {
         if (page >= 1 && page <= totalPages) setCurrentPage(page)
@@ -283,12 +324,14 @@ export default function MembersTable({ members, plans }: MembersTableProps) {
     }
 
     const hasActiveAdvancedFilters =
+        renewalFilter !== 'all' ||
         statusFilter !== 'all' ||
         planFilter !== 'all' ||
         genderFilter !== 'all' ||
         !!startFrom || !!startTo || !!endFrom || !!endTo
 
     const activeFilterCount =
+        (renewalFilter !== 'all' ? 1 : 0) +
         (statusFilter !== 'all' ? 1 : 0) +
         (planFilter !== 'all' ? 1 : 0) +
         (genderFilter !== 'all' ? 1 : 0) +
@@ -303,6 +346,7 @@ export default function MembersTable({ members, plans }: MembersTableProps) {
         setStartTo('')
         setEndFrom('')
         setEndTo('')
+        setRenewalFilter('all')
         setCurrentPage(1)
     }
 
@@ -778,10 +822,10 @@ export default function MembersTable({ members, plans }: MembersTableProps) {
                     <p className="text-xs text-gray-500">
                         Showing{' '}
                         <span className="font-semibold text-blue-600">
-                            {filtered.length === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1}-
-                            {Math.min(safePage * ITEMS_PER_PAGE, filtered.length)}
+                            {sortedMembers.length === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1}-
+                            {Math.min(safePage * ITEMS_PER_PAGE, sortedMembers.length)}
                         </span>{' '}
-                        of <span className="font-medium text-gray-700">{filtered.length}</span> members
+                        of <span className="font-medium text-gray-700">{sortedMembers.length}</span> members
                     </p>
                     {totalPages > 1 ? (
                         <div className="self-end sm:ml-auto">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo, useTransition } from 'react'
+import { useEffect, useState, useMemo, useTransition, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
     BarChart,
@@ -76,6 +76,11 @@ interface PaymentRow {
 interface ExpenseDashboardProps {
     payments: PaymentRow[]
     expenses: ExpenseRow[]
+    initialFilters?: {
+        category?: string
+        date?: string
+        type?: string
+    }
 }
 
 type ChartRange = '1D' | '1W' | '1M' | '3M' | '6M' | '1Y' | 'MAX'
@@ -170,6 +175,22 @@ function getRangeStartDate(range: ChartRange, anchor: Date) {
         default:
             return null
     }
+}
+
+function getPresetDateRange(preset: string | null) {
+    const today = new Date()
+    const todayValue = today.toISOString().split('T')[0]
+
+    if (preset === 'today') {
+        return { from: todayValue, to: todayValue }
+    }
+
+    if (preset === 'month') {
+        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
+        return { from: monthStart, to: todayValue }
+    }
+
+    return { from: '', to: '' }
 }
 
 // ─── Chart tooltip ────────────────────────────────────────────────────────────
@@ -453,15 +474,17 @@ function CategoryBadge({ category }: { category: ExpenseCategory }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function ExpenseDashboard({ payments, expenses }: ExpenseDashboardProps) {
+export default function ExpenseDashboard({ payments, expenses, initialFilters }: ExpenseDashboardProps) {
     const router = useRouter()
     const { confirm, dialog } = useConfirmDialog()
+    const expenseTableRef = useRef<HTMLDivElement | null>(null)
+    const initialDateRange = getPresetDateRange(initialFilters?.date ?? null)
     const [showModal, setShowModal] = useState(false)
     const [showFilterModal, setShowFilterModal] = useState(false)
     const [breakdownRange, setBreakdownRange] = useState<ChartRange>('MAX')
-    const [categoryFilter, setCategoryFilter] = useState('all')
-    const [dateFrom, setDateFrom] = useState('')
-    const [dateTo, setDateTo] = useState('')
+    const [categoryFilter, setCategoryFilter] = useState(initialFilters?.category || 'all')
+    const [dateFrom, setDateFrom] = useState(initialDateRange.from)
+    const [dateTo, setDateTo] = useState(initialDateRange.to)
     const [draftCategory, setDraftCategory] = useState('all')
     const [draftDateFrom, setDraftDateFrom] = useState('')
     const [draftDateTo, setDraftDateTo] = useState('')
@@ -482,6 +505,16 @@ export default function ExpenseDashboard({ payments, expenses }: ExpenseDashboar
             document.body.style.overflow = ''
         }
     }, [showFilterModal, showModal])
+
+    useEffect(() => {
+        if (initialFilters?.type !== 'expense') return
+
+        const timeoutId = window.setTimeout(() => {
+            expenseTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }, 150)
+
+        return () => window.clearTimeout(timeoutId)
+    }, [initialFilters?.type])
 
     // ── Build last-12-months chart data ──────────────────────────────────────
     const chartData = useMemo(() => {
@@ -991,7 +1024,10 @@ export default function ExpenseDashboard({ payments, expenses }: ExpenseDashboar
                 </div>
 
                 {/* ── Expenses Table ── */}
-                <div className="overflow-hidden rounded-[1.75rem] border border-gray-100 bg-white shadow-[0_14px_32px_rgba(15,23,42,0.07)]">
+                <div
+                    ref={expenseTableRef}
+                    className="overflow-hidden rounded-[1.75rem] border border-gray-100 bg-white shadow-[0_14px_32px_rgba(15,23,42,0.07)]"
+                >
                     <div className="border-b border-slate-100 p-4 sm:p-5">
                         <div className="mb-4">
                             <h2 className="text-base font-semibold text-gray-900">All Expenses</h2>
