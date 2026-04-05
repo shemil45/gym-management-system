@@ -391,6 +391,9 @@ export default function ResultClient({ invoiceNumber, payment, portal, reason, s
                             <p className="text-sm text-slate-500">
                                 Your payment was received by Razorpay. We&apos;re generating the invoice and updating your membership now.
                             </p>
+                            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                                Please do not refresh, close this page, or go back until the payment confirmation is complete.
+                            </div>
                             {processingError ? (
                                 <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                                     {processingError}
@@ -400,20 +403,6 @@ export default function ResultClient({ invoiceNumber, payment, portal, reason, s
                                     Invoice: {processingInvoiceNumber}
                                 </p>
                             )}
-                            <div className="flex flex-wrap gap-3 pt-2">
-                                <Link
-                                    href={historyHref}
-                                    className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                                >
-                                    Open payment history
-                                </Link>
-                                <Link
-                                    href={fallbackHref}
-                                    className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
-                                >
-                                    {portal === 'admin' ? 'Back to payments' : 'Back to plans'}
-                                </Link>
-                            </div>
                         </div>
                     </div>
                 </div>
