@@ -122,13 +122,23 @@ function MethodBadge({ method }: { method: PaymentRow['payment_method'] }) {
     )
 }
 
-function StatCard({ icon, label, value, iconBg }: { icon: React.ReactNode; label: string; value: string; iconBg: string }) {
+function StatCard({
+    icon,
+    label,
+    value,
+    iconBg,
+}: {
+    icon: React.ReactNode
+    label: string
+    value: string
+    iconBg: string
+}) {
     return (
-        <div className="flex flex-1 items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3.5 pr-5 ring-1 ring-slate-100">
-            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>{icon}</div>
-            <div className="min-w-0 flex-1 pr-2">
-                <p className="truncate text-[11px] font-medium text-slate-400">{label}</p>
-                <p className="text-[1.6rem] font-bold leading-tight text-slate-900 sm:text-[1.7rem]">{value}</p>
+        <div className="flex flex-1 items-start gap-2 rounded-2xl bg-slate-50 px-3 py-3 ring-1 ring-slate-100">
+            <div className={`mt-0.5 flex h-10 w-9 shrink-0 items-center justify-center rounded-sm ${iconBg}`}>{icon}</div>
+            <div className="min-w-0 flex-1">
+                <p className="min-w-0 truncate text-[10.5px] font-medium leading-4 text-slate-400">{label}</p>
+                <p className="mt-1 text-left text-[1.05rem] font-bold leading-tight text-slate-900 sm:text-[1.15rem]">{value}</p>
             </div>
         </div>
     )

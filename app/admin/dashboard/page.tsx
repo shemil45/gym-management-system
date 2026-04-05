@@ -106,16 +106,16 @@ function OverviewCard({
     }
 
     return (
-        <div className="rounded-2xl bg-white px-4 py-5 text-center shadow-[0_10px_28px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 sm:px-5">
-            <div className="flex items-center gap-3 sm:flex-col sm:items-center sm:justify-center sm:gap-2">
-                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${accents[accent].iconBg}`}>
+        <div className="rounded-2xl bg-white px-4 py-5 shadow-[0_10px_28px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 sm:px-5">
+            <div className="flex items-start gap-3">
+                <div className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${accents[accent].iconBg}`}>
                     {icon}
                 </div>
-                <div className="min-w-0 flex-1 sm:flex-none">
-                    <p className={`truncate text-[1.28rem] font-semibold leading-none tracking-tight ${accents[accent].value} sm:text-[1.45rem]`}>
+                <div className="min-w-0 flex-1">
+                    <p className="line-clamp-2 min-h-6 text-[0.82rem] font-medium leading-snug text-slate-500 sm:text-[0.8rem]">{title}</p>
+                    <p className={`mt-1 text-left text-[1.1rem] font-semibold leading-tight tracking-tight ${accents[accent].value} sm:text-[1.28rem]`}>
                         {value}
                     </p>
-                    <p className="mt-2 text-[0.72rem] font-medium leading-snug text-slate-500 sm:text-[0.8rem]">{title}</p>
                 </div>
             </div>
         </div>

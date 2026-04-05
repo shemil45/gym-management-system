@@ -216,14 +216,14 @@ function StatCard({
     highlight?: 'green' | 'red'
 }) {
     return (
-        <div className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-4 pr-6 shadow-[0_14px_32px_rgba(15,23,42,0.07)] sm:px-5 sm:pr-7">
-            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl sm:h-11 sm:w-11 ${iconBg}`}>
+        <div className="flex items-start gap-2 rounded-2xl border border-gray-100 bg-white px-3 py-3 shadow-[0_14px_32px_rgba(15,23,42,0.07)] sm:px-4">
+            <div className={`mt-0.5 flex h-10 w-9 shrink-0 items-center justify-center rounded-sm sm:h-9 sm:w-9 ${iconBg}`}>
                 {icon}
             </div>
-            <div className="min-w-0 flex-1 pr-3 sm:pr-4">
-                <p className="line-clamp-2 min-h-[2rem] text-[11px] font-medium leading-4 text-gray-500">{label}</p>
+            <div className="min-w-0 flex-1">
+                <p className="line-clamp-2 min-h-6 text-[10.5px] font-medium leading-4 text-gray-500">{label}</p>
                 <p
-                    className={`mt-1 text-base font-bold leading-tight sm:text-lg xl:text-xl ${highlight === 'green'
+                    className={`-mt-1.25 text-left text-[1.05rem] font-bold leading-tight sm:text-[1.15rem] ${highlight === 'green'
                         ? 'text-emerald-600'
                         : highlight === 'red'
                             ? 'text-red-500'
@@ -232,7 +232,7 @@ function StatCard({
                 >
                     {value}
                 </p>
-                {sub && <p className="mt-0.5 text-[11px] text-gray-400">{sub}</p>}
+                {sub && <p className="mt-0.5 text-[10px] leading-4 text-gray-400">{sub}</p>}
             </div>
         </div>
     )
@@ -539,16 +539,6 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
     }, [chartWindowCount])
 
     // ── Summary stats ────────────────────────────────────────────────────────
-    const totalRevenue = useMemo(
-        () => payments.reduce((s, p) => s + Number(p.amount), 0),
-        [payments]
-    )
-    const totalExpenses = useMemo(
-        () => expenses.reduce((s, e) => s + Number(e.amount), 0),
-        [expenses]
-    )
-    const netProfit = totalRevenue - totalExpenses
-
     const now = useMemo(() => new Date(), [])
     const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
     const monthRevenue = payments
@@ -841,11 +831,10 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
                         </div>
                         <StatCard
                             label="Net Profit"
-                            value={formatCurrency(netProfit)}
+                            value={formatCurrency(monthNet)}
                             icon={<Wallet className="h-5 w-5 text-blue-600" />}
                             iconBg="bg-blue-50"
-                            sub={`This Month Net: ${formatCurrency(monthNet)} | Rev: ${formatCurrency(monthRevenue)} | Exp: ${formatCurrency(monthExpenses)}`}
-                            highlight={netProfit >= 0 ? 'green' : 'red'}
+                            highlight={monthNet >= 0 ? 'green' : 'red'}
                         />
                     </div>
                 </div>
@@ -866,17 +855,16 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
                     />
                     <StatCard
                         label="Net Profit"
-                        value={formatCurrency(netProfit)}
+                        value={formatCurrency(monthNet)}
                         icon={<Wallet className="h-5 w-5 text-blue-600" />}
                         iconBg="bg-blue-50"
-                        highlight={netProfit >= 0 ? 'green' : 'red'}
+                        highlight={monthNet >= 0 ? 'green' : 'red'}
                     />
                     <StatCard
                         label="Month Net"
                         value={formatCurrency(monthNet)}
                         icon={<ArrowUpRight className="h-5 w-5 text-violet-600" />}
                         iconBg="bg-violet-50"
-                        sub={`Rev: ${formatCurrency(monthRevenue)} | Exp: ${formatCurrency(monthExpenses)}`}
                         highlight={monthNet >= 0 ? 'green' : 'red'}
                     />
                 </div>
