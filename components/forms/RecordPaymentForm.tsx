@@ -1,10 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, startTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import LoadingLinkButton from '@/components/ui/loading-link-button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -60,6 +59,14 @@ export default function RecordPaymentForm({ members, plans }: RecordPaymentFormP
 
     // Member selector state
     const [showMemberDropdown, setShowMemberDropdown] = useState(false)
+    const [navigatingBack, setNavigatingBack] = useState(false)
+
+    const handleBack = () => {
+        setNavigatingBack(true)
+        startTransition(() => {
+            router.push('/admin/payments')
+        })
+    }
 
     const filteredMembers = members.filter((m) => {
         const q = memberSearch.toLowerCase()
@@ -120,15 +127,15 @@ export default function RecordPaymentForm({ members, plans }: RecordPaymentFormP
         <div className="space-y-6">
             {/* Header */}
             <div className="flex items-center gap-3">
-                <LoadingLinkButton
-                    href="/admin/payments"
-                    loadingText=""
+                <Button
+                    onClick={handleBack}
+                    disabled={navigatingBack || loading}
                     type="button"
                     variant="outline"
-                    className="h-9 w-9 border-gray-200 bg-white px-0 text-gray-500 hover:bg-gray-50 hover:text-gray-800"
+                    className="h-9 w-9 border-gray-200 bg-white px-0 text-gray-500 hover:bg-gray-50 hover:text-gray-800 shrink-0"
                 >
-                    <ArrowLeft className="h-4 w-4" />
-                </LoadingLinkButton>
+                    {navigatingBack ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowLeft className="h-4 w-4" />}
+                </Button>
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900">Record Payment</h1>
                     <p className="text-sm text-gray-500 mt-0.5">Add a new payment record for a member</p>
@@ -342,16 +349,16 @@ export default function RecordPaymentForm({ members, plans }: RecordPaymentFormP
 
                     {/* ── Action Buttons ── */}
                     <div className="flex items-center gap-3 pt-1">
-                        <LoadingLinkButton
-                            href="/admin/payments"
-                            loadingText="Leaving..."
+                        <Button
+                            onClick={handleBack}
                             type="button"
                             variant="outline"
-                            disabled={loading}
+                            disabled={navigatingBack || loading}
                             className="h-10 px-5 border-gray-300 text-gray-700 hover:bg-gray-50"
                         >
-                            Cancel
-                        </LoadingLinkButton>
+                            {navigatingBack ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            {navigatingBack ? 'Leaving...' : 'Cancel'}
+                        </Button>
                         <Button
                             type="submit"
                             disabled={loading}

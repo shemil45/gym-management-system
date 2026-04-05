@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, startTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import LoadingLinkButton from '@/components/ui/loading-link-button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
     Select,
@@ -29,6 +28,7 @@ import {
     SlidersHorizontal,
     X,
     CalendarDays,
+    Loader2,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils/currency'
 import { formatDate } from '@/lib/utils/date'
@@ -190,7 +190,9 @@ function PaginationBar({
 
 export default function PaymentsTable({ payments, todayTotal, monthTotal }: PaymentsTableProps) {
     const router = useRouter()
+    const [openingRecordPayment, setOpeningRecordPayment] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
+    const [navigatingInvoiceId, setNavigatingInvoiceId] = useState<string | null>(null)
     const [statusFilter, setStatusFilter] = useState('all')
     const [methodFilter, setMethodFilter] = useState('all')
     const [currentPage, setCurrentPage] = useState(1)
@@ -254,6 +256,22 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal }: Paym
     const paginated = sortedFiltered.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE)
 
     const resetPage = () => setCurrentPage(1)
+
+    const handleRowClick = (paymentId: string, invoiceNumber: string | null, status: string) => {
+        if (!invoiceNumber || navigatingInvoiceId) return
+        setNavigatingInvoiceId(paymentId)
+        const invoiceStatus = status === 'paid' ? 'success' : 'failure'
+        startTransition(() => {
+            router.push(`/invoice?portal=admin&invoice=${encodeURIComponent(invoiceNumber)}&status=${invoiceStatus}`)
+        })
+    }
+
+    const handleOpenRecordPayment = () => {
+        setOpeningRecordPayment(true)
+        startTransition(() => {
+            router.push('/admin/payments/record')
+        })
+    }
 
     const hasActiveFilters = statusFilter !== 'all' || methodFilter !== 'all'
 
@@ -385,14 +403,15 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal }: Paym
                         <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Payments</h1>
                         <p className="mt-1 text-sm text-slate-400">Track and manage all membership payments.</p>
                     </div>
-                    <LoadingLinkButton
-                        href="/admin/payments/record"
-                        loadingText="Opening..."
+                    <Button
+                        type="button"
+                        onClick={handleOpenRecordPayment}
+                        disabled={openingRecordPayment}
                         className="h-14 w-14 shrink-0 rounded-full bg-emerald-600 p-0 text-white shadow-[0_16px_32px_rgba(5,150,105,0.25)] hover:bg-emerald-700 sm:h-14 sm:w-auto sm:rounded-2xl sm:px-4 gap-1.5"
                     >
-                        <Plus className="h-5 w-5" />
-                        <span className="ml-1 hidden sm:inline">Record Payment</span>
-                    </LoadingLinkButton>
+                        {openingRecordPayment ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
+                        <span className="ml-1 hidden sm:inline">{openingRecordPayment ? 'Opening...' : 'Record Payment'}</span>
+                    </Button>
                 </div>
 
                 {/* Stat Cards */}
@@ -477,9 +496,19 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal }: Paym
                             const name = member?.full_name ?? 'Unknown'
                             const isPaid = payment.payment_status === 'paid'
                             const isRefunded = payment.payment_status === 'refunded'
+                            const isNavigating = navigatingInvoiceId === payment.id
                             return (
-                                <div key={payment.id} onClick={() => payment.invoice_number && router.push(`/invoice?portal=admin&invoice=${encodeURIComponent(payment.invoice_number)}&status=${isPaid ? 'success' : 'failure'}`)} className="px-4 py-3.5 hover:bg-slate-50 transition-colors cursor-pointer">
-                                    <div className="flex items-start gap-3">
+                                <div 
+                                    key={payment.id} 
+                                    onClick={() => handleRowClick(payment.id, payment.invoice_number, payment.payment_status)} 
+                                    className={`relative px-4 py-3.5 transition-colors cursor-pointer ${isNavigating ? 'bg-emerald-50/60' : 'hover:bg-slate-50'}`}
+                                >
+                                    {isNavigating && (
+                                        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-white/70">
+                                            <Loader2 className="h-5 w-5 animate-spin text-emerald-500" />
+                                        </div>
+                                    )}
+                                    <div className={`flex items-start gap-3 ${isNavigating ? 'opacity-40' : ''}`}>
                                         <Avatar className="h-11 w-11 shrink-0 ring-2 ring-slate-100">
                                             <AvatarImage src={member?.photo_url || undefined} alt={name} />
                                             <AvatarFallback className="bg-linear-to-br from-emerald-500 to-teal-500 text-xs font-semibold text-white">
@@ -585,8 +614,13 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal }: Paym
                                 paginated.map((payment) => {
                                     const member = payment.member
                                     const name = member?.full_name ?? 'Unknown'
+                                    const isNavigating = navigatingInvoiceId === payment.id
                                     return (
-                                        <tr key={payment.id} onClick={() => payment.invoice_number && router.push(`/invoice?portal=admin&invoice=${encodeURIComponent(payment.invoice_number)}&status=${payment.payment_status === 'paid' ? 'success' : 'failure'}`)} className="hover:bg-emerald-50/20 transition-colors cursor-pointer">
+                                        <tr 
+                                            key={payment.id} 
+                                            onClick={() => handleRowClick(payment.id, payment.invoice_number, payment.payment_status)} 
+                                            className={`transition-colors cursor-pointer ${isNavigating ? 'bg-emerald-50/60' : 'hover:bg-emerald-50/20'}`}
+                                        >
                                             <td className="py-3 pl-5 pr-3">
                                                 <Avatar className="h-9 w-9 ring-2 ring-gray-100">
                                                     <AvatarImage src={member?.photo_url || undefined} alt={name} />
@@ -628,10 +662,16 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal }: Paym
                                             <td className="px-3 py-3">
                                                 <StatusBadge status={payment.payment_status} />
                                             </td>
-                                            <td className="px-3 py-3 pr-5">
-                                                <span className="text-sm text-gray-500">
-                                                    {member?.membership_plan?.name ?? '—'}
-                                                </span>
+                                            <td className="px-3 py-3 pr-5" onClick={(e) => e.stopPropagation()}>
+                                                {isNavigating ? (
+                                                    <div className="flex items-center justify-end pr-1">
+                                                        <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-sm text-gray-500">
+                                                        {member?.membership_plan?.name ?? '—'}
+                                                    </span>
+                                                )}
                                             </td>
                                         </tr>
                                     )
