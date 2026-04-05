@@ -288,6 +288,13 @@ export default function MembersTable({ members, plans }: MembersTableProps) {
         genderFilter !== 'all' ||
         !!startFrom || !!startTo || !!endFrom || !!endTo
 
+    const activeFilterCount =
+        (statusFilter !== 'all' ? 1 : 0) +
+        (planFilter !== 'all' ? 1 : 0) +
+        (genderFilter !== 'all' ? 1 : 0) +
+        (startFrom || startTo ? 1 : 0) +
+        (endFrom || endTo ? 1 : 0)
+
     const handleClearAllFilters = () => {
         setStatusFilter('all')
         setPlanFilter('all')
@@ -513,58 +520,63 @@ export default function MembersTable({ members, plans }: MembersTableProps) {
                 </div>
             )}
 
-            <div className="rounded-[1.75rem] bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 sm:p-5">
-                <div className="flex items-start justify-between gap-3">
-                    <div>
+            <div className="overflow-hidden rounded-[1.75rem] bg-white shadow-[0_14px_32px_rgba(15,23,42,0.07)] ring-1 ring-slate-100">
+                {/* Header, Search + Filter */}
+                <div className="border-b border-slate-100 p-4 sm:p-5">
+                    {/* Header Row */}
+                    <div className="mb-4 sm:mb-5 flex items-center justify-between gap-3">
                         <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Members</h1>
-                        <p className="mt-1 text-sm text-slate-400">Search, filter, and manage your member base.</p>
-                    </div>
-                    <Button
-                        type="button"
-                        onClick={handleOpenAddMember}
-                        disabled={openingAddMember}
-                        className="h-14 w-14 shrink-0 rounded-full bg-blue-600 p-0 text-white shadow-[0_16px_32px_rgba(15,91,225,0.25)] hover:bg-blue-700 sm:h-14 sm:w-auto sm:rounded-2xl sm:px-4"
-                    >
-                        {openingAddMember ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-5 w-5" />}
-                        <span className="ml-1 hidden sm:inline">{openingAddMember ? 'Opening...' : 'Add Member'}</span>
-                    </Button>
-                </div>
-
-                <div className="mt-4 space-y-3">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                        <Input
-                            placeholder="Search by name or member ID..."
-                            value={searchQuery}
-                            onChange={(e) => handleSearch(e.target.value)}
-                            className="h-12 rounded-2xl border-slate-200 bg-slate-50 pl-10 text-sm focus:border-blue-400 focus:ring-blue-400"
-                        />
-                    </div>
-
-                    <div className="relative">
-                        <button
+                        <Button
                             type="button"
-                            onClick={handleOpenAdvancedSearch}
-                            className="flex w-full items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100"
+                            onClick={handleOpenAddMember}
+                            disabled={openingAddMember}
+                            className="h-12 w-12 shrink-0 rounded-full bg-blue-600 p-0 text-white shadow-[0_8px_16px_rgba(15,91,225,0.2)] hover:bg-blue-700 sm:h-12 sm:w-auto sm:rounded-2xl sm:px-4"
                         >
-                            <SlidersHorizontal className="h-4 w-4 text-slate-500" />
-                            Advanced Search
-                        </button>
-                        {hasActiveAdvancedFilters && (
+                            {openingAddMember ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-5 w-5" />}
+                            <span className="ml-1 hidden sm:inline">{openingAddMember ? 'Opening...' : 'Add Member'}</span>
+                        </Button>
+                    </div>
+
+                    <div className="flex gap-2 sm:gap-3">
+                        <div className="relative flex-3 min-w-0">
+                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                            <Input
+                                placeholder="Search by name or member ID..."
+                                value={searchQuery}
+                                onChange={(e) => handleSearch(e.target.value)}
+                                className="h-12 w-full rounded-2xl border-slate-200 bg-slate-50 pl-10 text-sm focus:border-blue-400 focus:ring-blue-400"
+                            />
+                        </div>
+
+                        <div className="relative flex flex-1 items-center gap-1.5 sm:gap-2 min-w-fit">
                             <button
                                 type="button"
-                                onClick={handleClearAllFilters}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-500 transition-colors hover:bg-red-100 hover:text-red-700"
+                                onClick={handleOpenAdvancedSearch}
+                                className="flex h-12 flex-1 items-center justify-center gap-1.5 sm:gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-2 sm:px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 min-w-0"
                             >
-                                <X className="h-3 w-3" />
-                                Remove filters
+                                <SlidersHorizontal className="h-4 w-4 shrink-0 text-slate-500" />
+                                <span className="hidden xl:inline whitespace-nowrap">Filter</span>
+                                {hasActiveAdvancedFilters && (
+                                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
+                                        {activeFilterCount}
+                                    </span>
+                                )}
                             </button>
-                        )}
+                            {hasActiveAdvancedFilters && (
+                                <button
+                                    type="button"
+                                    onClick={handleClearAllFilters}
+                                    className="flex h-12 w-12 sm:w-auto shrink-0 items-center justify-center rounded-2xl bg-red-50 px-0 sm:px-3 text-xs font-medium text-red-500 transition-colors hover:bg-red-100 hover:text-red-700"
+                                    title="Remove filters"
+                                >
+                                    <X className="h-4 w-4 shrink-0" />
+                                    <span className="hidden sm:inline ml-1 font-semibold whitespace-nowrap">Clear</span>
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div className="overflow-hidden rounded-[1.75rem] bg-white shadow-[0_14px_32px_rgba(15,23,42,0.07)] ring-1 ring-slate-100">
                 <div className="divide-y divide-slate-100 lg:hidden">
                     {paginated.length === 0 ? (
                         <div className="px-4 py-16 text-center text-sm text-slate-400">No members found</div>
