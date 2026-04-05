@@ -1149,15 +1149,25 @@ export default function FinancialDashboard({ payments, expenses }: FinancialDash
                         </table>
                     </div>
 
-                    <div className="flex justify-end border-t border-slate-100 px-4 py-3 sm:px-5">
+                    <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                        <p>
+                            Showing{' '}
+                            <span className="font-semibold text-rose-600">
+                                {filteredExpenses.length === 0 ? 0 : (safeExpensePage - 1) * ITEMS_PER_PAGE + 1}-
+                                {Math.min(safeExpensePage * ITEMS_PER_PAGE, filteredExpenses.length)}
+                            </span>{' '}
+                            of <span className="font-medium text-slate-700">{filteredExpenses.length}</span> expenses
+                        </p>
                         {totalExpensePages > 1 ? (
-                            <PaginationBar
-                                currentPage={safeExpensePage}
-                                totalPages={totalExpensePages}
-                                onPageChange={(page) => {
-                                    if (page >= 1 && page <= totalExpensePages) setCurrentPage(page)
-                                }}
-                            />
+                            <div className="self-end sm:ml-auto">
+                                <PaginationBar
+                                    currentPage={safeExpensePage}
+                                    totalPages={totalExpensePages}
+                                    onPageChange={(page) => {
+                                        if (page >= 1 && page <= totalExpensePages) setCurrentPage(page)
+                                    }}
+                                />
+                            </div>
                         ) : null}
                     </div>
                 </div>
