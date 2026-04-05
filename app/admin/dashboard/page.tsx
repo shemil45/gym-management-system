@@ -3,10 +3,12 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/utils/currency'
 import { getExpiringMembers, getOverdueMembers } from '@/lib/utils/renewals'
 import LoadingLinkButton from '@/components/ui/loading-link-button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { formatRoleLabel } from '@/lib/auth/roles'
 import {
     AlertCircle,
     ArrowRight,
@@ -47,6 +49,21 @@ interface DashboardData {
         membership_expiry_date: string | null
         membership_plan?: { name: string; price: number } | null
     }[]
+}
+
+interface ViewerProfile {
+    email: string | null
+    full_name: string | null
+    phone: string | null
+    photo_url: string | null
+    role: string | null
+}
+
+interface ProfileRow {
+    full_name: string | null
+    role: string | null
+    phone: string | null
+    photo_url: string | null
 }
 
 type RangeLabel = '1D' | '5D' | '1M' | '1Y' | '5Y' | 'Max'
@@ -191,6 +208,8 @@ const CustomTooltip = ({
 export default function AdminDashboard() {
     const [data, setData] = useState<DashboardData | null>(null)
     const [loading, setLoading] = useState(true)
+    const [viewerProfile, setViewerProfile] = useState<ViewerProfile | null>(null)
+    const [profileLoading, setProfileLoading] = useState(true)
     const [chartRange, setChartRange] = useState<RangeLabel>('1M')
     const [renewalTab, setRenewalTab] = useState<'expires' | 'overdues'>('expires')
     const [quickActionsOpen, setQuickActionsOpen] = useState(false)
@@ -198,6 +217,29 @@ export default function AdminDashboard() {
     useEffect(() => {
         async function fetchData() {
             const supabase = createClient()
+            const {
+                data: { user },
+            } = await supabase.auth.getUser()
+
+            if (user) {
+                const profileResult = await supabase
+                    .from('profiles')
+                    .select('full_name, role, phone, photo_url')
+                    .eq('id', user.id)
+                    .maybeSingle()
+                const profile = profileResult.data as ProfileRow | null
+
+                setViewerProfile({
+                    email: user.email ?? null,
+                    full_name: profile?.full_name ?? user.email?.split('@')[0] ?? null,
+                    phone: profile?.phone ?? null,
+                    photo_url: profile?.photo_url ?? null,
+                    role: profile?.role ?? null,
+                })
+            } else {
+                setViewerProfile(null)
+            }
+            setProfileLoading(false)
 
             const today = new Date().toISOString().split('T')[0]
             const days = Array.from({ length: 365 }, (_, i) => {
@@ -328,33 +370,66 @@ export default function AdminDashboard() {
     const expiringMembers = getExpiringMembers(data.renewals)
     const overdueMembers = getOverdueMembers(data.renewals)
     const visibleRenewals = (renewalTab === 'expires' ? expiringMembers : overdueMembers).slice(0, 5)
+    const headerSurface = '#1266ea'
+    const viewerInitials = viewerProfile?.full_name
+        ?.split(' ')
+        .map((name) => name[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2) || 'U'
 
     return (
         <div className="space-y-5">
-            <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#0f5be1] via-[#1266ea] to-[#0d4bc2] px-5 py-5 text-white shadow-[0_20px_48px_rgba(15,91,225,0.24)]">
-                <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                        <p className="text-xs font-medium uppercase tracking-[0.24em] text-blue-100/80">Admin Dashboard</p>
-                        <h1 className="mt-2 text-2xl font-semibold tracking-tight">Today&apos;s gym pulse</h1>
-                    </div>
-                    <div className="hidden rounded-2xl bg-white/12 px-4 py-3 text-right text-sm shadow-inner shadow-white/10 sm:block">
-                        <p className="text-blue-100/80">Paid entries today</p>
-                        <p className="mt-1 text-2xl font-semibold text-white">{data.todayPaymentsCount}</p>
-                    </div>
-                </div>
+            <section
+                className="-mx-4 -mt-5 overflow-hidden rounded-b-3xl px-4 py-6 text-white sm:-mx-6 sm:-mt-6 sm:px-6 sm:py-4"
+                style={{ background: headerSurface }}
+            >
+                <div className="flex items-center gap-3 sm:gap-4">
+                    <Avatar className="h-14 w-14 shrink-0 ring-2 ring-white/15 sm:h-16 sm:w-16">
+                        <AvatarImage src={viewerProfile?.photo_url || undefined} alt={viewerProfile?.full_name || 'User profile'} />
+                        <AvatarFallback className="bg-slate-900/45 text-base font-semibold text-white sm:text-lg">
+                            {viewerInitials}
+                        </AvatarFallback>
+                    </Avatar>
 
-                <div className="mt-5 grid grid-cols-3 gap-3 text-center sm:max-w-md">
-                    <div className="rounded-2xl bg-white/10 px-3 py-3 backdrop-blur">
-                        <p className="text-xl font-semibold">{data.activeMembers}</p>
-                        <p className="mt-1 text-[11px] text-blue-100/80">Active members</p>
-                    </div>
-                    <div className="rounded-2xl bg-white/10 px-3 py-3 backdrop-blur">
-                        <p className="text-xl font-semibold">{data.todayCheckIns}</p>
-                        <p className="mt-1 text-[11px] text-blue-100/80">Check-ins</p>
-                    </div>
-                    <div className="rounded-2xl bg-white/10 px-3 py-3 backdrop-blur">
-                        <p className="text-xl font-semibold">{data.expiringCount}</p>
-                        <p className="mt-1 text-[11px] text-blue-100/80">Renew soon</p>
+                    <div className="min-w-0 flex-1">
+                        {profileLoading ? (
+                            <div className="mt-2 space-y-1.5">
+                                <div className="h-5 w-36 animate-pulse rounded-full bg-white/15" />
+                                <div className="h-4 w-20 animate-pulse rounded-full bg-white/10" />
+                                <div className="h-3.5 w-44 animate-pulse rounded-full bg-white/10" />
+                                <div className="h-3.5 w-28 animate-pulse rounded-full bg-white/10" />
+                            </div>
+                        ) : viewerProfile ? (
+                            <div className="mt-1.5 min-w-0">
+                                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                                    <h1 className="truncate text-[1.45rem] font-semibold leading-tight tracking-tight sm:text-[1.65rem]">
+                                        {viewerProfile.full_name || 'Staff User'}
+                                    </h1>
+                                    {viewerProfile.role ? (
+                                        <Badge
+                                            variant="outline"
+                                            className="border-white/15 bg-white/12 px-2 py-0.5 text-[10px] font-semibold capitalize text-white"
+                                        >
+                                            {formatRoleLabel(viewerProfile.role)}
+                                        </Badge>
+                                    ) : null}
+                                </div>
+                                <p className="mt-1 truncate text-[12px] leading-tight text-blue-100/90 sm:text-[13px]">
+                                    {viewerProfile.email || 'No email available'}
+                                </p>
+                                <p className="mt-0.5 text-[12px] leading-tight text-blue-100/78 sm:text-[13px]">
+                                    {viewerProfile.phone || 'Phone not added'}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="mt-1.5">
+                                <h1 className="text-lg font-semibold tracking-tight">Profile unavailable</h1>
+                                <p className="mt-1 max-w-md text-[12px] text-blue-100/85 sm:text-[13px]">
+                                    We couldn&apos;t load your profile details right now. Please check that your `profiles` row exists.
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </section>
