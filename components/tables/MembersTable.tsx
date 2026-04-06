@@ -3,7 +3,7 @@
 import { startTransition, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { deleteMember } from '@/app/admin/members/actions'
 import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -363,9 +363,8 @@ export default function MembersTable({ members, plans, initialFilters }: Members
 
         setDeletingId(id)
         try {
-            const supabase = createClient()
-            const { error } = await supabase.from('members').delete().eq('id', id)
-            if (error) throw error
+            const result = await deleteMember(id)
+            if (result.error) throw new Error(result.error)
             toast.success(`${name} deleted`)
             router.refresh()
         } catch {

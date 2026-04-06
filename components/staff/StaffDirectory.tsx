@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { formatRoleLabel } from '@/lib/auth/roles'
+import { resolveAvatarUrl } from '@/lib/utils/storage'
 import { Loader2, Plus, Phone } from 'lucide-react'
 
 type StaffMember = {
@@ -100,8 +101,8 @@ export default function StaffDirectory({ staff }: { staff: StaffMember[] }) {
                                     ) : null}
 
                                     <div className={`flex items-start gap-3 ${navigatingStaffId === member.id ? 'opacity-40' : ''}`}>
-                                        <Avatar className="h-12 w-12 shrink-0 ring-2 ring-slate-100">
-                                            <AvatarImage src={member.photo_url || undefined} alt={member.full_name} />
+                                            <Avatar className="h-12 w-12 shrink-0 ring-2 ring-slate-100">
+                                            <AvatarImage src={resolveAvatarUrl(member.photo_url)} alt={member.full_name} />
                                             <AvatarFallback className="bg-gradient-to-br from-blue-500 to-cyan-500 text-xs font-semibold text-white">
                                                 {initials}
                                             </AvatarFallback>
@@ -168,7 +169,7 @@ export default function StaffDirectory({ staff }: { staff: StaffMember[] }) {
                                         >
                                             <td className="py-3 pl-6 pr-3">
                                                 <Avatar className="h-10 w-10 ring-2 ring-slate-100">
-                                                    <AvatarImage src={member.photo_url || undefined} alt={member.full_name} />
+                                                    <AvatarImage src={resolveAvatarUrl(member.photo_url)} alt={member.full_name} />
                                                     <AvatarFallback className="bg-gradient-to-br from-blue-500 to-cyan-500 text-xs font-semibold text-white">
                                                         {initials}
                                                     </AvatarFallback>

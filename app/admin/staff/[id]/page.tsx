@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import LoadingLinkButton from '@/components/ui/loading-link-button'
 import { formatRoleLabel, type StaffRole } from '@/lib/auth/roles'
+import { resolveAvatarUrl } from '@/lib/utils/storage'
 import {
     ArrowLeft,
     Calendar,
@@ -143,7 +144,7 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
                 <div className="relative flex items-center gap-4">
                     <div className="shrink-0 rounded-full ring-2 ring-white/30">
                         <Avatar className="h-14 w-14">
-                            <AvatarImage src={staff.photo_url || undefined} alt={staff.full_name} />
+                            <AvatarImage src={resolveAvatarUrl(staff.photo_url)} alt={staff.full_name} />
                             <AvatarFallback className="bg-gradient-to-br from-blue-300 to-violet-400 text-base font-bold text-white">
                                 {initials}
                             </AvatarFallback>

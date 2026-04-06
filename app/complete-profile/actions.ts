@@ -60,6 +60,7 @@ export async function completeMemberProfile(formData: FormData) {
 
         // Handle Photo Upload if present
         let photoUrl: string | null = null
+        let uploadedPhotoPath: string | null = null
         const photoFile = formData.get('photo') as File | null
         if (photoFile && photoFile.size > 0) {
             const fileExt = photoFile.name.split('.').pop()
@@ -73,6 +74,7 @@ export async function completeMemberProfile(formData: FormData) {
                 const { data: { publicUrl } } = supabaseAdmin.storage
                     .from('avatars')
                     .getPublicUrl(fileName)
+                uploadedPhotoPath = fileName
                 photoUrl = publicUrl
                 await supabaseAdmin
                     .from('profiles')
@@ -121,6 +123,13 @@ export async function completeMemberProfile(formData: FormData) {
             .insert(memberPayload as never)
 
         if (memberError) {
+            if (uploadedPhotoPath) {
+                await supabaseAdmin.storage.from('avatars').remove([uploadedPhotoPath])
+                await supabaseAdmin
+                    .from('profiles')
+                    .update(({ photo_url: null } satisfies UpdateTables<'profiles'>) as never)
+                    .eq('id', user.id)
+            }
             const memberErrorMessage = getErrorMessage(memberError, 'Unknown member insert error')
             console.error('Member insert failed:', memberErrorMessage)
             return { error: `Failed to create member: ${memberErrorMessage}` }

@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { STAFF_ROLES, formatRoleLabel, type StaffRole } from '@/lib/auth/roles'
 import { updateStaff } from '@/app/admin/staff/actions'
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
+import { resolveAvatarUrl } from '@/lib/utils/storage'
 import { Button } from '@/components/ui/button'
 import LoadingLinkButton from '@/components/ui/loading-link-button'
 import { useAdminTheme } from '@/components/layout/AdminThemeContext'
@@ -37,7 +38,7 @@ export default function EditStaffForm({ staff }: EditStaffFormProps) {
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [loading, setLoading] = useState(false)
     const [role, setRole] = useState<StaffRole>(staff.role)
-    const [photoPreview, setPhotoPreview] = useState<string | null>(staff.photo_url)
+    const [photoPreview, setPhotoPreview] = useState<string | null>(resolveAvatarUrl(staff.photo_url) ?? null)
     const [photoError, setPhotoError] = useState<string | null>(null)
 
     const initials = staff.full_name

@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { isStaffRole, STAFF_ROLES, type ProfileRole, type StaffRole } from '@/lib/auth/roles'
 import type { InsertTables, QueryResult, UpdateTables } from '@/lib/types'
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
+import { getAvatarStoragePath } from '@/lib/utils/storage'
 
 function getSupabaseAdmin() {
     return createAdminClient(
@@ -61,6 +62,7 @@ export async function createStaff(formData: FormData) {
 
     let createdUserId: string | null = null
     let photoUrl: string | null = null
+    let uploadedPhotoPath: string | null = null
 
     try {
         const createUserResult = await admin.auth.admin.createUser({
@@ -97,6 +99,7 @@ export async function createStaff(formData: FormData) {
                 .from('avatars')
                 .getPublicUrl(fileName)
 
+            uploadedPhotoPath = fileName
             photoUrl = publicUrl
         }
 
@@ -114,6 +117,9 @@ export async function createStaff(formData: FormData) {
             .insert(profilePayload as never)
 
         if (insertError) {
+            if (uploadedPhotoPath) {
+                await admin.storage.from('avatars').remove([uploadedPhotoPath])
+            }
             await admin.auth.admin.deleteUser(createdUserId)
             return { error: getErrorMessage(insertError, 'Failed to create staff profile.') }
         }
@@ -121,6 +127,9 @@ export async function createStaff(formData: FormData) {
         revalidatePath('/admin/staff')
         return { success: true }
     } catch (error) {
+        if (uploadedPhotoPath) {
+            await admin.storage.from('avatars').remove([uploadedPhotoPath])
+        }
         if (createdUserId) {
             await admin.auth.admin.deleteUser(createdUserId)
         }
@@ -170,6 +179,7 @@ export async function updateStaff(formData: FormData) {
 
     try {
         let photoUrl = existingPhotoUrl
+        let uploadedPhotoPath: string | null = null
 
         if (photoFile && photoFile.size > 0) {
             if (photoFile.size > MAX_UPLOAD_SIZE_BYTES) {
@@ -191,6 +201,7 @@ export async function updateStaff(formData: FormData) {
                 .from('avatars')
                 .getPublicUrl(fileName)
 
+            uploadedPhotoPath = fileName
             photoUrl = publicUrl
         }
 
@@ -207,7 +218,15 @@ export async function updateStaff(formData: FormData) {
             .eq('id', id)
 
         if (error) {
+            if (uploadedPhotoPath) {
+                await admin.storage.from('avatars').remove([uploadedPhotoPath])
+            }
             return { error: getErrorMessage(error, 'Failed to update staff.') }
+        }
+
+        const oldPhotoPath = uploadedPhotoPath ? getAvatarStoragePath(existingPhotoUrl) : null
+        if (uploadedPhotoPath && oldPhotoPath && oldPhotoPath !== uploadedPhotoPath) {
+            await admin.storage.from('avatars').remove([oldPhotoPath])
         }
 
         revalidatePath('/admin/staff')

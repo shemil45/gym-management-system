@@ -5,6 +5,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import type { InsertTables, QueryResult, UpdateTables } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
+import { getAvatarStoragePath } from '@/lib/utils/storage'
 
 type MemberIdRow = Pick<InsertTables<'members'>, 'member_id'>
 type PlanLookup = Pick<InsertTables<'membership_plans'>, 'duration_days' | 'price'>
@@ -196,7 +197,9 @@ export async function updateMember(formData: FormData) {
             membershipExpiryDate = expiryDate.toISOString().split('T')[0]
         }
 
-        let photoUrl = (formData.get('existing_photo_url') as string) || null
+        const existingPhotoUrl = (formData.get('existing_photo_url') as string) || null
+        let photoUrl = existingPhotoUrl
+        let uploadedPhotoPath: string | null = null
         const photoFile = formData.get('photo') as File | null
         if (photoFile && photoFile.size > 0) {
             if (photoFile.size > MAX_UPLOAD_SIZE_BYTES) {
@@ -213,6 +216,8 @@ export async function updateMember(formData: FormData) {
             if (uploadError) {
                 return { error: getErrorMessage(uploadError, UPLOAD_FAILURE_MESSAGE) }
             }
+
+            uploadedPhotoPath = fileName
 
             const { data: { publicUrl } } = supabaseAdmin.storage
                 .from('avatars')
@@ -243,7 +248,15 @@ export async function updateMember(formData: FormData) {
             .eq('id', memberId)
 
         if (error) {
+            if (uploadedPhotoPath) {
+                await supabaseAdmin.storage.from('avatars').remove([uploadedPhotoPath])
+            }
             return { error: getErrorMessage(error, 'Failed to update member') }
+        }
+
+        const oldPhotoPath = uploadedPhotoPath ? getAvatarStoragePath(existingPhotoUrl) : null
+        if (uploadedPhotoPath && oldPhotoPath && oldPhotoPath !== uploadedPhotoPath) {
+            await supabaseAdmin.storage.from('avatars').remove([oldPhotoPath])
         }
 
         revalidatePath('/admin/members')
@@ -252,6 +265,55 @@ export async function updateMember(formData: FormData) {
         return { success: true }
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to update member'
+        return { error: message }
+    }
+}
+
+export async function deleteMember(memberId: string) {
+    const supabase = await createClient()
+    const supabaseAdmin = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    try {
+        if (!memberId) {
+            return { error: 'Member ID is required' }
+        }
+
+        const memberResult = await supabase
+            .from('members')
+            .select('id, photo_url')
+            .eq('id', memberId)
+            .single()
+
+        const { data: member, error: fetchError } = memberResult as unknown as QueryResult<Pick<InsertTables<'members'>, 'id' | 'photo_url'> | null>
+
+        if (fetchError || !member) {
+            return { error: getErrorMessage(fetchError, 'Member not found') }
+        }
+
+        const photoPath = getAvatarStoragePath(member.photo_url)
+
+        const { error: deleteError } = await supabase
+            .from('members')
+            .delete()
+            .eq('id', memberId)
+
+        if (deleteError) {
+            return { error: getErrorMessage(deleteError, 'Failed to delete member') }
+        }
+
+        if (photoPath) {
+            await supabaseAdmin.storage.from('avatars').remove([photoPath])
+        }
+
+        revalidatePath('/admin/members')
+        revalidatePath(`/admin/members/${memberId}`)
+        revalidatePath(`/admin/members/${memberId}/edit`)
+        return { success: true }
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to delete member'
         return { error: message }
     }
 }
