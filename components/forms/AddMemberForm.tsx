@@ -117,7 +117,11 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
                                         type="button"
                                         onClick={() => fileInputRef.current?.click()}
                                         disabled={loading}
-                                        className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                                        className={`inline-flex h-11 items-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors ${
+                                            isDark
+                                                ? 'border border-[#2a2a2a] bg-[#161616] text-gray-200 hover:bg-[#222222] hover:text-white'
+                                                : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                                        }`}
                                     >
                                         <Upload className="h-3.5 w-3.5" />
                                         Upload Photo
@@ -126,7 +130,11 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
                                         type="button"
                                         onClick={() => cameraInputRef.current?.click()}
                                         disabled={loading}
-                                        className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                                        className={`inline-flex h-11 items-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors ${
+                                            isDark
+                                                ? 'border border-[#2a2a2a] bg-[#161616] text-gray-200 hover:bg-[#222222] hover:text-white'
+                                                : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                                        }`}
                                     >
                                         <Camera className="h-3.5 w-3.5" />
                                         Capture Photo
@@ -380,7 +388,7 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
                             type="button"
                             variant="outline"
                             disabled={loading}
-                            className={`h-10 px-5 ${
+                            className={`h-11 rounded-2xl px-6 ${
                                 isDark
                                     ? 'border-[#2a2a2a] bg-[#161616] text-gray-200 hover:bg-[#222222] hover:text-white'
                                     : 'border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -391,7 +399,7 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
                         <Button
                             type="submit"
                             disabled={loading}
-                            className="h-10 px-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm"
+                            className="h-11 rounded-2xl px-6 bg-blue-600 text-white font-semibold shadow-sm hover:bg-blue-700"
                         >
                             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Save Member

@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
+import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { Button } from '@/components/ui/button'
 
 type ConfirmDialogOptions = {
@@ -26,6 +27,7 @@ const initialState: ConfirmDialogState = {
 }
 
 export function useConfirmDialog() {
+    const { isDark } = useAdminTheme()
     const resolverRef = useRef<((value: boolean) => void) | null>(null)
     const [dialog, setDialog] = useState<ConfirmDialogState>(initialState)
 
@@ -68,7 +70,11 @@ export function useConfirmDialog() {
                     aria-describedby="confirm-dialog-description"
                     aria-modal="true"
                     aria-labelledby="confirm-dialog-title"
-                    className="relative w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+                    className={`relative w-full max-w-sm overflow-hidden rounded-2xl shadow-2xl ${
+                        isDark
+                            ? 'border border-[#2a2a2a] bg-[#1c1c1c]'
+                            : 'border border-slate-200 bg-white'
+                    }`}
                     role="dialog"
                 >
                     <div className="flex items-start gap-4 p-5">
@@ -76,16 +82,23 @@ export function useConfirmDialog() {
                             <AlertTriangle className="h-5 w-5" />
                         </div>
                         <div className="min-w-0">
-                            <h2 id="confirm-dialog-title" className="text-base font-bold text-slate-950">
+                            <h2 id="confirm-dialog-title" className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-950'}`}>
                                 {dialog.title}
                             </h2>
-                            <p id="confirm-dialog-description" className="mt-1 text-sm leading-6 text-slate-500">
+                            <p id="confirm-dialog-description" className={`mt-1 text-sm leading-6 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
                                 {dialog.description}
                             </p>
                         </div>
                     </div>
-                    <div className="flex items-center justify-end gap-3 border-t border-slate-100 px-5 py-4">
-                        <Button type="button" variant="outline" onClick={() => close(false)}>
+                    <div className={`flex items-center justify-end gap-3 px-5 py-4 ${
+                        isDark ? 'border-t border-[#2a2a2a]' : 'border-t border-slate-100'
+                    }`}>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => close(false)}
+                            className={isDark ? 'border-[#2a2a2a] bg-[#161616] text-gray-200 hover:bg-[#222222] hover:text-white' : ''}
+                        >
                             {dialog.cancelLabel}
                         </Button>
                         <Button
@@ -99,7 +112,7 @@ export function useConfirmDialog() {
                 </div>
             </div>
         )
-    }, [close, dialog])
+    }, [close, dialog, isDark])
 
     return {
         confirm,

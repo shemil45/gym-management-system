@@ -113,7 +113,7 @@ export default function AddStaffForm() {
                                         type="button"
                                         onClick={() => fileInputRef.current?.click()}
                                         disabled={loading}
-                                        className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                                        className={`inline-flex h-11 items-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors ${
                                             isDark
                                                 ? 'border border-[#2a2a2a] bg-[#161616] text-gray-200 hover:bg-[#222222] hover:text-white'
                                                 : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
@@ -126,7 +126,7 @@ export default function AddStaffForm() {
                                         type="button"
                                         onClick={() => cameraInputRef.current?.click()}
                                         disabled={loading}
-                                        className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                                        className={`inline-flex h-11 items-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors ${
                                             isDark
                                                 ? 'border border-[#2a2a2a] bg-[#161616] text-gray-200 hover:bg-[#222222] hover:text-white'
                                                 : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
@@ -255,7 +255,7 @@ export default function AddStaffForm() {
                         <Button
                             type="button"
                             variant="outline"
-                            className={`h-11 rounded-2xl ${
+                            className={`h-11 rounded-2xl px-6 ${
                                 isDark
                                     ? 'border-[#2a2a2a] bg-[#161616] text-gray-200 hover:bg-[#222222] hover:text-white'
                                     : 'border-slate-300'
@@ -267,7 +267,7 @@ export default function AddStaffForm() {
                         </Button>
                         <Button
                             type="submit"
-                            className="h-11 rounded-2xl bg-blue-600 px-6 text-white hover:bg-blue-700"
+                            className="h-11 rounded-2xl px-6 bg-blue-600 text-white hover:bg-blue-700"
                             disabled={loading}
                         >
                             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
