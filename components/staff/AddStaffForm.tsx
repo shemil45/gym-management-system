@@ -113,7 +113,11 @@ export default function AddStaffForm() {
                                         type="button"
                                         onClick={() => fileInputRef.current?.click()}
                                         disabled={loading}
-                                        className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                                        className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                                            isDark
+                                                ? 'border border-[#2a2a2a] bg-[#161616] text-gray-200 hover:bg-[#222222] hover:text-white'
+                                                : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                                        }`}
                                     >
                                         <Upload className="h-3.5 w-3.5" />
                                         Upload Photo
@@ -122,7 +126,11 @@ export default function AddStaffForm() {
                                         type="button"
                                         onClick={() => cameraInputRef.current?.click()}
                                         disabled={loading}
-                                        className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                                        className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                                            isDark
+                                                ? 'border border-[#2a2a2a] bg-[#161616] text-gray-200 hover:bg-[#222222] hover:text-white'
+                                                : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                                        }`}
                                     >
                                         <Camera className="h-3.5 w-3.5" />
                                         Capture Photo
@@ -223,7 +231,7 @@ export default function AddStaffForm() {
                         </div>
 
                         <div className="space-y-1.5">
-                            <Label htmlFor="confirm_password">Confirm Password</Label>
+                            <Label htmlFor="confirm_password" className={labelClassName}>Confirm Password</Label>
                             <Input
                                 id="confirm_password"
                                 name="confirm_password"
@@ -247,7 +255,11 @@ export default function AddStaffForm() {
                         <Button
                             type="button"
                             variant="outline"
-                            className="h-11 rounded-2xl border-slate-300"
+                            className={`h-11 rounded-2xl ${
+                                isDark
+                                    ? 'border-[#2a2a2a] bg-[#161616] text-gray-200 hover:bg-[#222222] hover:text-white'
+                                    : 'border-slate-300'
+                            }`}
                             disabled={loading}
                             onClick={() => router.push('/admin/staff')}
                         >

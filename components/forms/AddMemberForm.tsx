@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import LoadingLinkButton from '@/components/ui/loading-link-button'
+import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -25,6 +26,7 @@ interface AddMemberFormProps {
 
 export default function AddMemberForm({ plans }: AddMemberFormProps) {
     const router = useRouter()
+    const { isDark } = useAdminTheme()
     const fileInputRef = useRef<HTMLInputElement>(null)
     const cameraInputRef = useRef<HTMLInputElement>(null)
 
@@ -378,7 +380,11 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
                             type="button"
                             variant="outline"
                             disabled={loading}
-                            className="h-10 px-5 border-gray-300 text-gray-700 hover:bg-gray-50"
+                            className={`h-10 px-5 ${
+                                isDark
+                                    ? 'border-[#2a2a2a] bg-[#161616] text-gray-200 hover:bg-[#222222] hover:text-white'
+                                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                            }`}
                         >
                             Cancel
                         </LoadingLinkButton>

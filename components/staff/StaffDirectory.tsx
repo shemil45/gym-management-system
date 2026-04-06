@@ -157,7 +157,13 @@ export default function StaffDirectory({ staff }: { staff: StaffMember[] }) {
                                             key={member.id}
                                             onClick={() => handleViewStaff(member.id)}
                                             className={`cursor-pointer transition-colors ${
-                                                navigatingStaffId === member.id ? 'bg-blue-50/60 opacity-60' : 'hover:bg-slate-50/70'
+                                                navigatingStaffId === member.id
+                                                    ? isDark
+                                                        ? 'bg-[#1f2937] opacity-60'
+                                                        : 'bg-blue-50/60 opacity-60'
+                                                    : isDark
+                                                        ? 'hover:bg-[#1f2937]/80'
+                                                        : 'hover:bg-slate-50/70'
                                             }`}
                                         >
                                             <td className="py-3 pl-6 pr-3">

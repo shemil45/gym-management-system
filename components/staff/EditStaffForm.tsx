@@ -110,7 +110,13 @@ export default function EditStaffForm({ staff }: EditStaffFormProps) {
                             )}
                         </div>
                         <div className="space-y-2">
-                            <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={loading}>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={loading}
+                                className={isDark ? 'border-[#2a2a2a] bg-[#161616] text-gray-200 hover:bg-[#222222] hover:text-white' : ''}
+                            >
                                 <Upload className="mr-2 h-4 w-4" />
                                 Change Photo
                             </Button>
@@ -155,7 +161,14 @@ export default function EditStaffForm({ staff }: EditStaffFormProps) {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <LoadingLinkButton href={`/admin/staff/${staff.id}`} loadingText="Leaving..." type="button" variant="outline" disabled={loading}>
+                    <LoadingLinkButton
+                        href={`/admin/staff/${staff.id}`}
+                        loadingText="Leaving..."
+                        type="button"
+                        variant="outline"
+                        disabled={loading}
+                        className={isDark ? 'border-[#2a2a2a] bg-[#161616] text-gray-200 hover:bg-[#222222] hover:text-white' : ''}
+                    >
                         Cancel
                     </LoadingLinkButton>
                     <Button type="submit" disabled={loading} className="bg-blue-600 text-white hover:bg-blue-700">
