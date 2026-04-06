@@ -9,6 +9,7 @@ import { updateMember } from '@/app/admin/members/actions'
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
 import { Button } from '@/components/ui/button'
 import LoadingLinkButton from '@/components/ui/loading-link-button'
+import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -40,6 +41,7 @@ interface EditMemberFormProps {
 
 export default function EditMemberForm({ member, plans }: EditMemberFormProps) {
     const router = useRouter()
+    const { isDark } = useAdminTheme()
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [loading, setLoading] = useState(false)
     const [status, setStatus] = useState(member.status)
@@ -54,6 +56,7 @@ export default function EditMemberForm({ member, plans }: EditMemberFormProps) {
         .join('')
         .toUpperCase()
         .slice(0, 2)
+    const labelClassName = isDark ? 'text-gray-200' : 'text-gray-700'
 
     const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -107,7 +110,7 @@ export default function EditMemberForm({ member, plans }: EditMemberFormProps) {
         <form action={handleSubmit} className="space-y-6">
             <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-6 space-y-6">
                 <div className="space-y-3">
-                    <Label className="block">Profile Photo</Label>
+                    <Label className={`block ${labelClassName}`}>Profile Photo</Label>
                     <div className="flex items-center gap-4">
                         <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-gray-300 bg-gray-100">
                             {photoPreview ? (
@@ -139,23 +142,23 @@ export default function EditMemberForm({ member, plans }: EditMemberFormProps) {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                     <div className="space-y-1.5">
-                        <Label htmlFor="full_name">Full Name</Label>
+                        <Label htmlFor="full_name" className={labelClassName}>Full Name</Label>
                         <Input id="full_name" name="full_name" defaultValue={member.full_name} required disabled={loading} />
                     </div>
                     <div className="space-y-1.5">
-                        <Label htmlFor="email">Email</Label>
+                        <Label htmlFor="email" className={labelClassName}>Email</Label>
                         <Input id="email" name="email" type="email" defaultValue={member.email || ''} disabled={loading} />
                     </div>
                     <div className="space-y-1.5">
-                        <Label htmlFor="phone">Phone</Label>
+                        <Label htmlFor="phone" className={labelClassName}>Phone</Label>
                         <Input id="phone" name="phone" defaultValue={member.phone} required disabled={loading} />
                     </div>
                     <div className="space-y-1.5">
-                        <Label htmlFor="date_of_birth">Date of Birth</Label>
+                        <Label htmlFor="date_of_birth" className={labelClassName}>Date of Birth</Label>
                         <Input id="date_of_birth" name="date_of_birth" type="date" defaultValue={member.date_of_birth || ''} disabled={loading} />
                     </div>
                     <div className="space-y-1.5">
-                        <Label>Gender</Label>
+                        <Label className={labelClassName}>Gender</Label>
                         <Select value={gender || 'none'} onValueChange={(value) => setGender(value === 'none' ? '' : value)} disabled={loading}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select gender" />
@@ -169,7 +172,7 @@ export default function EditMemberForm({ member, plans }: EditMemberFormProps) {
                         </Select>
                     </div>
                     <div className="space-y-1.5">
-                        <Label>Status</Label>
+                        <Label className={labelClassName}>Status</Label>
                         <Select value={status} onValueChange={setStatus} disabled={loading}>
                             <SelectTrigger>
                                 <SelectValue />
@@ -183,7 +186,7 @@ export default function EditMemberForm({ member, plans }: EditMemberFormProps) {
                         </Select>
                     </div>
                     <div className="space-y-1.5 md:col-span-2">
-                        <Label htmlFor="address">Address</Label>
+                        <Label htmlFor="address" className={labelClassName}>Address</Label>
                         <textarea
                             id="address"
                             name="address"
@@ -194,15 +197,15 @@ export default function EditMemberForm({ member, plans }: EditMemberFormProps) {
                         />
                     </div>
                     <div className="space-y-1.5">
-                        <Label htmlFor="emergency_contact_name">Emergency Contact Name</Label>
+                        <Label htmlFor="emergency_contact_name" className={labelClassName}>Emergency Contact Name</Label>
                         <Input id="emergency_contact_name" name="emergency_contact_name" defaultValue={member.emergency_contact_name || ''} disabled={loading} />
                     </div>
                     <div className="space-y-1.5">
-                        <Label htmlFor="emergency_contact_phone">Emergency Contact Phone</Label>
+                        <Label htmlFor="emergency_contact_phone" className={labelClassName}>Emergency Contact Phone</Label>
                         <Input id="emergency_contact_phone" name="emergency_contact_phone" defaultValue={member.emergency_contact_phone || ''} disabled={loading} />
                     </div>
                     <div className="space-y-1.5">
-                        <Label>Membership Plan</Label>
+                        <Label className={labelClassName}>Membership Plan</Label>
                         <Select value={selectedPlan} onValueChange={setSelectedPlan} disabled={loading}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select plan" />
@@ -218,7 +221,7 @@ export default function EditMemberForm({ member, plans }: EditMemberFormProps) {
                         </Select>
                     </div>
                     <div className="space-y-1.5">
-                        <Label htmlFor="membership_start_date">Membership Start Date</Label>
+                        <Label htmlFor="membership_start_date" className={labelClassName}>Membership Start Date</Label>
                         <Input
                             id="membership_start_date"
                             name="membership_start_date"

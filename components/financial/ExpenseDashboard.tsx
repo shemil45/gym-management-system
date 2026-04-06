@@ -34,6 +34,7 @@ import {
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Label } from '@/components/ui/label'
 import {
@@ -475,6 +476,7 @@ function CategoryBadge({ category }: { category: ExpenseCategory }) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ExpenseDashboard({ payments, expenses, initialFilters }: ExpenseDashboardProps) {
+    const { isDark } = useAdminTheme()
     const router = useRouter()
     const { confirm, dialog } = useConfirmDialog()
     const expenseTableRef = useRef<HTMLDivElement | null>(null)
@@ -1075,14 +1077,19 @@ export default function ExpenseDashboard({ payments, expenses, initialFilters }:
                         </div>
                     </div>
 
-                    <div className="divide-y divide-slate-100 md:hidden">
+                    <div className="md:hidden">
                         {paginatedExpenses.length === 0 ? (
                             <div className="px-4 py-14 text-center text-sm text-gray-400">
                                 No expenses found
                             </div>
                         ) : (
                             paginatedExpenses.map((expense) => (
-                                <div key={expense.id} className="px-4 py-3 transition-colors hover:bg-slate-50">
+                                <div
+                                    key={expense.id}
+                                    className={`border-t px-4 py-3 transition-colors first:border-t-0 ${
+                                        isDark ? 'border-[#2a2a2a] hover:bg-[#1f2937]/80' : 'border-slate-100 hover:bg-slate-50'
+                                    }`}
+                                >
                                     <div className="min-w-0">
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="min-w-0">

@@ -8,9 +8,8 @@ import type { InsertTables } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2 } from 'lucide-react'
+import { Loader2, ArrowRight } from 'lucide-react'
 
 export default function RegisterPage() {
     const router = useRouter()
@@ -38,7 +37,6 @@ export default function RegisterPage() {
         setError(null)
         setSuccessMsg(null)
 
-        // Validation
         if (formData.password !== formData.confirmPassword) {
             setError("Passwords don't match")
             setLoading(false)
@@ -60,7 +58,6 @@ export default function RegisterPage() {
         try {
             const supabase = createClient()
 
-            // Sign up user
             const { data: authData, error: authError } = await supabase.auth.signUp({
                 email: formData.email,
                 password: formData.password,
@@ -72,7 +69,6 @@ export default function RegisterPage() {
                 throw new Error('Failed to create user')
             }
 
-            // Create profile (member role by default)
             const profilePayload: InsertTables<'profiles'> = {
                 id: authData.user.id,
                 role: 'member',
@@ -86,9 +82,7 @@ export default function RegisterPage() {
 
             if (profileError) throw profileError
 
-            // Determine if the user is automatically signed in
             if (authData.session) {
-                // Redirect to complete profile
                 router.push('/complete-profile')
                 router.refresh()
             } else {
@@ -110,28 +104,34 @@ export default function RegisterPage() {
     }
 
     return (
-        <Card>
-            <CardHeader className="space-y-1">
-                <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
-                <CardDescription>
-                    Register as a new member
-                </CardDescription>
-            </CardHeader>
-            <form onSubmit={handleRegister}>
-                <CardContent className="space-y-4">
+        <div className="space-y-8">
+            <div className="space-y-3 text-center">
+                <p className="text-sm uppercase tracking-[0.28em] text-white/30">Create Account</p>
+                <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-[2.8rem]">
+                    Sign up
+                </h1>
+                <p className="text-base text-white/55">
+                    Create your member account to get started.
+                </p>
+            </div>
+
+            <form onSubmit={handleRegister} className="space-y-6">
+                <div className="space-y-5">
                     {error && (
-                        <Alert variant="destructive">
+                        <Alert className="border-red-500/20 bg-red-500/8 text-red-200">
                             <AlertDescription>{error}</AlertDescription>
                         </Alert>
                     )}
                     {successMsg && (
-                        <Alert className="bg-green-50 text-green-700 border-green-200">
+                        <Alert className="border-emerald-500/20 bg-emerald-500/8 text-emerald-200">
                             <AlertDescription>{successMsg}</AlertDescription>
                         </Alert>
                     )}
 
-                    <div className="space-y-2">
-                        <Label htmlFor="fullName">Full Name</Label>
+                    <div className="space-y-2.5">
+                        <Label htmlFor="fullName" className="text-sm font-medium text-white">
+                            Full name
+                        </Label>
                         <Input
                             id="fullName"
                             name="fullName"
@@ -141,11 +141,14 @@ export default function RegisterPage() {
                             onChange={handleChange}
                             required
                             disabled={loading}
+                            className="h-14 rounded-2xl border-white/8 bg-[#262626] px-4 text-base text-white placeholder:text-white/35 focus:border-[#2f6cf6] focus:ring-[#2f6cf6]"
                         />
                     </div>
 
-                    <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
+                    <div className="space-y-2.5">
+                        <Label htmlFor="email" className="text-sm font-medium text-white">
+                            Email address
+                        </Label>
                         <Input
                             id="email"
                             name="email"
@@ -155,11 +158,14 @@ export default function RegisterPage() {
                             onChange={handleChange}
                             required
                             disabled={loading}
+                            className="h-14 rounded-2xl border-white/8 bg-[#262626] px-4 text-base text-white placeholder:text-white/35 focus:border-[#2f6cf6] focus:ring-[#2f6cf6]"
                         />
                     </div>
 
-                    <div className="space-y-2">
-                        <Label htmlFor="phone">Phone Number</Label>
+                    <div className="space-y-2.5">
+                        <Label htmlFor="phone" className="text-sm font-medium text-white">
+                            Phone number
+                        </Label>
                         <Input
                             id="phone"
                             name="phone"
@@ -169,11 +175,14 @@ export default function RegisterPage() {
                             onChange={handleChange}
                             required
                             disabled={loading}
+                            className="h-14 rounded-2xl border-white/8 bg-[#262626] px-4 text-base text-white placeholder:text-white/35 focus:border-[#2f6cf6] focus:ring-[#2f6cf6]"
                         />
                     </div>
 
-                    <div className="space-y-2">
-                        <Label htmlFor="password">Password</Label>
+                    <div className="space-y-2.5">
+                        <Label htmlFor="password" className="text-sm font-medium text-white">
+                            Password
+                        </Label>
                         <Input
                             id="password"
                             name="password"
@@ -183,11 +192,14 @@ export default function RegisterPage() {
                             onChange={handleChange}
                             required
                             disabled={loading}
+                            className="h-14 rounded-2xl border-white/8 bg-[#262626] px-4 text-base text-white placeholder:text-white/35 focus:border-[#2f6cf6] focus:ring-[#2f6cf6]"
                         />
                     </div>
 
-                    <div className="space-y-2">
-                        <Label htmlFor="confirmPassword">Confirm Password</Label>
+                    <div className="space-y-2.5">
+                        <Label htmlFor="confirmPassword" className="text-sm font-medium text-white">
+                            Confirm password
+                        </Label>
                         <Input
                             id="confirmPassword"
                             name="confirmPassword"
@@ -197,14 +209,15 @@ export default function RegisterPage() {
                             onChange={handleChange}
                             required
                             disabled={loading}
+                            className="h-14 rounded-2xl border-white/8 bg-[#262626] px-4 text-base text-white placeholder:text-white/35 focus:border-[#2f6cf6] focus:ring-[#2f6cf6]"
                         />
                     </div>
-                </CardContent>
+                </div>
 
-                <CardFooter className="flex flex-col space-y-4">
+                <div className="space-y-5">
                     <Button
                         type="submit"
-                        className="w-full"
+                        className="h-14 w-full rounded-2xl bg-[#2f6cf6] text-base font-semibold text-white shadow-[0_14px_38px_rgba(47,108,246,0.32)] transition hover:bg-[#2563eb]"
                         disabled={loading}
                     >
                         {loading ? (
@@ -213,18 +226,21 @@ export default function RegisterPage() {
                                 Creating account...
                             </>
                         ) : (
-                            'Register'
+                            <>
+                                Create account
+                                <ArrowRight className="ml-2 h-4 w-4" />
+                            </>
                         )}
                     </Button>
 
-                    <p className="text-sm text-center text-gray-600">
+                    <p className="text-center text-sm text-white/50">
                         Already have an account?{' '}
-                        <Link href="/login" className="text-blue-600 hover:underline font-medium">
-                            Login
+                        <Link href="/login" className="font-semibold text-white transition-colors hover:text-[#7aa2ff]">
+                            Sign in
                         </Link>
                     </p>
-                </CardFooter>
+                </div>
             </form>
-        </Card>
+        </div>
     )
 }

@@ -4,6 +4,7 @@ import { startTransition, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -159,6 +160,7 @@ function PaginationBar({
 
 export default function MembersTable({ members, plans, initialFilters }: MembersTableProps) {
     const router = useRouter()
+    const { isDark } = useAdminTheme()
     const { confirm, dialog } = useConfirmDialog()
     const todayValue = new Date().toISOString().split('T')[0]
     const initialRenewalFilter = initialFilters?.filter === 'expires' || initialFilters?.filter === 'overdue' || initialFilters?.filter === 'renewals'
@@ -621,7 +623,7 @@ export default function MembersTable({ members, plans, initialFilters }: Members
                     </div>
                 </div>
 
-                <div className="divide-y divide-slate-100 lg:hidden">
+                <div className="lg:hidden">
                     {paginated.length === 0 ? (
                         <div className="px-4 py-16 text-center text-sm text-slate-400">No members found</div>
                     ) : (
@@ -640,8 +642,16 @@ export default function MembersTable({ members, plans, initialFilters }: Members
                                 <div
                                     key={member.id}
                                     onClick={() => handleViewMember(member.id)}
-                                    className={`relative cursor-pointer px-4 py-3 transition-colors ${
-                                        isNavigating ? 'bg-blue-50/60' : 'hover:bg-slate-50'
+                                    className={`relative cursor-pointer border-t px-4 py-3 transition-colors first:border-t-0 ${
+                                        isDark ? 'border-[#2a2a2a]' : 'border-slate-100'
+                                    } ${
+                                        isNavigating
+                                            ? isDark
+                                                ? 'bg-[#1f2937]'
+                                                : 'bg-blue-50/60'
+                                            : isDark
+                                                ? 'hover:bg-[#1f2937]/80'
+                                                : 'hover:bg-slate-50'
                                     }`}
                                 >
                                     {/* Loading overlay for mobile card */}
@@ -705,7 +715,7 @@ export default function MembersTable({ members, plans, initialFilters }: Members
                 <div className="hidden overflow-x-auto lg:block">
                     <table className="w-full">
                         <thead>
-                            <tr className="border-b border-gray-100 bg-gray-50/60">
+                            <tr className={isDark ? 'border-b border-[#2a2a2a] bg-[#171717]' : 'border-b border-gray-100 bg-gray-50/60'}>
                                 <th className="w-16 py-3 pl-5 pr-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">Photo</th>
                                 <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">Member ID</th>
                                 <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">Name</th>
@@ -717,7 +727,7 @@ export default function MembersTable({ members, plans, initialFilters }: Members
                                 <th className="px-3 py-3 pr-5 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-500">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className={isDark ? 'divide-y divide-[#2a2a2a]' : 'divide-y divide-gray-100'}>
                             {paginated.length === 0 ? (
                                 <tr>
                                     <td colSpan={9} className="py-16 text-center text-sm text-gray-400">
@@ -742,8 +752,12 @@ export default function MembersTable({ members, plans, initialFilters }: Members
                                             onClick={() => handleViewMember(member.id)}
                                             className={`group cursor-pointer transition-colors ${
                                                 isNavigating
-                                                    ? 'bg-blue-50/60 opacity-60'
-                                                    : 'hover:bg-blue-50/30'
+                                                    ? isDark
+                                                        ? 'bg-[#1f2937] opacity-60'
+                                                        : 'bg-blue-50/60 opacity-60'
+                                                    : isDark
+                                                        ? 'hover:bg-[#1f2937]/80'
+                                                        : 'hover:bg-blue-50/30'
                                             }`}
                                         >
                                             <td className="py-3 pl-5 pr-3">
@@ -818,7 +832,7 @@ export default function MembersTable({ members, plans, initialFilters }: Members
                     </table>
                 </div>
 
-                <div className="flex flex-col gap-3 border-t border-gray-100 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className={`flex flex-col gap-3 px-5 py-3 sm:flex-row sm:items-center sm:justify-between ${isDark ? 'border-t border-[#2a2a2a]' : 'border-t border-gray-100'}`}>
                     <p className="text-xs text-gray-500">
                         Showing{' '}
                         <span className="font-semibold text-blue-600">

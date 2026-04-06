@@ -1,10 +1,9 @@
 import { redirect } from 'next/navigation'
-import AdminSidebar from '@/components/layout/AdminSidebar'
-import AdminHeader from '@/components/layout/AdminHeader'
+import AdminShell from '@/components/layout/AdminShell'
+import { AdminThemeProvider } from '@/components/layout/AdminThemeContext'
 import { SidebarProvider } from '@/components/layout/SidebarContext'
 import { getCurrentAdminContext } from '@/lib/auth/admin-server'
 import { isStaffRole } from '@/lib/auth/roles'
-import { Toaster } from 'sonner'
 
 export default async function AdminLayout({
     children,
@@ -23,16 +22,9 @@ export default async function AdminLayout({
 
     return (
         <SidebarProvider>
-            <div className="min-h-screen bg-[#eef3fb]">
-                <Toaster richColors position="top-right" />
-                <AdminSidebar />
-                <div className="lg:pl-[100px] xl:pl-[110px]">
-                    <AdminHeader user={{ ...user, ...profile }} />
-                    <main className="px-4 pb-24 pt-4 sm:px-6 sm:pb-8 sm:pt-6">
-                        {children}
-                    </main>
-                </div>
-            </div>
+            <AdminThemeProvider>
+                <AdminShell user={{ ...user, ...profile }}>{children}</AdminShell>
+            </AdminThemeProvider>
         </SidebarProvider>
     )
 }

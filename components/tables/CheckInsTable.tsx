@@ -3,6 +3,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import type { InsertTables, UpdateTables } from '@/lib/types'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -411,6 +412,7 @@ function CheckInModal({
 
 export default function CheckInsTable({ checkIns, activeMembers }: CheckInsTableProps) {
     const router = useRouter()
+    const { isDark } = useAdminTheme()
     const [searchQuery, setSearchQuery] = useState('')
     const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'all'>('today')
     const [methodFilter, setMethodFilter] = useState('all')
@@ -562,7 +564,7 @@ export default function CheckInsTable({ checkIns, activeMembers }: CheckInsTable
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead>
-                            <tr className="border-b border-gray-100 bg-gray-50/60">
+                            <tr className={isDark ? 'border-b border-[#2a2a2a] bg-[#171717]' : 'border-b border-gray-100 bg-gray-50/60'}>
                                 <th className="py-3 pl-5 pr-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 w-16">
                                     Member
                                 </th>
@@ -589,7 +591,7 @@ export default function CheckInsTable({ checkIns, activeMembers }: CheckInsTable
                                 </th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className={isDark ? 'divide-y divide-[#2a2a2a]' : 'divide-y divide-gray-100'}>
                             {paginated.length === 0 ? (
                                 <tr>
                                     <td colSpan={8} className="py-16 text-center text-sm text-gray-400">
@@ -607,7 +609,15 @@ export default function CheckInsTable({ checkIns, activeMembers }: CheckInsTable
                                     return (
                                         <tr
                                             key={row.id}
-                                            className={`hover:bg-violet-50/30 transition-colors group ${stillIn ? 'bg-emerald-50/20' : ''}`}
+                                            className={`group transition-colors ${
+                                                stillIn
+                                                    ? isDark
+                                                        ? 'bg-emerald-950/30'
+                                                        : 'bg-emerald-50/20'
+                                                    : isDark
+                                                        ? 'hover:bg-[#1f2937]/80'
+                                                        : 'hover:bg-violet-50/30'
+                                            }`}
                                         >
                                             {/* Avatar */}
                                             <td className="py-3 pl-5 pr-3">
@@ -707,7 +717,7 @@ export default function CheckInsTable({ checkIns, activeMembers }: CheckInsTable
                 </div>
 
                 {/* Pagination footer */}
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-gray-100 px-5 py-3">
+                <div className={`flex flex-col gap-3 px-5 py-3 sm:flex-row sm:items-center sm:justify-between ${isDark ? 'border-t border-[#2a2a2a]' : 'border-t border-gray-100'}`}>
                     <p className="text-xs text-gray-500">
                         Showing{' '}
                         <span className="font-semibold text-violet-600">

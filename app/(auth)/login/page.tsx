@@ -7,9 +7,8 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Eye, EyeOff } from 'lucide-react'
+import { Loader2, Eye, EyeOff, ArrowRight } from 'lucide-react'
 
 export default function LoginPage() {
     const router = useRouter()
@@ -27,7 +26,6 @@ export default function LoginPage() {
         try {
             const supabase = createClient()
 
-            // Sign in with email and password
             const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
                 email,
                 password,
@@ -48,40 +46,49 @@ export default function LoginPage() {
     }
 
     return (
-        <Card>
-            <CardHeader className="space-y-1">
-                <CardTitle className="text-2xl font-bold">Login</CardTitle>
-                <CardDescription>
-                    Enter your email and password to access your account
-                </CardDescription>
-            </CardHeader>
-            <form onSubmit={handleLogin}>
-                <CardContent className="space-y-4">
+        <div className="space-y-8">
+            <div className="space-y-3 text-center">
+                <p className="text-sm uppercase tracking-[0.28em] text-white/30">Welcome Back</p>
+                <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-[2.8rem]">
+                    Sign in
+                </h1>
+                <p className="text-base text-white/55">
+                    Enter your email and password to continue.
+                </p>
+            </div>
+
+            <form onSubmit={handleLogin} className="space-y-6">
+                <div className="space-y-5">
                     {error && (
-                        <Alert variant="destructive">
+                        <Alert className="border-red-500/20 bg-red-500/8 text-red-200">
                             <AlertDescription>{error}</AlertDescription>
                         </Alert>
                     )}
 
-                    <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
+                    <div className="space-y-2.5">
+                        <Label htmlFor="email" className="text-sm font-medium text-white">
+                            Email address
+                        </Label>
                         <Input
                             id="email"
                             type="email"
-                            placeholder="admin@gym.com"
+                            placeholder="hello@app.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
                             disabled={loading}
+                            className="h-14 rounded-2xl border-white/8 bg-[#262626] px-4 text-base text-white placeholder:text-white/35 focus:border-[#2f6cf6] focus:ring-[#2f6cf6]"
                         />
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
                         <div className="flex items-center justify-between">
-                            <Label htmlFor="password">Password</Label>
+                            <Label htmlFor="password" className="text-sm font-medium text-white">
+                                Password
+                            </Label>
                             <Link
                                 href="/reset-password"
-                                className="text-sm text-blue-600 hover:underline"
+                                className="text-sm text-[#7aa2ff] transition-colors hover:text-white"
                             >
                                 Forgot password?
                             </Link>
@@ -95,26 +102,24 @@ export default function LoginPage() {
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
                                 disabled={loading}
-                                className="pr-10"
+                                className="h-14 rounded-2xl border-white/8 bg-[#262626] px-4 pr-12 text-base text-white placeholder:text-white/35 focus:border-[#2f6cf6] focus:ring-[#2f6cf6]"
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword((v) => !v)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/35 transition-colors hover:text-white/75"
                                 aria-label={showPassword ? 'Hide password' : 'Show password'}
                             >
-                                {showPassword
-                                    ? <EyeOff className="h-4 w-4" />
-                                    : <Eye className="h-4 w-4" />}
+                                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                             </button>
                         </div>
                     </div>
-                </CardContent>
+                </div>
 
-                <CardFooter className="flex flex-col space-y-4">
+                <div className="space-y-5">
                     <Button
                         type="submit"
-                        className="w-full"
+                        className="h-14 w-full rounded-2xl bg-[#2f6cf6] text-base font-semibold text-white shadow-[0_14px_38px_rgba(47,108,246,0.32)] transition hover:bg-[#2563eb]"
                         disabled={loading}
                     >
                         {loading ? (
@@ -123,18 +128,21 @@ export default function LoginPage() {
                                 Logging in...
                             </>
                         ) : (
-                            'Login'
+                            <>
+                                Continue
+                                <ArrowRight className="ml-2 h-4 w-4" />
+                            </>
                         )}
                     </Button>
 
-                    <p className="text-sm text-center text-gray-600">
+                    <p className="text-center text-sm text-white/50">
                         Don&apos;t have an account?{' '}
-                        <Link href="/register" className="text-blue-600 hover:underline font-medium">
-                            Register
+                        <Link href="/register" className="font-semibold text-white transition-colors hover:text-[#7aa2ff]">
+                            Sign up
                         </Link>
                     </p>
-                </CardFooter>
+                </div>
             </form>
-        </Card>
+        </div>
     )
 }

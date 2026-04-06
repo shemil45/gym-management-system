@@ -16,6 +16,7 @@ import {
 import { Loader2, Search, ArrowLeft, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { recordPayment } from '@/app/admin/finances/payments/actions'
+import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 
 interface MemberOption {
     id: string
@@ -44,6 +45,7 @@ function getInitials(name: string) {
 
 export default function RecordPaymentForm({ members, plans }: RecordPaymentFormProps) {
     const router = useRouter()
+    const { isDark } = useAdminTheme()
     const [loading, setLoading] = useState(false)
 
     // Form state
@@ -354,7 +356,11 @@ export default function RecordPaymentForm({ members, plans }: RecordPaymentFormP
                             type="button"
                             variant="outline"
                             disabled={navigatingBack || loading}
-                            className="h-10 px-5 border-gray-300 text-gray-700 hover:bg-gray-50"
+                            className={`h-10 px-5 ${
+                                isDark
+                                    ? 'border-[#2a2a2a] bg-[#161616] text-gray-200 hover:bg-[#222222] hover:text-white'
+                                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                            }`}
                         >
                             {navigatingBack ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                             {navigatingBack ? 'Leaving...' : 'Cancel'}

@@ -79,14 +79,14 @@ function InfoRow({
         return (
             <a
                 href={href}
-                className="flex items-start gap-3 py-3.5 transition-colors active:bg-slate-50"
+                className="admin-detail-row flex items-start gap-3 border-t border-slate-100 py-3.5 transition-colors first:border-t-0 active:bg-slate-50"
             >
                 {inner}
             </a>
         )
     }
 
-    return <div className="flex items-start gap-3 py-3.5">{inner}</div>
+    return <div className="admin-detail-row flex items-start gap-3 border-t border-slate-100 py-3.5 first:border-t-0">{inner}</div>
 }
 
 export default async function MemberDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -166,11 +166,11 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
             </div>
 
             {/* ── Personal info ── */}
-            <div className="rounded-2xl bg-white px-4 shadow-[0_4px_16px_rgba(15,23,42,0.06)]">
-                <p className="border-b border-slate-100 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+            <div className="admin-detail-card rounded-2xl bg-white px-4 shadow-[0_4px_16px_rgba(15,23,42,0.06)]">
+                <p className="admin-detail-card-header border-b border-slate-100 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
                     Personal Info
                 </p>
-                <div className="divide-y divide-slate-50">
+                <div className="admin-detail-card-body">
                     <InfoRow icon={User} label="Full Name" value={member.full_name} />
                     <InfoRow icon={Phone} label="Phone" value={member.phone} href={`tel:${member.phone}`} />
                     <InfoRow icon={Mail} label="Email" value={member.email || '—'} href={member.email ? `mailto:${member.email}` : undefined} />
@@ -187,11 +187,11 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
             </div>
 
             {/* ── Membership info ── */}
-            <div className="rounded-2xl bg-white px-4 shadow-[0_4px_16px_rgba(15,23,42,0.06)]">
-                <p className="border-b border-slate-100 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+            <div className="admin-detail-card rounded-2xl bg-white px-4 shadow-[0_4px_16px_rgba(15,23,42,0.06)]">
+                <p className="admin-detail-card-header border-b border-slate-100 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
                     Membership
                 </p>
-                <div className="divide-y divide-slate-50">
+                <div className="admin-detail-card-body">
                     <InfoRow icon={BadgeCheck} label="Member ID" value={member.member_id} />
                     <InfoRow icon={CreditCard} label="Plan" value={member.membership_plan?.name || '—'} />
                     <InfoRow icon={Clock} label="Start Date" value={formatDate(member.membership_start_date)} />
@@ -201,11 +201,11 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
 
             {/* ── Emergency contact ── */}
             {(member.emergency_contact_name || member.emergency_contact_phone) && (
-                <div className="rounded-2xl bg-white px-4 shadow-[0_4px_16px_rgba(15,23,42,0.06)]">
-                    <p className="border-b border-slate-100 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                <div className="admin-detail-card rounded-2xl bg-white px-4 shadow-[0_4px_16px_rgba(15,23,42,0.06)]">
+                    <p className="admin-detail-card-header border-b border-slate-100 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
                         Emergency Contact
                     </p>
-                    <div className="divide-y divide-slate-50">
+                    <div className="admin-detail-card-body">
                         {member.emergency_contact_name && (
                             <InfoRow icon={ShieldAlert} label="Contact Name" value={member.emergency_contact_name} />
                         )}

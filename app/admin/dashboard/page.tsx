@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/utils/currency'
 import { getExpiringMembers, getOverdueMembers } from '@/lib/utils/renewals'
@@ -110,18 +111,19 @@ function OverviewCard({
     accent: 'blue' | 'green' | 'red'
     href?: string
 }) {
+    const { isDark } = useAdminTheme()
     const accents = {
         blue: {
-            iconBg: 'bg-blue-100 text-blue-600',
-            value: 'text-blue-600',
+            iconBg: isDark ? 'bg-[#10b981]/15 text-[#10b981]' : 'bg-blue-100 text-blue-600',
+            value: isDark ? 'text-[#10b981]' : 'text-blue-600',
         },
         green: {
-            iconBg: 'bg-emerald-100 text-emerald-600',
-            value: 'text-emerald-500',
+            iconBg: isDark ? 'bg-[#10b981]/15 text-[#10b981]' : 'bg-emerald-100 text-emerald-600',
+            value: isDark ? 'text-[#10b981]' : 'text-emerald-500',
         },
         red: {
-            iconBg: 'bg-red-100 text-red-500',
-            value: 'text-red-500',
+            iconBg: isDark ? 'bg-red-500/15 text-red-400' : 'bg-red-100 text-red-500',
+            value: isDark ? 'text-red-400' : 'text-red-500',
         },
     }
 
@@ -131,7 +133,7 @@ function OverviewCard({
                 {icon}
             </div>
             <div className="min-w-0 flex-1">
-                <p className="line-clamp-2 min-h-6 text-[0.82rem] font-medium leading-snug text-slate-500 sm:text-[0.8rem]">{title}</p>
+                <p className={`line-clamp-2 min-h-6 text-[0.82rem] font-medium leading-snug sm:text-[0.8rem] ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>{title}</p>
                 <p className={`mt-1 text-left text-[1.1rem] font-semibold leading-tight tracking-tight ${accents[accent].value} sm:text-[1.28rem]`}>
                     {value}
                 </p>
@@ -143,7 +145,11 @@ function OverviewCard({
         return (
             <Link
                 href={href}
-                className="block rounded-2xl bg-white px-4 py-5 shadow-[0_10px_28px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_38px_rgba(15,23,42,0.12)] sm:px-5"
+                className={`block rounded-2xl px-4 py-5 transition-all hover:-translate-y-0.5 sm:px-5 ${
+                    isDark
+                        ? 'border border-[#2a2a2a] bg-[#1c1c1c] shadow-[0_18px_40px_rgba(0,0,0,0.24)] hover:border-[#3a3a3a]'
+                        : 'bg-white shadow-[0_10px_28px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 hover:shadow-[0_16px_38px_rgba(15,23,42,0.12)]'
+                }`}
             >
                 {content}
             </Link>
@@ -151,7 +157,11 @@ function OverviewCard({
     }
 
     return (
-        <div className="rounded-2xl bg-white px-4 py-5 shadow-[0_10px_28px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 sm:px-5">
+        <div className={`rounded-2xl px-4 py-5 sm:px-5 ${
+            isDark
+                ? 'border border-[#2a2a2a] bg-[#1c1c1c] shadow-[0_18px_40px_rgba(0,0,0,0.24)]'
+                : 'bg-white shadow-[0_10px_28px_rgba(15,23,42,0.07)] ring-1 ring-slate-100'
+        }`}>
             {content}
         </div>
     )
@@ -170,12 +180,17 @@ function SectionShell({
     action?: React.ReactNode
     mobileStackAction?: boolean
 }) {
+    const { isDark } = useAdminTheme()
     return (
-        <section className="rounded-2xl bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 sm:p-5">
+        <section className={`rounded-2xl p-4 sm:p-5 ${
+            isDark
+                ? 'border border-[#2a2a2a] bg-[#1c1c1c] shadow-[0_18px_40px_rgba(0,0,0,0.24)]'
+                : 'bg-white shadow-[0_14px_32px_rgba(15,23,42,0.07)] ring-1 ring-slate-100'
+        }`}>
             <div className={`mb-4 flex gap-3 ${mobileStackAction ? 'flex-col sm:flex-row sm:items-start sm:justify-between' : 'items-start justify-between'}`}>
                 <div>
-                    <h2 className="text-xl font-semibold tracking-tight text-slate-900">{title}</h2>
-                    {subtitle ? <p className="mt-1 text-sm text-slate-400">{subtitle}</p> : null}
+                    <h2 className={`text-xl font-semibold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>{title}</h2>
+                    {subtitle ? <p className={`mt-1 text-sm ${isDark ? 'text-zinc-400' : 'text-slate-400'}`}>{subtitle}</p> : null}
                 </div>
                 {action}
             </div>
@@ -193,11 +208,16 @@ const CustomTooltip = ({
     payload?: Array<{ value: number }>
     label?: string
 }) => {
+    const { isDark } = useAdminTheme()
     if (active && payload && payload.length) {
         return (
-            <div className="rounded-2xl bg-slate-950 px-3 py-2 text-xs text-white shadow-lg">
+            <div className={`rounded-2xl px-3 py-2 text-xs shadow-lg ${
+                isDark
+                    ? 'border border-[#2a2a2a] bg-[#161616] text-white'
+                    : 'bg-slate-950 text-white'
+            }`}>
                 <p className="font-medium">{label}</p>
-                <p className="text-blue-300">{formatCurrency(payload[0].value)}</p>
+                <p className={isDark ? 'text-[#10b981]' : 'text-blue-300'}>{formatCurrency(payload[0].value)}</p>
             </div>
         )
     }
@@ -206,6 +226,7 @@ const CustomTooltip = ({
 }
 
 export default function AdminDashboard() {
+    const { isDark } = useAdminTheme()
     const [data, setData] = useState<DashboardData | null>(null)
     const [loading, setLoading] = useState(true)
     const [viewerProfile, setViewerProfile] = useState<ViewerProfile | null>(null)
@@ -351,14 +372,14 @@ export default function AdminDashboard() {
     if (loading) {
         return (
             <div className="space-y-4 animate-pulse">
-                <div className="h-28 rounded-2xl bg-slate-200" />
+                <div className={`h-28 rounded-2xl ${isDark ? 'bg-[#1c1c1c]' : 'bg-slate-200'}`} />
                 <div className="grid grid-cols-2 gap-4">
                     {[...Array(6)].map((_, index) => (
-                        <div key={index} className="h-36 rounded-2xl bg-slate-200" />
+                        <div key={index} className={`h-36 rounded-2xl ${isDark ? 'bg-[#1c1c1c]' : 'bg-slate-200'}`} />
                     ))}
                 </div>
-                <div className="h-72 rounded-2xl bg-slate-200" />
-                <div className="h-64 rounded-2xl bg-slate-200" />
+                <div className={`h-72 rounded-2xl ${isDark ? 'bg-[#1c1c1c]' : 'bg-slate-200'}`} />
+                <div className={`h-64 rounded-2xl ${isDark ? 'bg-[#1c1c1c]' : 'bg-slate-200'}`} />
             </div>
         )
     }
@@ -370,7 +391,6 @@ export default function AdminDashboard() {
     const expiringMembers = getExpiringMembers(data.renewals)
     const overdueMembers = getOverdueMembers(data.renewals)
     const visibleRenewals = (renewalTab === 'expires' ? expiringMembers : overdueMembers).slice(0, 5)
-    const headerSurface = '#1266ea'
     const viewerInitials = viewerProfile?.full_name
         ?.split(' ')
         .map((name) => name[0])
@@ -381,13 +401,15 @@ export default function AdminDashboard() {
     return (
         <div className="space-y-5">
             <section
-                className="-mx-4 -mt-5 overflow-hidden rounded-b-3xl px-4 py-6 text-white sm:-mx-6 sm:-mt-6 sm:px-6 sm:py-4"
-                style={{ background: headerSurface }}
+                className={`-mx-4 -mt-5 overflow-hidden rounded-b-3xl px-4 py-6 text-white sm:-mx-6 sm:-mt-6 sm:px-6 sm:py-4 ${
+                    isDark ? 'border-b border-[#2a2a2a]' : 'border-b border-blue-500/20'
+                }`}
+                style={{ background: isDark ? '#1a1a1a' : '#1266ea' }}
             >
                 <div className="flex items-center gap-3 sm:gap-4">
-                    <Avatar className="h-14 w-14 shrink-0 ring-2 ring-white/15 sm:h-16 sm:w-16">
+                    <Avatar className={`h-14 w-14 shrink-0 ring-2 sm:h-16 sm:w-16 ${isDark ? 'ring-white/10' : 'ring-white/15'}`}>
                         <AvatarImage src={viewerProfile?.photo_url || undefined} alt={viewerProfile?.full_name || 'User profile'} />
-                        <AvatarFallback className="bg-slate-900/45 text-base font-semibold text-white sm:text-lg">
+                        <AvatarFallback className={`${isDark ? 'bg-[#242424]' : 'bg-slate-900/45'} text-base font-semibold text-white sm:text-lg`}>
                             {viewerInitials}
                         </AvatarFallback>
                     </Avatar>
@@ -409,23 +431,27 @@ export default function AdminDashboard() {
                                     {viewerProfile.role ? (
                                         <Badge
                                             variant="outline"
-                                            className="border-white/15 bg-white/12 px-2 py-0.5 text-[10px] font-semibold capitalize text-white"
+                                            className={`px-2 py-0.5 text-[10px] font-semibold capitalize ${
+                                                isDark
+                                                    ? 'border-[#10b981]/30 bg-[#10b981]/10 text-[#8df0c9]'
+                                                    : 'border-white/15 bg-white/12 text-white'
+                                            }`}
                                         >
                                             {formatRoleLabel(viewerProfile.role)}
                                         </Badge>
                                     ) : null}
                                 </div>
-                                <p className="mt-1 truncate text-[12px] leading-tight text-blue-100/90 sm:text-[13px]">
+                                <p className={`mt-1 truncate text-[12px] leading-tight sm:text-[13px] ${isDark ? 'text-zinc-300' : 'text-blue-100/90'}`}>
                                     {viewerProfile.email || 'No email available'}
                                 </p>
-                                <p className="mt-0.5 text-[12px] leading-tight text-blue-100/78 sm:text-[13px]">
+                                <p className={`mt-0.5 text-[12px] leading-tight sm:text-[13px] ${isDark ? 'text-zinc-400' : 'text-blue-100/78'}`}>
                                     {viewerProfile.phone || 'Phone not added'}
                                 </p>
                             </div>
                         ) : (
                             <div className="mt-1.5">
                                 <h1 className="text-lg font-semibold tracking-tight">Profile unavailable</h1>
-                                <p className="mt-1 max-w-md text-[12px] text-blue-100/85 sm:text-[13px]">
+                                <p className={`mt-1 max-w-md text-[12px] sm:text-[13px] ${isDark ? 'text-zinc-400' : 'text-blue-100/85'}`}>
                                     We couldn&apos;t load your profile details right now. Please check that your `profiles` row exists.
                                 </p>
                             </div>
@@ -492,15 +518,23 @@ export default function AdminDashboard() {
                     mobileStackAction
                     action={
                         <div className="w-full sm:w-auto sm:min-w-[20rem] sm:max-w-[24rem]">
-                            <div className="flex w-full items-center gap-1 rounded-2xl bg-slate-100 p-1 sm:gap-1.5 sm:p-1.5">
+                            <div className={`flex w-full items-center gap-1 rounded-2xl p-1 sm:gap-1.5 sm:p-1.5 ${
+                                isDark
+                                    ? 'border border-[#2a2a2a] bg-[#161616]'
+                                    : 'bg-slate-100'
+                            }`}>
                                 {RANGES.map((range) => (
                                     <button
                                         key={range.label}
                                         onClick={() => setChartRange(range.label)}
                                         className={`min-w-0 flex-1 rounded-xl px-0 py-1.5 text-[10px] font-medium transition sm:px-2 sm:py-2 ${
                                             chartRange === range.label
-                                                ? 'bg-white text-slate-900 shadow-sm'
-                                                : 'text-slate-500 hover:text-slate-700'
+                                                ? isDark
+                                                    ? 'bg-[#222222] text-white shadow-sm'
+                                                    : 'bg-white text-slate-900 shadow-sm'
+                                                : isDark
+                                                    ? 'text-zinc-400 hover:text-zinc-200'
+                                                    : 'text-slate-500 hover:text-slate-700'
                                         }`}
                                     >
                                         {range.label}
@@ -513,10 +547,10 @@ export default function AdminDashboard() {
                     <div className="h-64">
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={chartData} margin={{ top: 10, right: 4, left: -18, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#e5edf8" vertical={false} />
+                                <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#2a2a2a' : '#e5edf8'} vertical={false} />
                                 <XAxis
                                     dataKey="date"
-                                    tick={{ fontSize: 10, fill: '#7c8aa5' }}
+                                    tick={{ fontSize: 10, fill: isDark ? '#8a8a8a' : '#7c8aa5' }}
                                     tickLine={false}
                                     axisLine={false}
                                     interval={
@@ -532,7 +566,7 @@ export default function AdminDashboard() {
                                     }
                                 />
                                 <YAxis
-                                    tick={{ fontSize: 10, fill: '#7c8aa5' }}
+                                    tick={{ fontSize: 10, fill: isDark ? '#8a8a8a' : '#7c8aa5' }}
                                     tickLine={false}
                                     axisLine={false}
                                     tickFormatter={(value) => `Rs ${value >= 1000 ? `${Math.round(value / 1000)}k` : value}`}
@@ -542,10 +576,10 @@ export default function AdminDashboard() {
                                 <Line
                                     type="monotone"
                                     dataKey="revenue"
-                                    stroke="#0f5be1"
+                                    stroke={isDark ? '#10b981' : '#0f5be1'}
                                     strokeWidth={3}
                                     dot={{ r: 0 }}
-                                    activeDot={{ r: 5, stroke: '#fff', strokeWidth: 2, fill: '#0f5be1' }}
+                                    activeDot={{ r: 5, stroke: isDark ? '#171717' : '#ffffff', strokeWidth: 2, fill: isDark ? '#10b981' : '#0f5be1' }}
                                 />
                             </LineChart>
                         </ResponsiveContainer>
@@ -559,33 +593,47 @@ export default function AdminDashboard() {
                 action={
                     <Link
                         href={renewalTab === 'expires' ? '/admin/members?filter=expires' : '/admin/members?filter=overdue'}
-                        className="flex items-center gap-1 text-[13px] font-medium text-blue-600 transition-colors hover:text-blue-700"
+                        className={`flex items-center gap-1 text-[13px] font-medium transition-colors ${
+                            isDark ? 'text-zinc-300 hover:text-white' : 'text-blue-600 hover:text-blue-700'
+                        }`}
                     >
                         View all <ArrowRight className="h-3 w-3" />
                     </Link>
                 }
             >
-                <div className="mb-4 rounded-2xl bg-slate-100 p-1">
+                <div className={`mb-4 rounded-2xl p-1 ${isDark ? 'border border-[#2a2a2a] bg-[#161616]' : 'bg-slate-100'}`}>
                     <div className="grid grid-cols-2 gap-1">
                         <button
                             onClick={() => setRenewalTab('expires')}
                             className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition ${
-                                renewalTab === 'expires' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'
+                                renewalTab === 'expires'
+                                    ? isDark
+                                        ? 'bg-[#222222] text-white shadow-sm'
+                                        : 'bg-white text-slate-800 shadow-sm'
+                                    : isDark
+                                        ? 'text-zinc-400'
+                                        : 'text-slate-500'
                             }`}
                         >
                             <span>Expires</span>
-                            <span className="rounded-full bg-[#0f5be1] px-2.5 py-0.5 text-xs font-semibold text-white">
+                            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold text-white ${isDark ? 'bg-[#10b981]' : 'bg-[#0f5be1]'}`}>
                                 {expiringMembers.length}
                             </span>
                         </button>
                         <button
                             onClick={() => setRenewalTab('overdues')}
                             className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition ${
-                                renewalTab === 'overdues' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'
+                                renewalTab === 'overdues'
+                                    ? isDark
+                                        ? 'bg-[#222222] text-white shadow-sm'
+                                        : 'bg-white text-slate-800 shadow-sm'
+                                    : isDark
+                                        ? 'text-zinc-400'
+                                        : 'text-slate-500'
                             }`}
                         >
                             <span>Overdues</span>
-                            <span className="rounded-full bg-[#0f5be1] px-2.5 py-0.5 text-xs font-semibold text-white">
+                            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold text-white ${isDark ? 'bg-[#10b981]' : 'bg-[#0f5be1]'}`}>
                                 {overdueMembers.length}
                             </span>
                         </button>
@@ -603,21 +651,21 @@ export default function AdminDashboard() {
                                 .slice(0, 2) || '?'
 
                             return (
-                                <div key={member.id} className="flex items-center gap-3 border-b border-slate-200 pb-4 last:border-b-0 last:pb-0">
+                                <div key={member.id} className={`flex items-center gap-3 pb-4 last:border-b-0 last:pb-0 ${isDark ? 'border-b border-[#2a2a2a]' : 'border-b border-slate-200'}`}>
                                     <Avatar className="h-16 w-16 shrink-0">
                                         <AvatarImage src={member.photo_url || undefined} alt={member.full_name} />
-                                        <AvatarFallback className="bg-blue-100 text-sm font-semibold text-blue-700">
+                                        <AvatarFallback className={`${isDark ? 'bg-[#10b981]/15 text-[#8df0c9]' : 'bg-blue-100 text-blue-700'} text-sm font-semibold`}>
                                             {initials}
                                         </AvatarFallback>
                                     </Avatar>
 
                                     <div className="min-w-0 flex-1">
-                                        <p className="truncate text-base font-medium text-blue-600">{member.full_name}</p>
-                                        <p className="truncate text-[13px] text-slate-900">
+                                        <p className={`truncate text-base font-medium ${isDark ? 'text-white' : 'text-blue-600'}`}>{member.full_name}</p>
+                                        <p className={`truncate text-[13px] ${isDark ? 'text-zinc-200' : 'text-slate-900'}`}>
                                             {(member.membership_plan as { name?: string } | null)?.name || 'Membership Plan'}
                                         </p>
-                                        <p className="text-[13px] text-slate-900">Monthly Fees</p>
-                                        <p className="mt-1 text-[13px] text-slate-400">
+                                        <p className={`text-[13px] ${isDark ? 'text-zinc-200' : 'text-slate-900'}`}>Monthly Fees</p>
+                                        <p className={`mt-1 text-[13px] ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
                                             ends on {formatExpiryDate(member.membership_expiry_date)}
                                         </p>
                                     </div>
@@ -625,7 +673,11 @@ export default function AdminDashboard() {
                                     <LoadingLinkButton
                                         href="/admin/finances/payments/record"
                                         loadingText=""
-                                        className="rounded-full bg-slate-200 px-4 py-2 text-sm font-medium text-slate-800 shadow-none hover:bg-slate-300"
+                                        className={`rounded-full px-4 py-2 text-sm font-medium shadow-none ${
+                                            isDark
+                                                ? 'border border-[#2a2a2a] bg-[#161616] text-white hover:bg-[#222222]'
+                                                : 'bg-slate-200 text-slate-800 hover:bg-slate-300'
+                                        }`}
                                     >
                                         Renew
                                     </LoadingLinkButton>
@@ -634,7 +686,11 @@ export default function AdminDashboard() {
                         })}
                     </div>
                 ) : (
-                    <div className="rounded-[1.5rem] bg-slate-50 px-4 py-10 text-center text-sm text-slate-400">
+                    <div className={`rounded-[1.5rem] px-4 py-10 text-center text-sm ${
+                        isDark
+                            ? 'border border-[#2a2a2a] bg-[#161616] text-zinc-500'
+                            : 'bg-slate-50 text-slate-400'
+                    }`}>
                         No members in this list right now
                     </div>
                 )}
@@ -648,13 +704,21 @@ export default function AdminDashboard() {
                                 href="/admin/finances/payments/record"
                                 loadingText=""
                                 showDefaultLoader={false}
-                                className="group flex h-auto w-24 flex-col items-center gap-1.5 bg-transparent p-0 text-slate-800 shadow-none hover:bg-transparent"
+                                className={`group flex h-auto w-24 flex-col items-center gap-1.5 bg-transparent p-0 shadow-none hover:bg-transparent ${isDark ? 'text-zinc-200' : 'text-slate-800'}`}
                             >
-                                <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-[0_16px_32px_rgba(15,23,42,0.18)]">
+                                <span className={`relative flex h-14 w-14 items-center justify-center rounded-full text-white ${
+                                    isDark
+                                        ? 'bg-[#10b981] shadow-[0_16px_32px_rgba(16,185,129,0.22)]'
+                                        : 'bg-emerald-500 shadow-[0_16px_32px_rgba(15,23,42,0.18)]'
+                                }`}>
                                     <CreditCard className="h-4 w-4 transition-opacity group-data-[loading=true]:opacity-0" />
                                     <Loader2 className="absolute h-4 w-4 animate-spin opacity-0 transition-opacity group-data-[loading=true]:opacity-100" />
                                 </span>
-                                <span className="rounded-full bg-white/70 px-2.5 py-1 text-center text-[11px] font-medium leading-none text-slate-700 shadow-sm backdrop-blur-md">
+                                <span className={`rounded-full px-2.5 py-1 text-center text-[11px] font-medium leading-none shadow-sm backdrop-blur-md ${
+                                    isDark
+                                        ? 'border border-[#2a2a2a] bg-[#1c1c1c]/95 text-zinc-200'
+                                        : 'bg-white/70 text-slate-700'
+                                }`}>
                                     Record Payment
                                 </span>
                             </LoadingLinkButton>
@@ -662,13 +726,21 @@ export default function AdminDashboard() {
                                 href="/admin/members/add"
                                 loadingText=""
                                 showDefaultLoader={false}
-                                className="group flex h-auto w-24 flex-col items-center gap-1.5 bg-transparent p-0 text-slate-800 shadow-none hover:bg-transparent"
+                                className={`group flex h-auto w-24 flex-col items-center gap-1.5 bg-transparent p-0 shadow-none hover:bg-transparent ${isDark ? 'text-zinc-200' : 'text-slate-800'}`}
                             >
-                                <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-[0_16px_32px_rgba(15,23,42,0.18)]">
+                                <span className={`relative flex h-14 w-14 items-center justify-center rounded-full text-white ${
+                                    isDark
+                                        ? 'bg-[#10b981] shadow-[0_16px_32px_rgba(16,185,129,0.22)]'
+                                        : 'bg-[#0f5be1] shadow-[0_16px_32px_rgba(15,23,42,0.18)]'
+                                }`}>
                                     <Plus className="h-4 w-4 transition-opacity group-data-[loading=true]:opacity-0" />
                                     <Loader2 className="absolute h-4 w-4 animate-spin opacity-0 transition-opacity group-data-[loading=true]:opacity-100" />
                                 </span>
-                                <span className="rounded-full bg-white/70 px-2.5 py-1 text-center text-[11px] font-medium leading-none text-slate-700 shadow-sm backdrop-blur-md">
+                                <span className={`rounded-full px-2.5 py-1 text-center text-[11px] font-medium leading-none shadow-sm backdrop-blur-md ${
+                                    isDark
+                                        ? 'border border-[#2a2a2a] bg-[#1c1c1c]/95 text-zinc-200'
+                                        : 'bg-white/70 text-slate-700'
+                                }`}>
                                     Add Member
                                 </span>
                             </LoadingLinkButton>
@@ -679,7 +751,13 @@ export default function AdminDashboard() {
                     type="button"
                     onClick={() => setQuickActionsOpen((open) => !open)}
                     className={`flex h-16 w-16 items-center justify-center rounded-full text-white shadow-[0_20px_40px_rgba(15,91,225,0.35)] transition-all hover:scale-105 ${
-                        quickActionsOpen ? 'bg-red-500 hover:bg-red-600' : 'bg-[#0f5be1] hover:bg-[#0c4ec6]'
+                        quickActionsOpen
+                            ? isDark
+                                ? 'bg-zinc-700 hover:bg-zinc-600'
+                                : 'bg-red-500 hover:bg-red-600'
+                            : isDark
+                                ? 'bg-[#10b981] hover:bg-[#0ea271]'
+                                : 'bg-[#0f5be1] hover:bg-[#0c4ec6]'
                     }`}
                     aria-label={quickActionsOpen ? 'Close quick actions' : 'Open quick actions'}
                 >

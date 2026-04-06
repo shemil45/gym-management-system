@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, startTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -229,6 +230,7 @@ function PaginationBar({
 
 export default function PaymentsTable({ payments, todayTotal, monthTotal, initialFilters }: PaymentsTableProps) {
     const router = useRouter()
+    const { isDark } = useAdminTheme()
     const initialDateRange = getPresetDateRange(initialFilters?.date ?? null)
     const [openingRecordPayment, setOpeningRecordPayment] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
@@ -603,7 +605,7 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal, initia
                 </div>
 
                 {/* Mobile Cards (hidden on lg+) */}
-                <div className="divide-y divide-slate-100 lg:hidden">
+                <div className="lg:hidden">
                     {paginated.length === 0 ? (
                         <div className="px-4 py-16 text-center text-sm text-slate-400">No payments found</div>
                     ) : (
@@ -622,10 +624,20 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal, initia
                                             ? `Until ${formatDate(member.membership_expiry_date)}`
                                             : 'Membership period unavailable'
                             return (
-                                <div 
-                                    key={payment.id} 
-                                    onClick={() => handleRowClick(payment.id, payment.invoice_number, payment.payment_status)} 
-                                    className={`relative px-4 py-3.5 transition-colors cursor-pointer ${isNavigating ? 'bg-emerald-50/60' : 'hover:bg-slate-50'}`}
+                                <div
+                                    key={payment.id}
+                                    onClick={() => handleRowClick(payment.id, payment.invoice_number, payment.payment_status)}
+                                    className={`relative cursor-pointer border-t px-4 py-3.5 transition-colors first:border-t-0 ${
+                                        isDark ? 'border-[#2a2a2a]' : 'border-slate-100'
+                                    } ${
+                                        isNavigating
+                                            ? isDark
+                                                ? 'bg-[#1f2937]'
+                                                : 'bg-emerald-50/60'
+                                            : isDark
+                                                ? 'hover:bg-[#1f2937]/80'
+                                                : 'hover:bg-slate-50'
+                                    }`}
                                 >
                                     {isNavigating && (
                                         <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-white/70">
@@ -703,7 +715,7 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal, initia
                 <div className="hidden overflow-x-auto lg:block">
                     <table className="w-full">
                         <thead>
-                            <tr className="border-b border-gray-100 bg-gray-50/60">
+                            <tr className={isDark ? 'border-b border-[#2a2a2a] bg-[#171717]' : 'border-b border-gray-100 bg-gray-50/60'}>
                                 <th className="w-12 py-3 pl-5 pr-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                                     Member
                                 </th>
@@ -730,7 +742,7 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal, initia
                                 </th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className={isDark ? 'divide-y divide-[#2a2a2a]' : 'divide-y divide-gray-100'}>
                             {paginated.length === 0 ? (
                                 <tr>
                                     <td colSpan={8} className="py-16 text-center text-sm text-gray-400">
@@ -743,10 +755,18 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal, initia
                                     const name = member?.full_name ?? 'Unknown'
                                     const isNavigating = navigatingInvoiceId === payment.id
                                     return (
-                                        <tr 
-                                            key={payment.id} 
-                                            onClick={() => handleRowClick(payment.id, payment.invoice_number, payment.payment_status)} 
-                                            className={`transition-colors cursor-pointer ${isNavigating ? 'bg-emerald-50/60' : 'hover:bg-emerald-50/20'}`}
+                                        <tr
+                                            key={payment.id}
+                                            onClick={() => handleRowClick(payment.id, payment.invoice_number, payment.payment_status)}
+                                            className={`cursor-pointer transition-colors ${
+                                                isNavigating
+                                                    ? isDark
+                                                        ? 'bg-[#1f2937]'
+                                                        : 'bg-emerald-50/60'
+                                                    : isDark
+                                                        ? 'hover:bg-[#1f2937]/80'
+                                                        : 'hover:bg-emerald-50/20'
+                                            }`}
                                         >
                                             <td className="py-3 pl-5 pr-3">
                                                 <Avatar className="h-9 w-9 ring-2 ring-gray-100">
@@ -809,7 +829,7 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal, initia
                 </div>
 
                 {/* Pagination Footer */}
-                <div className="flex flex-col gap-3 border-t border-gray-100 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className={`flex flex-col gap-3 px-5 py-3 sm:flex-row sm:items-center sm:justify-between ${isDark ? 'border-t border-[#2a2a2a]' : 'border-t border-gray-100'}`}>
                     <p className="text-xs text-gray-500">
                         Showing{' '}
                         <span className="font-semibold text-emerald-600">

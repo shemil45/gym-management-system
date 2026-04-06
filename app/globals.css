@@ -126,3 +126,131 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .admin-theme-dark .bg-white {
+    background-color: #1c1c1c !important;
+  }
+
+  .admin-theme-dark .bg-slate-50,
+  .admin-theme-dark .bg-gray-50,
+  .admin-theme-dark .bg-slate-50\/60,
+  .admin-theme-dark .bg-slate-50\/55 {
+    background-color: #161616 !important;
+  }
+
+  .admin-theme-dark .bg-slate-100,
+  .admin-theme-dark .bg-gray-100,
+  .admin-theme-dark .bg-slate-200,
+  .admin-theme-dark .bg-gray-200 {
+    background-color: #222222 !important;
+  }
+
+  .admin-theme-dark .border-gray-100,
+  .admin-theme-dark .border-gray-200,
+  .admin-theme-dark .border-gray-300,
+  .admin-theme-dark .border-slate-100,
+  .admin-theme-dark .border-slate-200,
+  .admin-theme-dark .border-slate-50,
+  .admin-theme-dark .divide-gray-100,
+  .admin-theme-dark .divide-slate-100,
+  .admin-theme-dark .divide-slate-50 {
+    border-color: #2a2a2a !important;
+  }
+
+  .admin-theme-dark .ring-slate-100,
+  .admin-theme-dark .ring-gray-100 {
+    --tw-ring-color: #2a2a2a !important;
+  }
+
+  .admin-theme-dark .text-gray-900,
+  .admin-theme-dark .text-gray-800,
+  .admin-theme-dark .text-slate-900,
+  .admin-theme-dark .text-slate-800 {
+    color: #f5f5f5 !important;
+  }
+
+  .admin-theme-dark .text-gray-700,
+  .admin-theme-dark .text-gray-600,
+  .admin-theme-dark .text-slate-700,
+  .admin-theme-dark .text-slate-600 {
+    color: #d4d4d8 !important;
+  }
+
+  .admin-theme-dark .text-gray-500,
+  .admin-theme-dark .text-gray-400,
+  .admin-theme-dark .text-slate-500,
+  .admin-theme-dark .text-slate-400 {
+    color: #a1a1aa !important;
+  }
+
+  .admin-theme-dark .hover\:bg-gray-50:hover,
+  .admin-theme-dark .hover\:bg-slate-50:hover,
+  .admin-theme-dark .hover\:bg-slate-100:hover,
+  .admin-theme-dark .active\:bg-slate-50:active,
+  .admin-theme-dark .hover\:bg-gray-100:hover {
+    background-color: #222222 !important;
+  }
+
+  .admin-theme-dark .hover\:text-gray-700:hover,
+  .admin-theme-dark .hover\:text-gray-800:hover,
+  .admin-theme-dark .hover\:text-slate-700:hover,
+  .admin-theme-dark .hover\:text-slate-800:hover {
+    color: #ffffff !important;
+  }
+
+  .admin-theme-dark input,
+  .admin-theme-dark textarea,
+  .admin-theme-dark [data-slot='input'],
+  .admin-theme-dark button[role='combobox'] {
+    background-color: #161616 !important;
+    border-color: #2a2a2a !important;
+    color: #f5f5f5 !important;
+  }
+
+  .admin-theme-dark input::placeholder,
+  .admin-theme-dark textarea::placeholder {
+    color: #71717a !important;
+  }
+
+  .admin-theme-dark table thead tr {
+    background-color: #161616 !important;
+    border-color: #2a2a2a !important;
+  }
+
+  .admin-theme-dark table tr.border-b,
+  .admin-theme-dark table thead,
+  .admin-theme-dark table tbody tr,
+  .admin-theme-dark table tbody td,
+  .admin-theme-dark table tbody th {
+    border-color: #2a2a2a !important;
+  }
+
+  .admin-theme-dark tbody.divide-y > :not([hidden]) ~ :not([hidden]),
+  .admin-theme-dark .divide-y > :not([hidden]) ~ :not([hidden]) {
+    border-color: #2a2a2a !important;
+  }
+
+  .admin-theme-dark .shadow-sm,
+  .admin-theme-dark .shadow-lg,
+  .admin-theme-dark .shadow-xl,
+  .admin-theme-dark .shadow-2xl {
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24) !important;
+  }
+
+  .admin-theme-dark .admin-detail-card {
+    background-color: #1c1c1c !important;
+  }
+
+  .admin-theme-dark .admin-detail-card-header {
+    border-color: #2a2a2a !important;
+  }
+
+  .admin-theme-dark .admin-detail-row {
+    border-color: #2a2a2a !important;
+  }
+
+  .admin-theme-dark .admin-detail-row:active {
+    background-color: #222222 !important;
+  }
+}
