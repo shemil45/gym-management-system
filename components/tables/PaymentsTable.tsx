@@ -640,7 +640,9 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal, initia
                                     }`}
                                 >
                                     {isNavigating && (
-                                        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-white/70">
+                                        <div className={`absolute inset-0 z-10 flex items-center justify-center rounded-lg ${
+                                            isDark ? 'bg-[#111111]/72' : 'bg-white/70'
+                                        }`}>
                                             <Loader2 className="h-5 w-5 animate-spin text-emerald-500" />
                                         </div>
                                     )}

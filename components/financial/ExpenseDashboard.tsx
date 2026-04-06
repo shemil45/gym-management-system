@@ -939,7 +939,7 @@ export default function ExpenseDashboard({ payments, expenses, initialFilters }:
                         <div className="mt-4">
                             <ResponsiveContainer width="100%" height={240}>
                                 <BarChart data={visibleChartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barCategoryGap="18%">
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#2a2a2a' : '#f0f0f0'} vertical={false} />
                                     <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#9ca3af' }} tickLine={false} axisLine={false} interval={0} />
                                     <YAxis
                                         tick={{ fontSize: 9, fill: '#9ca3af' }}

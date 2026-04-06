@@ -67,10 +67,21 @@ function InfoRow({
     )
 
     if (href) {
-        return <a href={href} className="flex items-start gap-3 py-3.5 transition-colors active:bg-slate-50">{inner}</a>
+        return (
+            <a
+                href={href}
+                className="admin-detail-row flex items-start gap-3 border-t border-slate-100 py-3.5 transition-colors first:border-t-0 active:bg-slate-50"
+            >
+                {inner}
+            </a>
+        )
     }
 
-    return <div className="flex items-start gap-3 py-3.5">{inner}</div>
+    return (
+        <div className="admin-detail-row flex items-start gap-3 border-t border-slate-100 py-3.5 first:border-t-0">
+            {inner}
+        </div>
+    )
 }
 
 export default async function StaffDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -146,11 +157,11 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
                 </div>
             </div>
 
-            <div className="rounded-2xl bg-white px-4 shadow-[0_4px_16px_rgba(15,23,42,0.06)]">
-                <p className="border-b border-slate-100 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+            <div className="admin-detail-card rounded-2xl bg-white px-4 shadow-[0_4px_16px_rgba(15,23,42,0.06)]">
+                <p className="admin-detail-card-header border-b border-slate-100 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
                     Staff Info
                 </p>
-                <div className="divide-y divide-slate-50">
+                <div className="admin-detail-card-body">
                     <InfoRow icon={User} label="Full Name" value={staff.full_name} />
                     <InfoRow icon={ShieldCheck} label="Role" value={formatRoleLabel(staff.role)} />
                     <InfoRow icon={Phone} label="Phone" value={staff.phone || '—'} href={staff.phone ? `tel:${staff.phone}` : undefined} />

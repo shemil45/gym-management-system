@@ -9,6 +9,7 @@ import { createStaff } from '@/app/admin/staff/actions'
 import { STAFF_ROLES, formatRoleLabel, type StaffRole } from '@/lib/auth/roles'
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
 import { Button } from '@/components/ui/button'
+import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -21,6 +22,7 @@ import {
 
 export default function AddStaffForm() {
     const router = useRouter()
+    const { isDark } = useAdminTheme()
     const fileInputRef = useRef<HTMLInputElement>(null)
     const cameraInputRef = useRef<HTMLInputElement>(null)
     const [loading, setLoading] = useState(false)
@@ -29,6 +31,7 @@ export default function AddStaffForm() {
     const [confirmPassword, setConfirmPassword] = useState('')
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
     const [photoError, setPhotoError] = useState<string | null>(null)
+    const labelClassName = isDark ? 'text-gray-200' : 'text-gray-700'
 
     const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0]
@@ -95,7 +98,7 @@ export default function AddStaffForm() {
             <form onSubmit={handleSubmit} autoComplete="off">
                 <div className="space-y-6 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_14px_32px_rgba(15,23,42,0.07)] sm:p-6">
                     <div>
-                        <Label className="mb-3 block">Profile Photo</Label>
+                        <Label className={`mb-3 block ${labelClassName}`}>Profile Photo</Label>
                         <div className="flex items-center gap-4">
                             <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-slate-300 bg-slate-100">
                                 {photoPreview ? (
@@ -149,7 +152,7 @@ export default function AddStaffForm() {
 
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div className="space-y-1.5 md:col-span-2">
-                            <Label htmlFor="full_name">Full Name</Label>
+                            <Label htmlFor="full_name" className={labelClassName}>Full Name</Label>
                             <Input
                                 id="full_name"
                                 name="full_name"
@@ -161,7 +164,7 @@ export default function AddStaffForm() {
                         </div>
 
                         <div className="space-y-1.5">
-                            <Label htmlFor="phone">Phone</Label>
+                            <Label htmlFor="phone" className={labelClassName}>Phone</Label>
                             <Input
                                 id="phone"
                                 name="phone"
@@ -173,7 +176,7 @@ export default function AddStaffForm() {
                         </div>
 
                         <div className="space-y-1.5">
-                            <Label htmlFor="role">Role</Label>
+                            <Label htmlFor="role" className={labelClassName}>Role</Label>
                             <Select value={role} onValueChange={(value) => setRole(value as StaffRole)} disabled={loading}>
                                 <SelectTrigger id="role" className="h-11 rounded-xl border-slate-300">
                                     <SelectValue placeholder="Select role" />
@@ -189,7 +192,7 @@ export default function AddStaffForm() {
                         </div>
 
                         <div className="space-y-1.5">
-                            <Label htmlFor="email">Email</Label>
+                            <Label htmlFor="email" className={labelClassName}>Email</Label>
                             <Input
                                 id="email"
                                 name="email"
@@ -203,7 +206,7 @@ export default function AddStaffForm() {
                         </div>
 
                         <div className="space-y-1.5">
-                            <Label htmlFor="password">Password</Label>
+                            <Label htmlFor="password" className={labelClassName}>Password</Label>
                             <Input
                                 id="password"
                                 name="password"

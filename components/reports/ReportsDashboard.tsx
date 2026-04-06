@@ -31,6 +31,7 @@ import {
     Globe,
     Wallet,
 } from 'lucide-react'
+import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { formatCurrency } from '@/lib/utils/currency'
 import { formatDate } from '@/lib/utils/date'
 
@@ -150,6 +151,7 @@ function KPICard({ label, value, sub, color = 'blue' }: { label: string; value: 
 // ─── Tab 1: Membership ────────────────────────────────────────────────────────
 
 function MembershipReport({ members }: { members: MemberRow[] }) {
+    const { isDark } = useAdminTheme()
     const statusCounts = useMemo(() => {
         const counts: Record<string, number> = {}
         members.forEach((m) => {
@@ -208,7 +210,7 @@ function MembershipReport({ members }: { members: MemberRow[] }) {
                     <SectionHeader icon={<TrendingUp className="h-4 w-4 text-blue-600" />} title="New Members" sub="Last 12 months" />
                     <ResponsiveContainer width="100%" height={220}>
                         <BarChart data={newByMonth} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                            <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#2a2a2a' : '#f0f0f0'} vertical={false} />
                             <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
                             <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} tickLine={false} axisLine={false} allowDecimals={false} width={28} />
                             <Tooltip content={<CustomTooltip />} />
@@ -270,6 +272,7 @@ function MembershipReport({ members }: { members: MemberRow[] }) {
 // ─── Tab 2: Attendance ────────────────────────────────────────────────────────
 
 function AttendanceReport({ checkIns, members }: { checkIns: CheckInRow[]; members: MemberRow[] }) {
+    const { isDark } = useAdminTheme()
     // Daily check-ins last 30 days
     const dailyData = useMemo(() => {
         const days: { date: string; label: string }[] = []
@@ -329,7 +332,7 @@ function AttendanceReport({ checkIns, members }: { checkIns: CheckInRow[]; membe
                 <SectionHeader icon={<UserCheck className="h-4 w-4 text-emerald-600" />} title="Daily Check-ins" sub="Last 30 days" />
                 <ResponsiveContainer width="100%" height={200}>
                     <LineChart data={dailyData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                        <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#2a2a2a' : '#f0f0f0'} vertical={false} />
                         <XAxis dataKey="day" tick={{ fontSize: 9, fill: '#9ca3af' }} tickLine={false} axisLine={false} interval={4} />
                         <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} tickLine={false} axisLine={false} allowDecimals={false} width={24} />
                         <Tooltip content={<CustomTooltip />} />
@@ -344,7 +347,7 @@ function AttendanceReport({ checkIns, members }: { checkIns: CheckInRow[]; membe
                     <SectionHeader icon={<Clock className="h-4 w-4 text-amber-500" />} title="Peak Hours" sub="All time" />
                     <ResponsiveContainer width="100%" height={180}>
                         <BarChart data={hourlyData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                            <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#2a2a2a' : '#f0f0f0'} vertical={false} />
                             <XAxis dataKey="hour" tick={{ fontSize: 9, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
                             <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} tickLine={false} axisLine={false} allowDecimals={false} width={24} />
                             <Tooltip content={<CustomTooltip />} />
@@ -485,6 +488,7 @@ function RenewalsReport({ members }: { members: MemberRow[] }) {
 // ─── Tab 4: Payments ─────────────────────────────────────────────────────────
 
 function PaymentsReport({ payments }: { payments: PaymentRow[] }) {
+    const { isDark } = useAdminTheme()
     const paidPayments = payments.filter((p) => p.payment_status === 'paid')
     const pendingPayments = payments.filter((p) => p.payment_status === 'pending')
     const totalRevenue = paidPayments.reduce((s, p) => s + Number(p.amount), 0)
@@ -541,7 +545,7 @@ function PaymentsReport({ payments }: { payments: PaymentRow[] }) {
                     <SectionHeader icon={<TrendingUp className="h-4 w-4 text-emerald-600" />} title="Monthly Revenue" sub="Last 12 months" />
                     <ResponsiveContainer width="100%" height={200}>
                         <BarChart data={monthlyRevenue} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                            <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#2a2a2a' : '#f0f0f0'} vertical={false} />
                             <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
                             <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} width={44} />
                             <Tooltip content={<CustomTooltip />} />

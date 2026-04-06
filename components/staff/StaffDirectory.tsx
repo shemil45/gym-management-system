@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { formatRoleLabel } from '@/lib/auth/roles'
 import { Loader2, Plus, Phone } from 'lucide-react'
 
@@ -32,6 +33,7 @@ function getRoleBadgeClass(role: string) {
 
 export default function StaffDirectory({ staff }: { staff: StaffMember[] }) {
     const router = useRouter()
+    const { isDark } = useAdminTheme()
     const [navigatingStaffId, setNavigatingStaffId] = useState<string | null>(null)
 
     const handleViewStaff = (id: string) => {
@@ -47,9 +49,6 @@ export default function StaffDirectory({ staff }: { staff: StaffMember[] }) {
             <div className="flex items-center justify-between gap-3">
                 <div>
                     <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Staff</h1>
-                    <p className="mt-1 text-sm text-slate-500">
-                        Everyone in `profiles` except members.
-                    </p>
                 </div>
 
                 <Button
@@ -58,13 +57,13 @@ export default function StaffDirectory({ staff }: { staff: StaffMember[] }) {
                 >
                     <Link href="/admin/staff/add">
                         <Plus className="h-5 w-5" />
-                        <span className="ml-1 hidden sm:inline">+ Add Staff</span>
+                        <span className="ml-1 hidden sm:inline">Add Staff</span>
                     </Link>
                 </Button>
             </div>
 
             <div className="overflow-hidden rounded-[1.75rem] bg-white shadow-[0_14px_32px_rgba(15,23,42,0.07)] ring-1 ring-slate-100">
-                <div className="divide-y divide-slate-100 lg:hidden">
+                <div className="lg:hidden">
                     {staff.length === 0 ? (
                         <div className="px-4 py-16 text-center text-sm text-slate-400">No staff found</div>
                     ) : (
@@ -80,12 +79,22 @@ export default function StaffDirectory({ staff }: { staff: StaffMember[] }) {
                                 <div
                                     key={member.id}
                                     onClick={() => handleViewStaff(member.id)}
-                                    className={`relative cursor-pointer px-4 py-4 transition-colors ${
-                                        navigatingStaffId === member.id ? 'bg-blue-50/60' : 'hover:bg-slate-50'
+                                    className={`relative cursor-pointer border-t px-4 py-4 transition-colors first:border-t-0 ${
+                                        isDark ? 'border-[#2a2a2a]' : 'border-slate-100'
+                                    } ${
+                                        navigatingStaffId === member.id
+                                            ? isDark
+                                                ? 'bg-[#1f2937]'
+                                                : 'bg-blue-50/60'
+                                            : isDark
+                                                ? 'hover:bg-[#1f2937]/80'
+                                                : 'hover:bg-slate-50'
                                     }`}
                                 >
                                     {navigatingStaffId === member.id ? (
-                                        <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70">
+                                        <div className={`absolute inset-0 z-10 flex items-center justify-center ${
+                                            isDark ? 'bg-[#111111]/72' : 'bg-white/70'
+                                        }`}>
                                             <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
                                         </div>
                                     ) : null}

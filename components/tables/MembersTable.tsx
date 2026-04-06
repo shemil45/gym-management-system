@@ -656,7 +656,9 @@ export default function MembersTable({ members, plans, initialFilters }: Members
                                 >
                                     {/* Loading overlay for mobile card */}
                                     {isNavigating && (
-                                        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-white/70">
+                                        <div className={`absolute inset-0 z-10 flex items-center justify-center rounded-lg ${
+                                            isDark ? 'bg-[#111111]/72' : 'bg-white/70'
+                                        }`}>
                                             <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
                                         </div>
                                     )}

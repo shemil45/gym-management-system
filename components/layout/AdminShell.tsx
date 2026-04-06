@@ -32,7 +32,10 @@ export default function AdminShell({ children, user }: AdminShellProps) {
         }`}
       >
         <AdminHeader user={user} />
-        <main className="flex-1 overflow-y-auto px-4 pb-24 pt-4 sm:px-6 sm:pb-8 sm:pt-6">
+        <main
+          className="flex-1 overflow-y-auto px-4 pb-24 pt-4 [&::-webkit-scrollbar]:hidden sm:px-6 sm:pb-8 sm:pt-6"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
           {children}
         </main>
       </div>

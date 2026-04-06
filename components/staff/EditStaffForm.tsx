@@ -10,6 +10,7 @@ import { updateStaff } from '@/app/admin/staff/actions'
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
 import { Button } from '@/components/ui/button'
 import LoadingLinkButton from '@/components/ui/loading-link-button'
+import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -32,6 +33,7 @@ interface EditStaffFormProps {
 
 export default function EditStaffForm({ staff }: EditStaffFormProps) {
     const router = useRouter()
+    const { isDark } = useAdminTheme()
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [loading, setLoading] = useState(false)
     const [role, setRole] = useState<StaffRole>(staff.role)
@@ -44,6 +46,7 @@ export default function EditStaffForm({ staff }: EditStaffFormProps) {
         .join('')
         .toUpperCase()
         .slice(0, 2)
+    const labelClassName = isDark ? 'text-gray-200' : 'text-gray-700'
 
     const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0]
@@ -95,7 +98,7 @@ export default function EditStaffForm({ staff }: EditStaffFormProps) {
         <form action={handleSubmit} className="space-y-6">
             <div className="space-y-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
                 <div className="space-y-3">
-                    <Label className="block">Profile Photo</Label>
+                    <Label className={`block ${labelClassName}`}>Profile Photo</Label>
                     <div className="flex items-center gap-4">
                         <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-gray-300 bg-gray-100">
                             {photoPreview ? (
@@ -127,15 +130,15 @@ export default function EditStaffForm({ staff }: EditStaffFormProps) {
 
                 <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
                     <div className="space-y-1.5 md:col-span-2">
-                        <Label htmlFor="full_name">Full Name</Label>
+                        <Label htmlFor="full_name" className={labelClassName}>Full Name</Label>
                         <Input id="full_name" name="full_name" defaultValue={staff.full_name} required disabled={loading} />
                     </div>
                     <div className="space-y-1.5">
-                        <Label htmlFor="phone">Phone</Label>
+                        <Label htmlFor="phone" className={labelClassName}>Phone</Label>
                         <Input id="phone" name="phone" defaultValue={staff.phone || ''} required disabled={loading} />
                     </div>
                     <div className="space-y-1.5">
-                        <Label>Role</Label>
+                        <Label className={labelClassName}>Role</Label>
                         <Select value={role} onValueChange={(value) => setRole(value as StaffRole)} disabled={loading}>
                             <SelectTrigger>
                                 <SelectValue />
