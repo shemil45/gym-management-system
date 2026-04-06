@@ -25,7 +25,7 @@ export default function HomePage() {
 
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20 text-center">
-        <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+        <h1 className="text-5xl md:text-6xl font-bold mb-2 leading-[1.35] pb-1 bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
           Manage Your Gym with Ease
         </h1>
         <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
