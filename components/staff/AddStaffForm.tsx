@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { createStaff } from '@/app/admin/staff/actions'
 import { STAFF_ROLES, formatRoleLabel, type StaffRole } from '@/lib/auth/roles'
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
+import { createImagePreviewUrl, removeUploadedAvatar, uploadCompressedAvatar } from '@/lib/utils/client-image-upload'
 import { Button } from '@/components/ui/button'
 import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { Input } from '@/components/ui/input'
@@ -30,8 +31,15 @@ export default function AddStaffForm() {
     const [password, setPassword] = useState('')
     const [confirmPassword, setConfirmPassword] = useState('')
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+    const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
     const [photoError, setPhotoError] = useState<string | null>(null)
+    const [loadingMessage, setLoadingMessage] = useState('')
     const labelClassName = isDark ? 'text-gray-200' : 'text-gray-700'
+
+    const waitForNextPaint = () =>
+        new Promise<void>((resolve) => {
+            requestAnimationFrame(() => resolve())
+        })
 
     const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0]
@@ -41,15 +49,22 @@ export default function AddStaffForm() {
             const message = `Photo must be under ${MAX_UPLOAD_SIZE_LABEL}.`
             setPhotoError(message)
             setPhotoPreview(null)
+            setSelectedPhoto(null)
             event.target.value = ''
             toast.error(message)
             return
         }
 
         setPhotoError(null)
-        const reader = new FileReader()
-        reader.onload = () => setPhotoPreview(reader.result as string)
-        reader.readAsDataURL(file)
+        setSelectedPhoto(file)
+        void createImagePreviewUrl(file)
+            .then((previewUrl) => setPhotoPreview(previewUrl))
+            .catch(() => {
+                setSelectedPhoto(null)
+                setPhotoPreview(null)
+                setPhotoError('Failed to preview the selected image.')
+                toast.error('Failed to preview the selected image.')
+            })
     }
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -65,24 +80,46 @@ export default function AddStaffForm() {
         }
 
         setLoading(true)
+        setLoadingMessage('Creating Staff...')
+        await waitForNextPaint()
+        let uploadedPhotoPath: string | null = null
         try {
             const formData = new FormData(event.currentTarget)
+            formData.delete('photo')
             formData.set('role', role)
+
+            if (selectedPhoto) {
+                const uploadedPhoto = await uploadCompressedAvatar(selectedPhoto, 'staff', {
+                    onStatusChange: setLoadingMessage,
+                })
+                uploadedPhotoPath = uploadedPhoto.path
+                formData.set('photo_url', uploadedPhoto.publicUrl)
+                formData.set('photo_path', uploadedPhoto.path)
+                setLoadingMessage('Creating Staff...')
+            }
 
             const result = await createStaff(formData)
 
             if (result.error) {
+                if (uploadedPhotoPath) {
+                    await removeUploadedAvatar(uploadedPhotoPath)
+                }
                 toast.error(result.error)
                 setLoading(false)
+                setLoadingMessage('')
                 return
             }
 
             toast.success('Staff account created successfully.')
             router.push('/admin/staff')
             router.refresh()
-        } catch {
-            toast.error(UPLOAD_FAILURE_MESSAGE)
+        } catch (error) {
+            if (uploadedPhotoPath) {
+                await removeUploadedAvatar(uploadedPhotoPath)
+            }
+            toast.error(error instanceof Error ? error.message : UPLOAD_FAILURE_MESSAGE)
             setLoading(false)
+            setLoadingMessage('')
         }
     }
 
@@ -267,10 +304,10 @@ export default function AddStaffForm() {
                         </Button>
                         <Button
                             type="submit"
-                            className="h-11 rounded-2xl px-6 bg-blue-600 text-white hover:bg-blue-700"
+                            className="h-11 rounded-2xl px-6 bg-blue-600 text-white font-semibold shadow-sm hover:bg-blue-700"
                             disabled={loading}
                         >
-                            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             {loading ? 'Creating Staff...' : 'Create Staff'}
                         </Button>
                     </div>
