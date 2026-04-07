@@ -14,7 +14,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Bell, ChevronDown, LogOut, Menu, Moon, Search, Settings2, Sun, User } from 'lucide-react'
+import { Bell, ChevronDown, LogOut, Menu, Moon, Search, Settings, Sun, User } from 'lucide-react'
 import { useSidebar } from '@/components/layout/SidebarContext'
 import { formatRoleLabel } from '@/lib/auth/roles'
 
@@ -49,7 +49,7 @@ export default function AdminHeader({ user }: AdminHeaderProps) {
     return (
         <header className={`sticky top-0 z-40 ${isDark ? 'border-b border-[#2a2a2a]' : 'border-b border-blue-500/30'}`}>
             <div
-                className="flex h-16 items-center justify-between px-4 text-white lg:hidden"
+                className="relative flex h-16 items-center justify-between px-4 text-white lg:hidden"
                 style={{ background: headerSurface }}
             >
                 <button
@@ -64,9 +64,13 @@ export default function AdminHeader({ user }: AdminHeaderProps) {
                     <Menu className="h-5 w-5" />
                 </button>
 
-                <div className="min-w-0 px-3 text-center">
+                <Link
+                    href="/admin/dashboard"
+                    className="absolute left-1/2 max-w-[calc(100%-7rem)] -translate-x-1/2 px-3 text-center"
+                    aria-label="Go to dashboard"
+                >
                     <p className="truncate text-lg font-semibold tracking-tight">FitGymSoftware</p>
-                </div>
+                </Link>
 
                 <div className="flex items-center gap-2">
                     <Button
@@ -95,7 +99,7 @@ export default function AdminHeader({ user }: AdminHeaderProps) {
                         }`}
                     >
                         <Link href="/admin/settings" aria-label="Open settings">
-                            <Settings2 className="h-5 w-5" />
+                            <Settings className="h-5 w-5" />
                         </Link>
                     </Button>
                 </div>
