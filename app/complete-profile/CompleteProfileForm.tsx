@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Loader2, Upload, ImageIcon, Camera, Gift, CheckCircle, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import type { UpdateTables } from '@/lib/types'
 import { completeMemberProfile } from './actions'
 
 const MAX_SOURCE_FILE_BYTES = 5 * 1024 * 1024
@@ -243,7 +244,7 @@ export default function CompleteProfileForm() {
 
         const { error: profileError } = await supabase
             .from('profiles')
-            .update({ photo_url: publicUrl })
+            .update(({ photo_url: publicUrl } satisfies UpdateTables<'profiles'>) as never)
             .eq('id', user.id)
 
         if (profileError) {
