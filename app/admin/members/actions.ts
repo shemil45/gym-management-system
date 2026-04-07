@@ -52,6 +52,10 @@ export async function generateNextMemberId(): Promise<string> {
 
 export async function createMember(formData: FormData) {
     const supabase = await createClient()
+    const supabaseAdmin = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
 
     try {
         // Generate member ID
@@ -93,6 +97,8 @@ export async function createMember(formData: FormData) {
         }
 
         // Create member
+        const photoUrl = (formData.get('photo_url') as string | null)?.trim() || null
+        const uploadedPhotoPath = (formData.get('photo_path') as string | null)?.trim() || null
         const memberPayload: InsertTables<'members'> = {
             member_id: memberId,
             full_name: formData.get('full_name') as string,
@@ -108,6 +114,7 @@ export async function createMember(formData: FormData) {
             membership_expiry_date: expiryDate.toISOString().split('T')[0],
             status: 'active',
             referred_by: referrerId,
+            photo_url: photoUrl,
         }
 
         const memberInsertResult = await supabase
@@ -119,9 +126,15 @@ export async function createMember(formData: FormData) {
         const { data: member, error: memberError } = memberInsertResult as unknown as QueryResult<CreatedMember | null>
 
         if (memberError) {
+            if (uploadedPhotoPath) {
+                await supabaseAdmin.storage.from('avatars').remove([uploadedPhotoPath])
+            }
             return { error: getErrorMessage(memberError, 'Failed to create member') }
         }
         if (!member) {
+            if (uploadedPhotoPath) {
+                await supabaseAdmin.storage.from('avatars').remove([uploadedPhotoPath])
+            }
             return { error: 'Member record was not returned after creation' }
         }
 
@@ -198,10 +211,12 @@ export async function updateMember(formData: FormData) {
         }
 
         const existingPhotoUrl = (formData.get('existing_photo_url') as string) || null
-        let photoUrl = existingPhotoUrl
-        let uploadedPhotoPath: string | null = null
+        const uploadedPhotoUrl = (formData.get('photo_url') as string | null)?.trim() || null
+        const uploadedPhotoPath = (formData.get('photo_path') as string | null)?.trim() || null
+        let photoUrl = uploadedPhotoUrl || existingPhotoUrl
+        let finalUploadedPhotoPath: string | null = uploadedPhotoPath
         const photoFile = formData.get('photo') as File | null
-        if (photoFile && photoFile.size > 0) {
+        if (!uploadedPhotoUrl && photoFile && photoFile.size > 0) {
             if (photoFile.size > MAX_UPLOAD_SIZE_BYTES) {
                 return { error: `Photo must be under ${MAX_UPLOAD_SIZE_LABEL}.` }
             }
@@ -217,7 +232,7 @@ export async function updateMember(formData: FormData) {
                 return { error: getErrorMessage(uploadError, UPLOAD_FAILURE_MESSAGE) }
             }
 
-            uploadedPhotoPath = fileName
+            finalUploadedPhotoPath = fileName
 
             const { data: { publicUrl } } = supabaseAdmin.storage
                 .from('avatars')
@@ -238,7 +253,6 @@ export async function updateMember(formData: FormData) {
             membership_plan_id: planId,
             membership_start_date: startDateValue,
             membership_expiry_date: membershipExpiryDate,
-            status: (formData.get('status') as string) as UpdateTables<'members'>['status'],
             photo_url: photoUrl,
         }
 
@@ -248,14 +262,14 @@ export async function updateMember(formData: FormData) {
             .eq('id', memberId)
 
         if (error) {
-            if (uploadedPhotoPath) {
-                await supabaseAdmin.storage.from('avatars').remove([uploadedPhotoPath])
+            if (finalUploadedPhotoPath) {
+                await supabaseAdmin.storage.from('avatars').remove([finalUploadedPhotoPath])
             }
             return { error: getErrorMessage(error, 'Failed to update member') }
         }
 
-        const oldPhotoPath = uploadedPhotoPath ? getAvatarStoragePath(existingPhotoUrl) : null
-        if (uploadedPhotoPath && oldPhotoPath && oldPhotoPath !== uploadedPhotoPath) {
+        const oldPhotoPath = finalUploadedPhotoPath ? getAvatarStoragePath(existingPhotoUrl) : null
+        if (finalUploadedPhotoPath && oldPhotoPath && oldPhotoPath !== finalUploadedPhotoPath) {
             await supabaseAdmin.storage.from('avatars').remove([oldPhotoPath])
         }
 

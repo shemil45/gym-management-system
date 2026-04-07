@@ -59,10 +59,10 @@ export async function completeMemberProfile(formData: FormData) {
         }
 
         // Handle Photo Upload if present
-        let photoUrl: string | null = null
+        let photoUrl: string | null = (formData.get('photo_url') as string | null)?.trim() || null
         let uploadedPhotoPath: string | null = null
         const photoFile = formData.get('photo') as File | null
-        if (photoFile && photoFile.size > 0) {
+        if (!photoUrl && photoFile && photoFile.size > 0) {
             const fileExt = photoFile.name.split('.').pop()
             const fileName = `${user.id}-${Date.now()}.${fileExt}`
 

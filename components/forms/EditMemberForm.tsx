@@ -7,6 +7,7 @@ import { Loader2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateMember } from '@/app/admin/members/actions'
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
+import { createImagePreviewUrl, removeUploadedAvatar, uploadCompressedAvatar } from '@/lib/utils/client-image-upload'
 import { Button } from '@/components/ui/button'
 import LoadingLinkButton from '@/components/ui/loading-link-button'
 import { useAdminTheme } from '@/components/layout/AdminThemeContext'
@@ -44,11 +45,12 @@ export default function EditMemberForm({ member, plans }: EditMemberFormProps) {
     const { isDark } = useAdminTheme()
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [loading, setLoading] = useState(false)
-    const [status, setStatus] = useState(member.status)
     const [gender, setGender] = useState(member.gender || '')
     const [selectedPlan, setSelectedPlan] = useState(member.membership_plan_id || 'none')
     const [photoPreview, setPhotoPreview] = useState(member.photo_url)
+    const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
     const [photoError, setPhotoError] = useState<string | null>(null)
+    const [loadingMessage, setLoadingMessage] = useState('')
 
     const initials = member.full_name
         .split(' ')
@@ -65,15 +67,21 @@ export default function EditMemberForm({ member, plans }: EditMemberFormProps) {
         if (file.size > MAX_UPLOAD_SIZE_BYTES) {
             const message = `Photo must be under ${MAX_UPLOAD_SIZE_LABEL}.`
             setPhotoError(message)
+            setSelectedPhoto(null)
             e.target.value = ''
             toast.error(message)
             return
         }
 
         setPhotoError(null)
-        const reader = new FileReader()
-        reader.onload = () => setPhotoPreview(reader.result as string)
-        reader.readAsDataURL(file)
+        setSelectedPhoto(file)
+        void createImagePreviewUrl(file)
+            .then((previewUrl) => setPhotoPreview(previewUrl))
+            .catch(() => {
+                setSelectedPhoto(null)
+                setPhotoError('Failed to preview the selected image.')
+                toast.error('Failed to preview the selected image.')
+            })
     }
 
     const handleSubmit = async (formData: FormData) => {
@@ -83,26 +91,46 @@ export default function EditMemberForm({ member, plans }: EditMemberFormProps) {
         }
 
         setLoading(true)
+        setLoadingMessage('Saving Changes...')
+        let uploadedPhotoPath: string | null = null
         try {
+            formData.delete('photo')
             formData.set('id', member.id)
-            formData.set('status', status)
             formData.set('gender', gender)
             formData.set('membership_plan_id', selectedPlan === 'none' ? '' : selectedPlan)
             formData.set('existing_photo_url', member.photo_url || '')
 
+            if (selectedPhoto) {
+                const uploadedPhoto = await uploadCompressedAvatar(selectedPhoto, `member-${member.id}`, {
+                    onStatusChange: setLoadingMessage,
+                })
+                uploadedPhotoPath = uploadedPhoto.path
+                formData.set('photo_url', uploadedPhoto.publicUrl)
+                formData.set('photo_path', uploadedPhoto.path)
+                setLoadingMessage('Saving Changes...')
+            }
+
             const result = await updateMember(formData)
 
             if (result.error) {
+                if (uploadedPhotoPath) {
+                    await removeUploadedAvatar(uploadedPhotoPath)
+                }
                 toast.error(result.error)
                 setLoading(false)
+                setLoadingMessage('')
                 return
             }
 
             toast.success('Member updated successfully')
             router.push(`/admin/members/${member.id}`)
-        } catch {
-            toast.error(UPLOAD_FAILURE_MESSAGE)
+        } catch (error) {
+            if (uploadedPhotoPath) {
+                await removeUploadedAvatar(uploadedPhotoPath)
+            }
+            toast.error(error instanceof Error ? error.message : UPLOAD_FAILURE_MESSAGE)
             setLoading(false)
+            setLoadingMessage('')
         }
     }
 
@@ -181,17 +209,12 @@ export default function EditMemberForm({ member, plans }: EditMemberFormProps) {
                     </div>
                     <div className="space-y-1.5">
                         <Label className={labelClassName}>Status</Label>
-                        <Select value={status} onValueChange={setStatus} disabled={loading}>
-                            <SelectTrigger>
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="active">Active</SelectItem>
-                                <SelectItem value="inactive">Inactive</SelectItem>
-                                <SelectItem value="frozen">Frozen</SelectItem>
-                                <SelectItem value="expired">Expired</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                            <span className="font-medium capitalize">{member.status}</span>
+                            <p className="mt-1 text-xs text-gray-500">
+                                Status updates automatically from the membership expiry date.
+                            </p>
+                        </div>
                     </div>
                     <div className="space-y-1.5 md:col-span-2">
                         <Label htmlFor="address" className={labelClassName}>Address</Label>
@@ -255,7 +278,7 @@ export default function EditMemberForm({ member, plans }: EditMemberFormProps) {
                     </LoadingLinkButton>
                     <Button type="submit" disabled={loading} className="h-11 rounded-2xl px-6 bg-blue-600 text-white hover:bg-blue-700">
                         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Save Changes
+                        {loading ? loadingMessage || 'Saving Changes...' : 'Save Changes'}
                     </Button>
                 </div>
             </div>

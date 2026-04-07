@@ -19,6 +19,7 @@ import { Loader2, Upload, ImageIcon, Camera, Gift } from 'lucide-react'
 import { toast } from 'sonner'
 import { createMember } from '@/app/admin/members/actions'
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
+import { createImagePreviewUrl, removeUploadedAvatar, uploadCompressedAvatar } from '@/lib/utils/client-image-upload'
 
 interface AddMemberFormProps {
     plans: { id: string; name: string; duration_days: number; price: number }[]
@@ -35,8 +36,10 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
     const [paymentMethod, setPaymentMethod] = useState('')
     const [gender, setGender] = useState<'male' | 'female' | 'other'>('male')
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+    const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
     const [paymentAmount, setPaymentAmount] = useState('')
     const [photoError, setPhotoError] = useState<string | null>(null)
+    const [loadingMessage, setLoadingMessage] = useState('')
 
     // Auto-fill amount when plan is chosen
     const handlePlanChange = (value: string) => {
@@ -52,14 +55,21 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
             const message = `Photo must be under ${MAX_UPLOAD_SIZE_LABEL}.`
             setPhotoError(message)
             setPhotoPreview(null)
+            setSelectedPhoto(null)
             e.target.value = ''
             toast.error(message)
             return
         }
         setPhotoError(null)
-        const reader = new FileReader()
-        reader.onload = () => setPhotoPreview(reader.result as string)
-        reader.readAsDataURL(file)
+        setSelectedPhoto(file)
+        void createImagePreviewUrl(file)
+            .then((previewUrl) => setPhotoPreview(previewUrl))
+            .catch(() => {
+                setSelectedPhoto(null)
+                setPhotoPreview(null)
+                setPhotoError('Failed to preview the selected image.')
+                toast.error('Failed to preview the selected image.')
+            })
     }
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -69,24 +79,45 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
         if (photoError) { toast.error(photoError); return }
 
         setLoading(true)
+        setLoadingMessage('Saving Member...')
+        let uploadedPhotoPath: string | null = null
         try {
             const formData = new FormData(e.currentTarget)
+            formData.delete('photo')
             formData.append('membership_plan_id', selectedPlan)
             formData.append('payment_method', paymentMethod)
             formData.append('gender', gender)
 
+            if (selectedPhoto) {
+                const uploadedPhoto = await uploadCompressedAvatar(selectedPhoto, 'member', {
+                    onStatusChange: setLoadingMessage,
+                })
+                uploadedPhotoPath = uploadedPhoto.path
+                formData.set('photo_url', uploadedPhoto.publicUrl)
+                formData.set('photo_path', uploadedPhoto.path)
+                setLoadingMessage('Saving Member...')
+            }
+
             const result = await createMember(formData)
 
             if (result.error) {
+                if (uploadedPhotoPath) {
+                    await removeUploadedAvatar(uploadedPhotoPath)
+                }
                 toast.error(result.error)
                 setLoading(false)
+                setLoadingMessage('')
             } else {
                 toast.success('Member added successfully!')
                 router.push(`/admin/members/${result.memberId}`)
             }
-        } catch {
-            toast.error(UPLOAD_FAILURE_MESSAGE)
+        } catch (error) {
+            if (uploadedPhotoPath) {
+                await removeUploadedAvatar(uploadedPhotoPath)
+            }
+            toast.error(error instanceof Error ? error.message : UPLOAD_FAILURE_MESSAGE)
             setLoading(false)
+            setLoadingMessage('')
         }
     }
 
@@ -402,7 +433,7 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
                             className="h-11 rounded-2xl px-6 bg-blue-600 text-white font-semibold shadow-sm hover:bg-blue-700"
                         >
                             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Save Member
+                            {loading ? loadingMessage || 'Saving Member...' : 'Save Member'}
                         </Button>
                     </div>
                 </div>

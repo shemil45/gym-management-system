@@ -7,7 +7,127 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Loader2, Upload, ImageIcon, Camera, Gift, CheckCircle, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
+import { createClient } from '@/lib/supabase/client'
+import type { UpdateTables } from '@/lib/types'
 import { completeMemberProfile } from './actions'
+
+const MAX_SOURCE_FILE_BYTES = 5 * 1024 * 1024
+const TARGET_IMAGE_BYTES = 300 * 1024
+const MAX_IMAGE_WIDTH = 800
+const DEFAULT_IMAGE_QUALITY = 0.7
+
+type UploadedPhoto = {
+    publicUrl: string
+    path: string
+}
+
+async function fileToDataUrl(file: File) {
+    return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = () => reject(new Error('Failed to read the selected image.'))
+        reader.readAsDataURL(file)
+    })
+}
+
+async function loadImageDimensions(file: File) {
+    const objectUrl = URL.createObjectURL(file)
+
+    try {
+        const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+            const nextImage = new window.Image()
+            nextImage.onload = () => resolve(nextImage)
+            nextImage.onerror = () => reject(new Error('Failed to load the selected image.'))
+            nextImage.src = objectUrl
+        })
+
+        return {
+            width: image.naturalWidth || image.width,
+            height: image.naturalHeight || image.height,
+            image,
+        }
+    } finally {
+        URL.revokeObjectURL(objectUrl)
+    }
+}
+
+async function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number) {
+    return await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(resolve, type, quality)
+    })
+}
+
+async function compressProfilePhoto(file: File) {
+    const { image, width: originalWidth, height: originalHeight } = await loadImageDimensions(file)
+
+    let currentWidth = Math.min(originalWidth, MAX_IMAGE_WIDTH)
+    let currentHeight = Math.round((originalHeight / originalWidth) * currentWidth)
+    const canvas = document.createElement('canvas')
+    const context = canvas.getContext('2d')
+
+    if (!context) {
+        throw new Error('Image compression is not supported in this browser.')
+    }
+
+    let bestBlob: Blob | null = null
+    let bestType = 'image/webp'
+    const mimeTypeAttempts = ['image/webp', 'image/jpeg']
+    const qualityAttempts = [DEFAULT_IMAGE_QUALITY, 0.65, 0.55, 0.45]
+
+    for (let resizeStep = 0; resizeStep < 4; resizeStep += 1) {
+        canvas.width = currentWidth
+        canvas.height = currentHeight
+        context.clearRect(0, 0, currentWidth, currentHeight)
+        context.drawImage(image, 0, 0, currentWidth, currentHeight)
+
+        for (const mimeType of mimeTypeAttempts) {
+            for (const quality of qualityAttempts) {
+                const blob = await canvasToBlob(canvas, mimeType, quality)
+
+                if (!blob) {
+                    continue
+                }
+
+                if (!bestBlob || blob.size < bestBlob.size) {
+                    bestBlob = blob
+                    bestType = mimeType
+                }
+
+                if (blob.size <= TARGET_IMAGE_BYTES) {
+                    const extension = mimeType === 'image/webp' ? 'webp' : 'jpg'
+                    const fileName = file.name.replace(/\.[^.]+$/, '') || 'profile-photo'
+                    return new File([blob], `${fileName}.${extension}`, {
+                        type: mimeType,
+                        lastModified: Date.now(),
+                    })
+                }
+            }
+        }
+
+        if (currentWidth <= 320) {
+            break
+        }
+
+        currentWidth = Math.max(320, Math.round(currentWidth * 0.85))
+        currentHeight = Math.max(1, Math.round((originalHeight / originalWidth) * currentWidth))
+    }
+
+    if (!bestBlob) {
+        throw new Error('Failed to compress the selected image.')
+    }
+
+    if (bestBlob.size > TARGET_IMAGE_BYTES) {
+        throw new Error('Unable to compress this image under 300KB. Please choose a smaller photo.')
+    }
+
+    const extension = bestType === 'image/webp' ? 'webp' : 'jpg'
+    const fileName = file.name.replace(/\.[^.]+$/, '') || 'profile-photo'
+
+    return new File([bestBlob], `${fileName}.${extension}`, {
+        type: bestType,
+        lastModified: Date.now(),
+    })
+}
 
 export default function CompleteProfileForm() {
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -16,6 +136,10 @@ export default function CompleteProfileForm() {
     const [loading, setLoading] = useState(false)
     const [gender, setGender] = useState<'male' | 'female' | 'other' | ''>('')
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+    const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
+    const [uploadedPhoto, setUploadedPhoto] = useState<UploadedPhoto | null>(null)
+    const [photoError, setPhotoError] = useState('')
+    const [loadingMessage, setLoadingMessage] = useState('')
     const [referralCode, setReferralCode] = useState('')
     const [referralStatus, setReferralStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle')
     const [referrerName, setReferrerName] = useState<string | null>(null)
@@ -54,13 +178,85 @@ export default function CompleteProfileForm() {
     const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
-        if (file.size > 5 * 1024 * 1024) {
-            toast.error('Photo must be under 5MB')
+        if (file.size > MAX_SOURCE_FILE_BYTES) {
+            const message = 'Photo must be under 5MB before compression.'
+            setPhotoError(message)
+            setSelectedPhoto(null)
+            setUploadedPhoto(null)
+            setPhotoPreview(null)
+            e.target.value = ''
+            toast.error(message)
             return
         }
-        const reader = new FileReader()
-        reader.onload = () => setPhotoPreview(reader.result as string)
-        reader.readAsDataURL(file)
+        setPhotoError('')
+        setSelectedPhoto(file)
+        setUploadedPhoto(null)
+        void fileToDataUrl(file)
+            .then((dataUrl) => setPhotoPreview(dataUrl))
+            .catch(() => {
+                setPhotoPreview(null)
+                setSelectedPhoto(null)
+                setPhotoError('Failed to preview the selected image.')
+                toast.error('Failed to preview the selected image.')
+            })
+    }
+
+    const uploadPhotoIfNeeded = async () => {
+        if (!selectedPhoto) {
+            return uploadedPhoto
+        }
+
+        const supabase = createClient()
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+        if (userError || !user) {
+            throw new Error('Your session expired. Please sign in again.')
+        }
+
+        setLoadingMessage('Compressing photo...')
+        let compressedPhoto: File
+
+        try {
+            compressedPhoto = await compressProfilePhoto(selectedPhoto)
+        } catch {
+            throw new Error('Photo compression failed. Please try a different image.')
+        }
+
+        const extension = compressedPhoto.type === 'image/webp' ? 'webp' : 'jpg'
+        const filePath = `${user.id}/${Date.now()}.${extension}`
+
+        setLoadingMessage('Uploading photo...')
+        const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(filePath, compressedPhoto, {
+                cacheControl: '3600',
+                upsert: true,
+                contentType: compressedPhoto.type,
+            })
+
+        if (uploadError) {
+            throw new Error(uploadError.message || 'Failed to upload the compressed photo.')
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(filePath)
+
+        const { error: profileError } = await supabase
+            .from('profiles')
+            .update(({ photo_url: publicUrl } satisfies UpdateTables<'profiles'>) as never)
+            .eq('id', user.id)
+
+        if (profileError) {
+            await supabase.storage.from('avatars').remove([filePath])
+            throw new Error(profileError.message || 'Failed to save the uploaded photo to your profile.')
+        }
+
+        setUploadedPhoto({ publicUrl, path: filePath })
+        setSelectedPhoto(null)
+        setPhotoPreview(publicUrl)
+
+        return { publicUrl, path: filePath }
     }
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -75,21 +271,41 @@ export default function CompleteProfileForm() {
         }
 
         setLoading(true)
-        const formData = new FormData(e.currentTarget)
-        formData.append('gender', gender)
-        if (referralCode && referralStatus === 'valid') {
-            formData.append('referral_code', referralCode)
-        }
+        setLoadingMessage('Saving profile...')
 
-        const result = await completeMemberProfile(formData)
+        try {
+            let photo = uploadedPhoto
+            if (selectedPhoto) {
+                photo = await uploadPhotoIfNeeded()
+            }
 
-        if (result?.error) {
-            toast.error(result.error)
+            const formData = new FormData(e.currentTarget)
+            formData.delete('photo')
+            formData.append('gender', gender)
+            if (referralCode && referralStatus === 'valid') {
+                formData.append('referral_code', referralCode)
+            }
+            if (photo?.publicUrl) {
+                formData.append('photo_url', photo.publicUrl)
+            }
+
+            const result = await completeMemberProfile(formData)
+
+            if (result?.error) {
+                toast.error(result.error)
+                setLoading(false)
+                setLoadingMessage('')
+            } else {
+                toast.success('Profile completed successfully!')
+                // Force a full reload to bypass layout caching
+                window.location.href = '/member/dashboard'
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to upload your profile photo.'
+            setPhotoError(message)
+            toast.error(message)
             setLoading(false)
-        } else {
-            toast.success('Profile completed successfully!')
-            // Force a full reload to bypass layout caching
-            window.location.href = '/member/dashboard'
+            setLoadingMessage('')
         }
     }
 
@@ -113,14 +329,16 @@ export default function CompleteProfileForm() {
                             <div className="flex items-center gap-2">
                                 <button
                                     type="button"
+                                    disabled={loading}
                                     onClick={() => fileInputRef.current?.click()}
                                     className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                                 >
-                                    <Upload className="h-3.5 w-3.5" />
+                                    {loading && loadingMessage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
                                     Upload Photo
                                 </button>
                                 <button
                                     type="button"
+                                    disabled={loading}
                                     onClick={() => cameraInputRef.current?.click()}
                                     className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                                 >
@@ -128,12 +346,14 @@ export default function CompleteProfileForm() {
                                     Capture Photo
                                 </button>
                             </div>
-                            <p className="mt-1 text-xs text-gray-400">JPG, PNG or GIF (Max. 5MB)</p>
+                            <p className="mt-1 text-xs text-gray-400">
+                                {loadingMessage || 'JPG, PNG or GIF (Max. 5MB)'}
+                            </p>
+                            {photoError ? <p className="mt-1 text-xs text-red-500">{photoError}</p> : null}
                             {/* Upload from gallery */}
                             <input
                                 ref={fileInputRef}
                                 type="file"
-                                name="photo"
                                 accept="image/*"
                                 onChange={handlePhotoChange}
                                 className="hidden"
@@ -295,7 +515,7 @@ export default function CompleteProfileForm() {
                         className="h-11 px-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm w-full sm:w-auto"
                     >
                         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Complete Profile
+                        {loadingMessage || 'Complete Profile'}
                     </Button>
                 </div>
             </div>

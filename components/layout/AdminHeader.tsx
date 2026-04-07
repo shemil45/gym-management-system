@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
+import { AnimatedThemeToggler } from '@/components/ui/animated-theme-toggler'
 import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import {
     DropdownMenu,
@@ -73,20 +74,17 @@ export default function AdminHeader({ user }: AdminHeaderProps) {
                 </Link>
 
                 <div className="flex items-center gap-2">
-                    <Button
+                    <AnimatedThemeToggler
                         type="button"
-                        variant="ghost"
-                        size="icon"
+                        isDark={isDark}
                         onClick={toggleTheme}
                         className={`h-10 w-10 rounded-full text-white hover:text-white ${
                             isDark
                                 ? 'border border-[#2a2a2a] bg-[#1c1c1c] hover:bg-[#222222]'
                                 : 'bg-white/10 hover:bg-white/20'
-                        }`}
+                        } [&_svg]:h-5 [&_svg]:w-5`}
                         aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-                    >
-                        {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-                    </Button>
+                    />
 
                     <Button
                         asChild
@@ -130,20 +128,17 @@ export default function AdminHeader({ user }: AdminHeaderProps) {
                 </div>
 
                 <div className="flex items-center gap-x-3">
-                    <Button
+                    <AnimatedThemeToggler
                         type="button"
-                        variant="ghost"
-                        size="icon"
+                        isDark={isDark}
                         onClick={toggleTheme}
                         className={`h-9 w-9 rounded-full text-white hover:text-white ${
                             isDark
                                 ? 'border border-[#2a2a2a] bg-[#1c1c1c] hover:bg-[#222222]'
                                 : 'bg-white/10 hover:bg-white/20'
-                        }`}
+                        } [&_svg]:h-4 [&_svg]:w-4`}
                         aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-                    >
-                        {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                    </Button>
+                    />
 
                     <Button
                         variant="ghost"
