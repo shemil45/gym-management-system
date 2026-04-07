@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { STAFF_ROLES, formatRoleLabel, type StaffRole } from '@/lib/auth/roles'
 import { updateStaff } from '@/app/admin/staff/actions'
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
+import { createImagePreviewUrl, removeUploadedAvatar, uploadCompressedAvatar } from '@/lib/utils/client-image-upload'
 import { resolveAvatarUrl } from '@/lib/utils/storage'
 import { Button } from '@/components/ui/button'
 import LoadingLinkButton from '@/components/ui/loading-link-button'
@@ -39,7 +40,9 @@ export default function EditStaffForm({ staff }: EditStaffFormProps) {
     const [loading, setLoading] = useState(false)
     const [role, setRole] = useState<StaffRole>(staff.role)
     const [photoPreview, setPhotoPreview] = useState<string | null>(resolveAvatarUrl(staff.photo_url) ?? null)
+    const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
     const [photoError, setPhotoError] = useState<string | null>(null)
+    const [loadingMessage, setLoadingMessage] = useState('')
 
     const initials = staff.full_name
         .split(' ')
@@ -56,15 +59,21 @@ export default function EditStaffForm({ staff }: EditStaffFormProps) {
         if (file.size > MAX_UPLOAD_SIZE_BYTES) {
             const message = `Photo must be under ${MAX_UPLOAD_SIZE_LABEL}.`
             setPhotoError(message)
+            setSelectedPhoto(null)
             event.target.value = ''
             toast.error(message)
             return
         }
 
         setPhotoError(null)
-        const reader = new FileReader()
-        reader.onload = () => setPhotoPreview(reader.result as string)
-        reader.readAsDataURL(file)
+        setSelectedPhoto(file)
+        void createImagePreviewUrl(file)
+            .then((previewUrl) => setPhotoPreview(previewUrl))
+            .catch(() => {
+                setSelectedPhoto(null)
+                setPhotoError('Failed to preview the selected image.')
+                toast.error('Failed to preview the selected image.')
+            })
     }
 
     const handleSubmit = async (formData: FormData) => {
@@ -74,24 +83,45 @@ export default function EditStaffForm({ staff }: EditStaffFormProps) {
         }
 
         setLoading(true)
+        setLoadingMessage('Saving Changes...')
+        let uploadedPhotoPath: string | null = null
         try {
+            formData.delete('photo')
             formData.set('id', staff.id)
             formData.set('role', role)
             formData.set('existing_photo_url', staff.photo_url || '')
 
+            if (selectedPhoto) {
+                const uploadedPhoto = await uploadCompressedAvatar(selectedPhoto, `staff-${staff.id}`, {
+                    onStatusChange: setLoadingMessage,
+                })
+                uploadedPhotoPath = uploadedPhoto.path
+                formData.set('photo_url', uploadedPhoto.publicUrl)
+                formData.set('photo_path', uploadedPhoto.path)
+                setLoadingMessage('Saving Changes...')
+            }
+
             const result = await updateStaff(formData)
 
             if (result.error) {
+                if (uploadedPhotoPath) {
+                    await removeUploadedAvatar(uploadedPhotoPath)
+                }
                 toast.error(result.error)
                 setLoading(false)
+                setLoadingMessage('')
                 return
             }
 
             toast.success('Staff updated successfully')
             router.push(`/admin/staff/${staff.id}`)
-        } catch {
-            toast.error(UPLOAD_FAILURE_MESSAGE)
+        } catch (error) {
+            if (uploadedPhotoPath) {
+                await removeUploadedAvatar(uploadedPhotoPath)
+            }
+            toast.error(error instanceof Error ? error.message : UPLOAD_FAILURE_MESSAGE)
             setLoading(false)
+            setLoadingMessage('')
         }
     }
 
@@ -178,7 +208,7 @@ export default function EditStaffForm({ staff }: EditStaffFormProps) {
                     </LoadingLinkButton>
                     <Button type="submit" disabled={loading} className="h-11 rounded-2xl px-6 bg-blue-600 text-white hover:bg-blue-700">
                         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Save Changes
+                        {loading ? loadingMessage || 'Saving Changes...' : 'Save Changes'}
                     </Button>
                 </div>
             </div>

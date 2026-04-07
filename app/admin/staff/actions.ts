@@ -50,6 +50,8 @@ export async function createStaff(formData: FormData) {
     const email = (formData.get('email') as string | null)?.trim().toLowerCase()
     const password = (formData.get('password') as string | null)?.trim()
     const role = formData.get('role') as StaffRole | null
+    const uploadedPhotoUrl = (formData.get('photo_url') as string | null)?.trim() || null
+    const uploadedPhotoPath = (formData.get('photo_path') as string | null)?.trim() || null
     const photoFile = formData.get('photo') as File | null
 
     if (!fullName || !phone || !email || !password || !role) {
@@ -61,8 +63,8 @@ export async function createStaff(formData: FormData) {
     }
 
     let createdUserId: string | null = null
-    let photoUrl: string | null = null
-    let uploadedPhotoPath: string | null = null
+    let photoUrl: string | null = uploadedPhotoUrl
+    let finalUploadedPhotoPath: string | null = uploadedPhotoPath
 
     try {
         const createUserResult = await admin.auth.admin.createUser({
@@ -77,7 +79,7 @@ export async function createStaff(formData: FormData) {
 
         createdUserId = createUserResult.data.user.id
 
-        if (photoFile && photoFile.size > 0) {
+        if (!photoUrl && photoFile && photoFile.size > 0) {
             if (photoFile.size > MAX_UPLOAD_SIZE_BYTES) {
                 await admin.auth.admin.deleteUser(createdUserId)
                 return { error: `Photo must be under ${MAX_UPLOAD_SIZE_LABEL}.` }
@@ -99,7 +101,7 @@ export async function createStaff(formData: FormData) {
                 .from('avatars')
                 .getPublicUrl(fileName)
 
-            uploadedPhotoPath = fileName
+            finalUploadedPhotoPath = fileName
             photoUrl = publicUrl
         }
 
@@ -117,8 +119,8 @@ export async function createStaff(formData: FormData) {
             .insert(profilePayload as never)
 
         if (insertError) {
-            if (uploadedPhotoPath) {
-                await admin.storage.from('avatars').remove([uploadedPhotoPath])
+            if (finalUploadedPhotoPath) {
+                await admin.storage.from('avatars').remove([finalUploadedPhotoPath])
             }
             await admin.auth.admin.deleteUser(createdUserId)
             return { error: getErrorMessage(insertError, 'Failed to create staff profile.') }
@@ -127,8 +129,8 @@ export async function createStaff(formData: FormData) {
         revalidatePath('/admin/staff')
         return { success: true }
     } catch (error) {
-        if (uploadedPhotoPath) {
-            await admin.storage.from('avatars').remove([uploadedPhotoPath])
+        if (finalUploadedPhotoPath) {
+            await admin.storage.from('avatars').remove([finalUploadedPhotoPath])
         }
         if (createdUserId) {
             await admin.auth.admin.deleteUser(createdUserId)
@@ -167,6 +169,8 @@ export async function updateStaff(formData: FormData) {
     const phone = (formData.get('phone') as string | null)?.trim()
     const role = formData.get('role') as StaffRole | null
     const existingPhotoUrl = (formData.get('existing_photo_url') as string | null)?.trim() || null
+    const uploadedPhotoUrl = (formData.get('photo_url') as string | null)?.trim() || null
+    const uploadedPhotoPath = (formData.get('photo_path') as string | null)?.trim() || null
     const photoFile = formData.get('photo') as File | null
 
     if (!id || !fullName || !phone || !role) {
@@ -178,10 +182,10 @@ export async function updateStaff(formData: FormData) {
     }
 
     try {
-        let photoUrl = existingPhotoUrl
-        let uploadedPhotoPath: string | null = null
+        let photoUrl = uploadedPhotoUrl || existingPhotoUrl
+        let finalUploadedPhotoPath: string | null = uploadedPhotoPath
 
-        if (photoFile && photoFile.size > 0) {
+        if (!uploadedPhotoUrl && photoFile && photoFile.size > 0) {
             if (photoFile.size > MAX_UPLOAD_SIZE_BYTES) {
                 return { error: `Photo must be under ${MAX_UPLOAD_SIZE_LABEL}.` }
             }
@@ -201,7 +205,7 @@ export async function updateStaff(formData: FormData) {
                 .from('avatars')
                 .getPublicUrl(fileName)
 
-            uploadedPhotoPath = fileName
+            finalUploadedPhotoPath = fileName
             photoUrl = publicUrl
         }
 
@@ -218,14 +222,14 @@ export async function updateStaff(formData: FormData) {
             .eq('id', id)
 
         if (error) {
-            if (uploadedPhotoPath) {
-                await admin.storage.from('avatars').remove([uploadedPhotoPath])
+            if (finalUploadedPhotoPath) {
+                await admin.storage.from('avatars').remove([finalUploadedPhotoPath])
             }
             return { error: getErrorMessage(error, 'Failed to update staff.') }
         }
 
-        const oldPhotoPath = uploadedPhotoPath ? getAvatarStoragePath(existingPhotoUrl) : null
-        if (uploadedPhotoPath && oldPhotoPath && oldPhotoPath !== uploadedPhotoPath) {
+        const oldPhotoPath = finalUploadedPhotoPath ? getAvatarStoragePath(existingPhotoUrl) : null
+        if (finalUploadedPhotoPath && oldPhotoPath && oldPhotoPath !== finalUploadedPhotoPath) {
             await admin.storage.from('avatars').remove([oldPhotoPath])
         }
 
