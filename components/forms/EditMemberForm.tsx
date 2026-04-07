@@ -45,7 +45,6 @@ export default function EditMemberForm({ member, plans }: EditMemberFormProps) {
     const { isDark } = useAdminTheme()
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [loading, setLoading] = useState(false)
-    const [status, setStatus] = useState(member.status)
     const [gender, setGender] = useState(member.gender || '')
     const [selectedPlan, setSelectedPlan] = useState(member.membership_plan_id || 'none')
     const [photoPreview, setPhotoPreview] = useState(member.photo_url)
@@ -97,7 +96,6 @@ export default function EditMemberForm({ member, plans }: EditMemberFormProps) {
         try {
             formData.delete('photo')
             formData.set('id', member.id)
-            formData.set('status', status)
             formData.set('gender', gender)
             formData.set('membership_plan_id', selectedPlan === 'none' ? '' : selectedPlan)
             formData.set('existing_photo_url', member.photo_url || '')
@@ -211,17 +209,12 @@ export default function EditMemberForm({ member, plans }: EditMemberFormProps) {
                     </div>
                     <div className="space-y-1.5">
                         <Label className={labelClassName}>Status</Label>
-                        <Select value={status} onValueChange={setStatus} disabled={loading}>
-                            <SelectTrigger>
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="active">Active</SelectItem>
-                                <SelectItem value="inactive">Inactive</SelectItem>
-                                <SelectItem value="frozen">Frozen</SelectItem>
-                                <SelectItem value="expired">Expired</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                            <span className="font-medium capitalize">{member.status}</span>
+                            <p className="mt-1 text-xs text-gray-500">
+                                Status updates automatically from the membership expiry date.
+                            </p>
+                        </div>
                     </div>
                     <div className="space-y-1.5 md:col-span-2">
                         <Label htmlFor="address" className={labelClassName}>Address</Label>

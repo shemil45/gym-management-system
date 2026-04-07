@@ -253,7 +253,6 @@ export async function updateMember(formData: FormData) {
             membership_plan_id: planId,
             membership_start_date: startDateValue,
             membership_expiry_date: membershipExpiryDate,
-            status: (formData.get('status') as string) as UpdateTables<'members'>['status'],
             photo_url: photoUrl,
         }
 
