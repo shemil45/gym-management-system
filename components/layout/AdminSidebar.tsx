@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type Dispatch, type SetStateAction } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -477,10 +477,20 @@ function MobileSidebarContent({ onClose }: { onClose?: () => void }) {
   )
 }
 
-export default function AdminSidebar() {
+interface AdminSidebarProps {
+  desktopOpen?: boolean
+  setDesktopOpen?: Dispatch<SetStateAction<boolean>>
+}
+
+export default function AdminSidebar({
+  desktopOpen: controlledDesktopOpen,
+  setDesktopOpen: controlledSetDesktopOpen,
+}: AdminSidebarProps) {
   const { isOpen, close } = useSidebar()
   const router = useRouter()
-  const [desktopOpen, setDesktopOpen] = useState(false)
+  const [internalDesktopOpen, setInternalDesktopOpen] = useState(false)
+  const desktopOpen = controlledDesktopOpen ?? internalDesktopOpen
+  const setDesktopOpen = controlledSetDesktopOpen ?? setInternalDesktopOpen
 
   const handleDesktopLogout = async () => {
     const supabase = createClient()
