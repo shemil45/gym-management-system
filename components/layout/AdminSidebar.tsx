@@ -82,20 +82,7 @@ function BrandBlock({ desktopOpen }: { desktopOpen?: boolean }) {
               expanded ? 'text-sm' : 'text-[11px]'
             )}
           >
-            GymFit
-          </span>
-          <span
-            className={cn(
-              expanded
-                ? isDark
-                  ? 'text-xs text-zinc-400'
-                  : 'text-xs text-slate-300'
-                : isDark
-                  ? 'text-[9px] text-zinc-500'
-                  : 'text-[9px] text-slate-400'
-            )}
-          >
-            Management
+            FitGym
           </span>
         </div>
       </div>
