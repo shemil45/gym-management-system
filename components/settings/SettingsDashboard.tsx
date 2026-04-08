@@ -130,20 +130,28 @@ export default function SettingsDashboard({ profile, email }: SettingsDashboardP
                 <p className="text-sm text-gray-500 mt-0.5">Manage your staff profile and password</p>
             </div>
 
-            <div className="max-w-lg space-y-5">
+            <div className="grid w-full grid-cols-1 gap-5 xl:grid-cols-2">
                 {/* Profile info */}
-                <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-6">
-                    <div className="flex items-center gap-2 mb-5">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50">
-                            <User className="h-4 w-4 text-blue-600" />
+                <div className="flex h-full flex-col rounded-xl bg-white border border-gray-200 shadow-sm p-6">
+                    <div className="mb-5 flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50">
+                                <User className="h-4 w-4 text-blue-600" />
+                            </div>
+                            <div>
+                                <h2 className="text-sm font-bold text-gray-900">Personal Info</h2>
+                            </div>
                         </div>
-                        <div>
-                            <h2 className="text-sm font-bold text-gray-900">Personal Info</h2>
-                            <p className="text-xs text-gray-400">Update your display name and phone</p>
+
+                        <div className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2">
+                            <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+                            <p className="text-xs text-emerald-700 font-medium">
+                                {formatRoleLabel(profile.role)}
+                            </p>
                         </div>
                     </div>
 
-                    <form onSubmit={handleProfileSubmit} className="space-y-4">
+                    <form onSubmit={handleProfileSubmit} className="flex flex-1 flex-col space-y-4">
                         {/* Email — read only */}
                         <div className="space-y-1.5">
                             <Label className="text-xs font-medium text-gray-700">
@@ -178,27 +186,21 @@ export default function SettingsDashboard({ profile, email }: SettingsDashboardP
                             />
                         </div>
 
-                        {/* Role badge */}
-                        <div className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2">
-                            <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
-                            <p className="text-xs text-emerald-700 font-medium capitalize">
-                                Role: {formatRoleLabel(profile.role)}
-                            </p>
+                        <div className="mt-auto pt-1">
+                            <Button
+                                type="submit"
+                                disabled={profilePending}
+                                className="h-10 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm"
+                            >
+                                {profilePending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Save Profile
+                            </Button>
                         </div>
-
-                        <Button
-                            type="submit"
-                            disabled={profilePending}
-                            className="h-10 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm"
-                        >
-                            {profilePending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Save Profile
-                        </Button>
                     </form>
                 </div>
 
                 {/* Change password */}
-                <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-6">
+                <div className="flex h-full flex-col rounded-xl bg-white border border-gray-200 shadow-sm p-6">
                     <div className="flex items-center gap-2 mb-5">
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50">
                             <Lock className="h-4 w-4 text-amber-600" />
@@ -209,7 +211,7 @@ export default function SettingsDashboard({ profile, email }: SettingsDashboardP
                         </div>
                     </div>
 
-                    <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                    <form onSubmit={handlePasswordSubmit} className="flex flex-1 flex-col space-y-4">
                         {/* Current / old password */}
                         <div className="space-y-1.5">
                             <Label className="text-xs font-medium text-gray-700">Current Password</Label>
@@ -287,15 +289,17 @@ export default function SettingsDashboard({ profile, email }: SettingsDashboardP
                             )}
                         </div>
 
-                        <Button
-                            type="submit"
-                            disabled={passwordPending}
-                            variant="outline"
-                            className="h-10 w-full border-amber-200 text-amber-700 hover:bg-amber-50 font-semibold"
-                        >
-                            {passwordPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Update Password
-                        </Button>
+                        <div className="mt-auto pt-1">
+                            <Button
+                                type="submit"
+                                disabled={passwordPending}
+                                variant="outline"
+                                className="h-10 w-full border-amber-200 text-amber-700 hover:bg-amber-50 font-semibold"
+                            >
+                                {passwordPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Update Password
+                            </Button>
+                        </div>
                     </form>
                 </div>
             </div>

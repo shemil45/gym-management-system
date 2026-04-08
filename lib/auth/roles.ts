@@ -10,5 +10,7 @@ export function isStaffRole(role: string | null | undefined): role is StaffRole 
 }
 
 export function formatRoleLabel(role: string) {
-    return role.replace(/_/g, ' ')
+    return role
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase())
 }

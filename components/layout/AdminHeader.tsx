@@ -6,7 +6,16 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { AnimatedThemeToggler } from '@/components/ui/animated-theme-toggler'
 import { useAdminTheme } from '@/components/layout/AdminThemeContext'
-import { Bell, LogOut, Menu, Settings2 } from 'lucide-react'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Bell, ChevronDown, LogOut, Menu, Moon, Search, Settings, Sun, User } from 'lucide-react'
 import { useSidebar } from '@/components/layout/SidebarContext'
 
 interface AdminHeaderProps {
@@ -36,7 +45,7 @@ export default function AdminHeader({ user, desktopSidebarOpen = false }: AdminH
     return (
         <header className={`sticky top-0 z-40 ${isDark ? 'border-b border-[#2a2a2a]' : 'border-b border-blue-500/30'}`}>
             <div
-                className="flex h-16 items-center justify-between px-4 text-white lg:hidden"
+                className="relative flex h-16 items-center justify-between px-4 text-white lg:hidden"
                 style={{ background: headerSurface }}
             >
                 <button
@@ -51,9 +60,13 @@ export default function AdminHeader({ user, desktopSidebarOpen = false }: AdminH
                     <Menu className="h-5 w-5" />
                 </button>
 
-                <div className="min-w-0 px-3 text-center">
-                    <p className="truncate text-lg font-semibold tracking-tight">FitGym Software</p>
-                </div>
+                <Link
+                    href="/admin/dashboard"
+                    className="absolute left-1/2 max-w-[calc(100%-7rem)] -translate-x-1/2 px-3 text-center"
+                    aria-label="Go to dashboard"
+                >
+                    <p className="truncate text-lg font-semibold tracking-tight">FitGymSoftware</p>
+                </Link>
 
                 <div className="flex items-center gap-2">
                     <AnimatedThemeToggler
@@ -79,7 +92,7 @@ export default function AdminHeader({ user, desktopSidebarOpen = false }: AdminH
                         }`}
                     >
                         <Link href="/admin/settings" aria-label="Open settings">
-                            <Settings2 className="h-5 w-5" />
+                            <Settings className="h-5 w-5" />
                         </Link>
                     </Button>
                 </div>

@@ -20,6 +20,8 @@ import {
     UserCheck,
     AlertCircle,
     CreditCard,
+    Copy,
+    Check,
     Phone,
     Calendar,
     TrendingUp,
@@ -31,6 +33,7 @@ import {
     Globe,
     Wallet,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { formatCurrency } from '@/lib/utils/currency'
 import { formatDate } from '@/lib/utils/date'
@@ -132,13 +135,22 @@ function SectionHeader({ icon, title, sub }: { icon: React.ReactNode; title: str
 }
 
 function KPICard({ label, value, sub, color = 'blue' }: { label: string; value: string | number; sub?: string; color?: 'blue' | 'green' | 'red' | 'amber' | 'purple' }) {
-    const cls = {
-        blue: 'border-blue-100 bg-blue-50 text-blue-700',
-        green: 'border-emerald-100 bg-emerald-50 text-emerald-700',
-        red: 'border-rose-100 bg-rose-50 text-rose-600',
-        amber: 'border-amber-100 bg-amber-50 text-amber-700',
-        purple: 'border-violet-100 bg-violet-50 text-violet-700',
-    }[color]
+    const { isDark } = useAdminTheme()
+    const cls = isDark
+        ? {
+            blue: 'border-blue-500/25 bg-blue-950/45 text-blue-200',
+            green: 'border-emerald-500/25 bg-emerald-950/45 text-emerald-200',
+            red: 'border-rose-500/25 bg-rose-950/45 text-rose-200',
+            amber: 'border-amber-500/25 bg-amber-950/45 text-amber-200',
+            purple: 'border-violet-500/25 bg-violet-950/45 text-violet-200',
+        }[color]
+        : {
+            blue: 'border-blue-100 bg-blue-50 text-blue-700',
+            green: 'border-emerald-100 bg-emerald-50 text-emerald-700',
+            red: 'border-rose-100 bg-rose-50 text-rose-600',
+            amber: 'border-amber-100 bg-amber-50 text-amber-700',
+            purple: 'border-violet-100 bg-violet-50 text-violet-700',
+        }[color]
     return (
         <div className={`rounded-xl border px-4 py-3 ${cls}`}>
             <p className="text-[11px] font-medium opacity-70">{label}</p>
@@ -226,7 +238,7 @@ function MembershipReport({ members }: { members: MemberRow[] }) {
                         <SectionHeader icon={<Users className="h-4 w-4 text-blue-600" />} title="Status Breakdown" />
                         <div className="flex items-center gap-3">
                             <PieChart width={90} height={90}>
-                                <Pie data={statusCounts} dataKey="count" nameKey="status" cx="50%" cy="50%" innerRadius={24} outerRadius={40}>
+                                <Pie data={statusCounts} dataKey="count" nameKey="status" cx="50%" cy="50%" innerRadius={24} outerRadius={40} stroke="none">
                                     {statusCounts.map((entry) => (
                                         <Cell key={entry.status} fill={STATUS_COLORS[entry.status] ?? '#9ca3af'} />
                                     ))}
@@ -489,9 +501,22 @@ function RenewalsReport({ members }: { members: MemberRow[] }) {
 
 function PaymentsReport({ payments }: { payments: PaymentRow[] }) {
     const { isDark } = useAdminTheme()
+    const [copiedPhone, setCopiedPhone] = useState<string | null>(null)
     const paidPayments = payments.filter((p) => p.payment_status === 'paid')
     const pendingPayments = payments.filter((p) => p.payment_status === 'pending')
     const totalRevenue = paidPayments.reduce((s, p) => s + Number(p.amount), 0)
+
+    const handleCopyPhone = async (phone: string) => {
+        try {
+            await navigator.clipboard.writeText(phone)
+            setCopiedPhone(phone)
+            toast.success('Phone number copied')
+            window.setTimeout(() => setCopiedPhone((current) => (current === phone ? null : current)), 1500)
+        } catch {
+            toast.error('Failed to copy phone number')
+            setCopiedPhone(null)
+        }
+    }
 
     // Method breakdown
     const methodData = (() => {
@@ -584,14 +609,90 @@ function PaymentsReport({ payments }: { payments: PaymentRow[] }) {
             {pendingPayments.length > 0 && (
                 <div className="rounded-xl bg-white p-5 shadow-sm border border-amber-100">
                     <SectionHeader icon={<AlertCircle className="h-4 w-4 text-amber-500" />} title="Pending / Unpaid" sub={`${pendingPayments.length} payment${pendingPayments.length !== 1 ? 's' : ''} pending`} />
-                    <div className="overflow-x-auto">
+                    <div className="sm:hidden">
+                        <div className="space-y-3">
+                            {pendingPayments.map((p) => {
+                                const name = p.member?.full_name ?? 'Unknown'
+                                const method = METHOD_CONFIG[p.payment_method] ?? { label: p.payment_method, icon: <Wallet className="h-3 w-3" />, color: '#9ca3af' }
+                                return (
+                                    <div
+                                        key={p.id}
+                                        className={`rounded-2xl border px-4 py-3 ${
+                                            isDark ? 'border-[#2a2a2a] bg-[#171717]' : 'border-amber-100 bg-amber-50/30'
+                                        }`}
+                                    >
+                                        <div className="min-w-0">
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="min-w-0">
+                                                    <p className={`truncate text-[15px] font-medium leading-tight ${isDark ? 'text-white' : 'text-slate-800'}`}>
+                                                        {name}
+                                                    </p>
+                                                    <p className="mt-0.5 text-[11px] font-medium leading-tight text-slate-400">
+                                                        {p.member?.member_id ?? '—'}
+                                                    </p>
+                                                </div>
+                                                <div className="shrink-0 text-right">
+                                                    <p className={`text-[11px] font-medium leading-tight ${isDark ? 'text-slate-300' : 'text-slate-500'}`}>
+                                                        {formatDate(p.payment_date)}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="mt-1 flex items-center justify-between gap-3">
+                                                {p.member?.phone ? (
+                                                    <div className="min-w-0 flex items-center gap-1.5">
+                                                        <a
+                                                            href={`tel:${p.member.phone.replace(/[^\d+]/g, '')}`}
+                                                            className={`min-w-0 truncate text-[12px] leading-tight transition-colors hover:text-amber-600 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}
+                                                        >
+                                                            {p.member.phone}
+                                                        </a>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleCopyPhone(p.member!.phone)}
+                                                            className={`shrink-0 rounded p-1 transition-colors ${isDark ? 'text-slate-500 hover:bg-white/5 hover:text-white' : 'text-slate-400 hover:bg-amber-100/70 hover:text-amber-700'}`}
+                                                            aria-label={`Copy phone number for ${name}`}
+                                                            title="Copy phone number"
+                                                        >
+                                                            {copiedPhone === p.member.phone ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <p className={`min-w-0 truncate text-[12px] leading-tight ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                                        {'—'}
+                                                    </p>
+                                                )}
+                                                <p className="shrink-0 text-[15px] font-bold leading-tight text-amber-600">
+                                                    {formatCurrency(Number(p.amount))}
+                                                </p>
+                                            </div>
+
+                                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                                <span
+                                                    className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium"
+                                                    style={{ color: method.color, borderColor: `${method.color}33`, backgroundColor: `${method.color}14` }}
+                                                >
+                                                    {method.icon} {method.label}
+                                                </span>
+                                                <span className="inline-flex items-center rounded-full border border-yellow-200 bg-yellow-100 px-2.5 py-0.5 text-[11px] font-semibold text-yellow-700">
+                                                    Pending
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="hidden overflow-x-auto sm:block">
                         <table className="w-full">
                             <thead>
                                 <tr className="border-b border-gray-100">
                                     <th className="pb-2 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Member</th>
                                     <th className="pb-2 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Date</th>
                                     <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-400">Amount</th>
-                                    <th className="pb-2 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Phone</th>
+                                    <th className="pb-2 pl-10 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Phone</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
@@ -603,7 +704,26 @@ function PaymentsReport({ payments }: { payments: PaymentRow[] }) {
                                         </td>
                                         <td className="py-2.5 text-xs text-gray-500">{formatDate(p.payment_date)}</td>
                                         <td className="py-2.5 text-right text-sm font-bold text-amber-600">{formatCurrency(Number(p.amount))}</td>
-                                        <td className="py-2.5 text-xs text-gray-600">{p.member?.phone ?? '—'}</td>
+                                        <td className="py-2.5 pl-10 text-xs text-gray-600">
+                                            {p.member?.phone ? (
+                                                <div className="flex items-center gap-1.5">
+                                                    <a href={`tel:${p.member.phone.replace(/[^\d+]/g, '')}`} className="transition-colors hover:text-amber-600">
+                                                        {p.member.phone}
+                                                    </a>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleCopyPhone(p.member!.phone)}
+                                                        className="rounded p-1 text-slate-400 transition-colors hover:bg-amber-100/70 hover:text-amber-700"
+                                                        aria-label={`Copy phone number for ${p.member.full_name}`}
+                                                        title="Copy phone number"
+                                                    >
+                                                        {copiedPhone === p.member.phone ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                '—'
+                                            )}
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
