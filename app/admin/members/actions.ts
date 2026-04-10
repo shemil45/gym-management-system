@@ -6,6 +6,7 @@ import type { InsertTables, QueryResult, UpdateTables } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
 import { getAvatarStoragePath } from '@/lib/utils/storage'
+import { sendMemberWhatsAppNotification } from '@/lib/notifications/service'
 
 type MemberIdRow = Pick<InsertTables<'members'>, 'member_id'>
 type PlanLookup = Pick<InsertTables<'membership_plans'>, 'duration_days' | 'price'>
@@ -167,8 +168,28 @@ export async function createMember(formData: FormData) {
             await supabase.from('referrals').insert(referralPayload as never)
         }
 
+        let notificationWarning: string | undefined
+
+        const welcomeNotificationResult = await sendMemberWhatsAppNotification({
+            memberId: member.id,
+            notificationType: 'welcome_new_member',
+            source: 'api',
+        })
+
+        if (!welcomeNotificationResult.success) {
+            notificationWarning = `Member created, but welcome WhatsApp could not be sent: ${welcomeNotificationResult.error}`
+            console.warn('[members] Welcome WhatsApp was not sent after member creation', {
+                memberId: member.id,
+                error: welcomeNotificationResult.error,
+            })
+        }
+
         revalidatePath('/admin/members')
-        return { success: true, memberId: member.id }
+        return {
+            success: true,
+            memberId: member.id,
+            ...(notificationWarning ? { notificationWarning } : {}),
+        }
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to create member'
         return { error: message }
