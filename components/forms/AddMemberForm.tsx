@@ -109,7 +109,7 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
 
             const result = await createMember(formData)
 
-            if (result.error) {
+            if ('error' in result) {
                 if (uploadedPhotoPath) {
                     await removeUploadedAvatar(uploadedPhotoPath)
                 }
@@ -118,6 +118,11 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
                 setLoadingMessage('')
             } else {
                 toast.success('Member added successfully!')
+                if (result.notificationWarning) {
+                    toast.warning(result.notificationWarning, {
+                        duration: 7000,
+                    })
+                }
                 router.push(`/admin/members/${result.memberId}`)
             }
         } catch (error) {
