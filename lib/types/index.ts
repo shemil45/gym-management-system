@@ -14,6 +14,7 @@ export type CheckIn = Tables<'check_ins'>
 export type Payment = Tables<'payments'>
 export type Expense = Tables<'expenses'>
 export type Referral = Tables<'referrals'>
+export type NotificationLog = Tables<'notification_logs'>
 
 // Extended types with relations
 export type MemberWithPlan = Member & {

@@ -293,6 +293,53 @@ export interface Database {
                     applied_at?: string | null
                 }
             }
+            notification_logs: {
+                Row: {
+                    id: string
+                    member_id: string
+                    notification_type:
+                    | 'payment_reminder'
+                    | 'membership_expiring'
+                    | 'membership_expired'
+                    | 'payment_received'
+                    | 'welcome_new_member'
+                    | 'referral_reward_earned'
+                    message: string
+                    status: 'sent' | 'failed'
+                    sent_at: string
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    member_id: string
+                    notification_type:
+                    | 'payment_reminder'
+                    | 'membership_expiring'
+                    | 'membership_expired'
+                    | 'payment_received'
+                    | 'welcome_new_member'
+                    | 'referral_reward_earned'
+                    message: string
+                    status: 'sent' | 'failed'
+                    sent_at?: string
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    member_id?: string
+                    notification_type?:
+                    | 'payment_reminder'
+                    | 'membership_expiring'
+                    | 'membership_expired'
+                    | 'payment_received'
+                    | 'welcome_new_member'
+                    | 'referral_reward_earned'
+                    message?: string
+                    status?: 'sent' | 'failed'
+                    sent_at?: string
+                    created_at?: string
+                }
+            }
         }
         Views: {
             [_ in never]: never
