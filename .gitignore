@@ -50,3 +50,4 @@ coverage/
 
 # Supabase migrations
 supabase/migrations/
+test-whatsapp.ts

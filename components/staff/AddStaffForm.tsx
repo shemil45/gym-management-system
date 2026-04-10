@@ -33,7 +33,6 @@ export default function AddStaffForm() {
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
     const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
     const [photoError, setPhotoError] = useState<string | null>(null)
-    const [loadingMessage, setLoadingMessage] = useState('')
     const labelClassName = isDark ? 'text-gray-200' : 'text-gray-700'
 
     const waitForNextPaint = () =>
@@ -80,7 +79,6 @@ export default function AddStaffForm() {
         }
 
         setLoading(true)
-        setLoadingMessage('Creating Staff...')
         await waitForNextPaint()
         let uploadedPhotoPath: string | null = null
         try {
@@ -89,13 +87,10 @@ export default function AddStaffForm() {
             formData.set('role', role)
 
             if (selectedPhoto) {
-                const uploadedPhoto = await uploadCompressedAvatar(selectedPhoto, 'staff', {
-                    onStatusChange: setLoadingMessage,
-                })
+                const uploadedPhoto = await uploadCompressedAvatar(selectedPhoto, 'staff')
                 uploadedPhotoPath = uploadedPhoto.path
                 formData.set('photo_url', uploadedPhoto.publicUrl)
                 formData.set('photo_path', uploadedPhoto.path)
-                setLoadingMessage('Creating Staff...')
             }
 
             const result = await createStaff(formData)
@@ -106,7 +101,6 @@ export default function AddStaffForm() {
                 }
                 toast.error(result.error)
                 setLoading(false)
-                setLoadingMessage('')
                 return
             }
 
@@ -119,7 +113,6 @@ export default function AddStaffForm() {
             }
             toast.error(error instanceof Error ? error.message : UPLOAD_FAILURE_MESSAGE)
             setLoading(false)
-            setLoadingMessage('')
         }
     }
 
