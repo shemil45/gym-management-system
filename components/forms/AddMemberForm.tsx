@@ -30,10 +30,12 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
     const { isDark } = useAdminTheme()
     const fileInputRef = useRef<HTMLInputElement>(null)
     const cameraInputRef = useRef<HTMLInputElement>(null)
+    const currentDate = new Date().toISOString().split('T')[0]
 
     const [loading, setLoading] = useState(false)
     const [selectedPlan, setSelectedPlan] = useState('')
     const [paymentMethod, setPaymentMethod] = useState('')
+    const [phone, setPhone] = useState('+91')
     const [gender, setGender] = useState<'male' | 'female' | 'other'>('male')
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
     const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
@@ -70,6 +72,13 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
                 setPhotoError('Failed to preview the selected image.')
                 toast.error('Failed to preview the selected image.')
             })
+    }
+
+    const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const rawValue = e.target.value
+        const digits = rawValue.replace(/\D/g, '')
+        const localNumber = digits.startsWith('91') ? digits.slice(2) : digits
+        setPhone(`+91${localNumber.slice(0, 10)}`)
     }
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -233,8 +242,10 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
                             <Input
                                 id="phone"
                                 name="phone"
-                                placeholder="(555) 123-4567"
+                                placeholder="+919876543210"
                                 required
+                                value={phone}
+                                onChange={handlePhoneChange}
                                 disabled={loading}
                                 className="h-10 border-gray-300 text-sm"
                             />
@@ -360,8 +371,9 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
                                 name="membership_start_date"
                                 type="date"
                                 required
+                                value={currentDate}
+                                readOnly
                                 disabled={loading}
-                                defaultValue={new Date().toISOString().split('T')[0]}
                                 className="h-10 border-gray-300 text-sm text-gray-600"
                             />
                         </div>
@@ -384,7 +396,7 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
                                         step="0.01"
                                         placeholder="0.00"
                                         value={paymentAmount}
-                                        onChange={(e) => setPaymentAmount(e.target.value)}
+                                        readOnly
                                         disabled={loading}
                                         className="h-10 pl-7 border-gray-300 text-sm"
                                     />
