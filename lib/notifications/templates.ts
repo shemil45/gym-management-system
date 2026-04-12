@@ -53,10 +53,7 @@ export type ReferralRewardTemplateData = BaseTemplateData & {
 }
 
 function formatDisplayDate(value: string | null | undefined) {
-    if (!value) {
-        return 'N/A'
-    }
-
+    if (!value) return 'N/A'
     return format(new Date(value), 'dd MMM yyyy')
 }
 
@@ -72,76 +69,157 @@ function getGymName(value?: string | null) {
     return value?.trim() || process.env.NEXT_PUBLIC_APP_NAME || 'your gym'
 }
 
+/** Finance messages: payment_reminder, payment_received, membership_expiring, membership_expired */
+function getSupportFooter(gymName?: string | null) {
+    return `_— ${getGymName(gymName)} Support_`
+}
+
+/** Relationship messages: welcome_new_member, referral_reward_earned */
+function getFamilyFooter(gymName?: string | null) {
+    return `_— ${getGymName(gymName)} Family 🏋️_`
+}
+
+// ─── Payment Reminder ────────────────────────────────────────────────────────
+
 export function buildPaymentReminderMessage(data: PaymentReminderTemplateData) {
     return [
-        `Hi ${data.fullName},`,
-        '',
-        `This is a payment reminder from ${getGymName(data.gymName)}.`,
-        `Your ${data.planName || 'membership'} expires in ${data.daysRemaining} days on ${formatDisplayDate(data.expiryDate)}.`,
-        'Please renew in time to keep your access active.',
-        '',
-        'Reply to this message or contact the front desk if you need help.',
+        `⏰ *Payment Reminder*`,
+        ``,
+        `Hi *${data.fullName}*,`,
+        ``,
+        `Your *${data.planName || 'membership'}* at *${getGymName(data.gymName)}* is coming up for renewal soon.`,
+        ``,
+        `📋 *Membership Details*`,
+        `• Plan: *${data.planName || 'Membership'}*`,
+        `• Expiry Date: *${formatDisplayDate(data.expiryDate)}*`,
+        `• Days Remaining: *${data.daysRemaining} day${data.daysRemaining !== 1 ? 's' : ''}*`,
+        ``,
+        `✅ Please renew in advance to avoid any interruption in access.`,
+        ``,
+        `For assistance, reach out to the front desk.`,
+        ``,
+        getSupportFooter(data.gymName),
     ].join('\n')
 }
+
+// ─── Membership Expiring ─────────────────────────────────────────────────────
 
 export function buildMembershipExpiringMessage(data: MembershipExpiringTemplateData) {
     return [
-        `Hi ${data.fullName},`,
-        '',
-        `Your ${data.planName || 'membership'} at ${getGymName(data.gymName)} expires in ${data.daysRemaining} days on ${formatDisplayDate(data.expiryDate)}.`,
-        'Renew early to avoid any interruption in your workouts.',
-        '',
-        'We would love to keep seeing you in the gym.',
+        `⚠️ *Membership Expiring Soon*`,
+        ``,
+        `Hi *${data.fullName}*,`,
+        ``,
+        `Your *${data.planName || 'membership'}* at *${getGymName(data.gymName)}* is nearing its expiry date.`,
+        ``,
+        `📋 *Membership Details*`,
+        `• Plan: *${data.planName || 'Membership'}*`,
+        `• Expiry Date: *${formatDisplayDate(data.expiryDate)}*`,
+        `• Days Remaining: *${data.daysRemaining} day${data.daysRemaining !== 1 ? 's' : ''}*`,
+        ``,
+        `🔄 Renew before the expiry date to keep your access uninterrupted.`,
+        ``,
+        `For assistance, reach out to the front desk.`,
+        ``,
+        getSupportFooter(data.gymName),
     ].join('\n')
 }
+
+// ─── Membership Expired ──────────────────────────────────────────────────────
 
 export function buildMembershipExpiredMessage(data: MembershipExpiredTemplateData) {
     return [
-        `Hi ${data.fullName},`,
-        '',
-        `Your ${data.planName || 'membership'} at ${getGymName(data.gymName)} expired on ${formatDisplayDate(data.expiryDate)}.`,
-        'Renew your membership to restore access and continue training without delay.',
-        '',
-        'Reply here if you want us to help with the renewal.',
+        `❌ *Membership Expired*`,
+        ``,
+        `Hi *${data.fullName}*,`,
+        ``,
+        `Your *${data.planName || 'membership'}* at *${getGymName(data.gymName)}* has expired.`,
+        ``,
+        `📋 *Membership Details*`,
+        `• Plan: *${data.planName || 'Membership'}*`,
+        `• Expired On: *${formatDisplayDate(data.expiryDate)}*`,
+        ``,
+        `🔄 Renew your membership to restore full access and continue your fitness journey.`,
+        ``,
+        `For renewal assistance, contact the front desk.`,
+        ``,
+        getSupportFooter(data.gymName),
     ].join('\n')
 }
 
+// ─── Payment Received ────────────────────────────────────────────────────────
+
 export function buildPaymentReceivedMessage(data: PaymentReceivedTemplateData) {
-    return [
-        `Hi ${data.fullName},`,
-        '',
-        `We have received your payment of ${formatCurrency(data.amount)}${data.planName ? ` for ${data.planName}` : ''}.`,
-        `${data.invoiceNumber ? `Invoice: ${data.invoiceNumber}` : 'Invoice details will be shared soon.'}`,
-        `${data.paymentDate ? `Payment date: ${formatDisplayDate(data.paymentDate)}` : ''}`,
-        `${data.membershipEndDate ? `Membership valid until: ${formatDisplayDate(data.membershipEndDate)}` : ''}`,
-        '',
-        `Thank you for choosing ${getGymName(data.gymName)}.`,
+    const lines = [
+        `✅ *Payment Confirmed*`,
+        ``,
+        `Hi *${data.fullName}*,`,
+        ``,
+        `We have successfully received your payment. Thank you!`,
+        ``,
+        `🧾 *Payment Details*`,
+        `• Amount: *${formatCurrency(data.amount)}*${data.planName ? ` _(${data.planName})_` : ''}`,
     ]
-        .filter(Boolean)
-        .join('\n')
+
+    if (data.invoiceNumber) lines.push(`• Invoice No: *${data.invoiceNumber}*`)
+    if (data.paymentDate) lines.push(`• Payment Date: *${formatDisplayDate(data.paymentDate)}*`)
+    if (data.membershipEndDate) lines.push(`• Valid Until: *${formatDisplayDate(data.membershipEndDate)}*`)
+
+    lines.push(
+        ``,
+        `🏋️ Your membership is now active. We appreciate your continued trust in *${getGymName(data.gymName)}*.`,
+        ``,
+        getSupportFooter(data.gymName),
+    )
+
+    return lines.join('\n')
 }
 
+// ─── Welcome New Member ──────────────────────────────────────────────────────
+
 export function buildWelcomeNewMemberMessage(data: WelcomeNewMemberTemplateData) {
-    return [
-        `Welcome to ${getGymName(data.gymName)}, ${data.fullName}!`,
-        '',
-        `Your member ID is ${data.memberCode}.`,
-        `${data.planName ? `Current plan: ${data.planName}` : 'Your membership plan will be shared with you shortly.'}`,
-        `${data.membershipEndDate ? `Membership valid until: ${formatDisplayDate(data.membershipEndDate)}` : ''}`,
-        '',
-        'We are excited to be part of your fitness journey.',
+    const lines = [
+        `🎉 *Welcome to ${getGymName(data.gymName)}!*`,
+        ``,
+        `Hi *${data.fullName}*,`,
+        ``,
+        `Your membership has been successfully activated. We're thrilled to have you on board!`,
+        ``,
+        `🪪 *Membership Details*`,
+        `• Member ID: *${data.memberCode}*`,
     ]
-        .filter(Boolean)
-        .join('\n')
+
+    if (data.planName) lines.push(`• Plan: *${data.planName}*`)
+    if (data.membershipEndDate) lines.push(`• Valid Until: *${formatDisplayDate(data.membershipEndDate)}*`)
+
+    lines.push(
+        ``,
+        `💪 We look forward to supporting your fitness journey.`,
+        ``,
+        getFamilyFooter(data.gymName),
+    )
+
+    return lines.join('\n')
 }
+
+// ─── Referral Reward ─────────────────────────────────────────────────────────
 
 export function buildReferralRewardMessage(data: ReferralRewardTemplateData) {
     return [
-        `Hi ${data.fullName},`,
-        '',
-        `You have earned ${data.rewardCoins} referral coins${data.referredMemberName ? ` for referring ${data.referredMemberName}` : ''}.`,
-        'Your reward has been added to your account and can be used toward future membership payments.',
-        '',
-        `Thank you for growing the ${getGymName(data.gymName)} community.`,
+        `🎁 *Referral Reward Earned!*`,
+        ``,
+        `Hi *${data.fullName}*,`,
+        ``,
+        `Great news — your referral has been rewarded!`,
+        ``,
+        `🏅 *Reward Details*`,
+        `• Coins Earned: *${data.rewardCoins} coins*`,
+        ...(data.referredMemberName ? [`• Referred Member: *${data.referredMemberName}*`] : []),
+        ``,
+        `💳 Your reward has been credited to your account and can be applied toward future membership payments.`,
+        ``,
+        `Thank you for growing the *${getGymName(data.gymName)}* community! 🙌`,
+        ``,
+        getFamilyFooter(data.gymName),
     ].join('\n')
 }
