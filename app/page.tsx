@@ -128,7 +128,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="border-t border-white/10 bg-black/20 py-8 backdrop-blur-sm">
         <div className="container mx-auto px-4 text-center text-white/40">
-          <p>&copy; 2026 Gym Management System. All rights reserved.</p>
+          <p>&copy; 2026 FitGym. All rights reserved.</p>
         </div>
       </footer>
     </div>

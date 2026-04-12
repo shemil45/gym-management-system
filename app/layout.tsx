@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Gym Management System",
-    template: "%s | Gym Management System",
+    default: "FitGym",
+    template: "%s | FitGym",
   },
   description: "Gym operations platform for members, payments, plans, check-ins, and analytics.",
 };

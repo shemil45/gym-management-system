@@ -1,5 +1,5 @@
 // App constants
-export const APP_NAME = 'Gym Management System'
+export const APP_NAME = 'FitGym'
 export const APP_DESCRIPTION = 'Complete gym management solution for mid-size gyms'
 
 // Pagination
