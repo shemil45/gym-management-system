@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/check-expiring-memberships",
-      "schedule": "35 19 * * *"
+      "schedule": "30 3 * * *"
     }
   ]
 }

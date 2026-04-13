@@ -50,6 +50,7 @@ export type SendMemberNotificationInput = {
     notificationType: NotificationType
     skipIfAlreadySentToday?: boolean
     source?: 'api' | 'cron'
+    dateValue?: string
 }
 
 export type SendMemberNotificationResult =
@@ -299,7 +300,7 @@ async function logFailure(memberId: string, notificationType: NotificationType, 
 }
 
 export async function sendMemberWhatsAppNotification(input: SendMemberNotificationInput): Promise<SendMemberNotificationResult> {
-    const { memberId, notificationType, skipIfAlreadySentToday = false, source = 'api' } = input
+    const { memberId, notificationType, skipIfAlreadySentToday = false, source = 'api', dateValue } = input
 
     try {
         const member = await getMemberRecord(memberId)
@@ -320,7 +321,7 @@ export async function sendMemberWhatsAppNotification(input: SendMemberNotificati
         }
 
         if (skipIfAlreadySentToday) {
-            const alreadySent = await hasNotificationBeenSentToday(memberId, notificationType)
+            const alreadySent = await hasNotificationBeenSentToday(memberId, notificationType, dateValue)
 
             if (alreadySent) {
                 console.info('[notifications] Skipping duplicate notification for today', {
