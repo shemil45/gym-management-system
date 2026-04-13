@@ -34,7 +34,7 @@ export default function AdminHeader({ user, desktopSidebarOpen = false }: AdminH
     }
 
     return (
-        <header className={`sticky top-0 z-40 ${isDark ? 'border-b border-[#2a2a2a]' : 'border-b border-blue-500/30'}`}>
+        <header className={`fixed inset-x-0 top-0 z-40 lg:sticky lg:inset-x-auto ${isDark ? 'border-b border-[#2a2a2a]' : 'border-b border-blue-500/30'}`}>
             <div
                 className="relative flex h-16 items-center justify-between px-4 text-white lg:hidden"
                 style={{ background: headerSurface }}

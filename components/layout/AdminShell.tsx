@@ -22,12 +22,12 @@ export default function AdminShell({ children, user }: AdminShellProps) {
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(false)
 
   return (
-    <div className={`admin-theme-${isDark ? 'dark' : 'light'} flex h-screen w-full overflow-hidden ${isDark ? 'bg-[#121212]' : 'bg-[#1a1f2e]'}`}>
+    <div className={`admin-theme-${isDark ? 'dark' : 'light'} flex h-[100dvh] min-h-[100svh] w-full overflow-hidden lg:h-screen ${isDark ? 'bg-[#121212]' : 'bg-[#1a1f2e]'}`}>
       <Toaster richColors position="top-right" />
       <AdminSidebar desktopOpen={desktopSidebarOpen} setDesktopOpen={setDesktopSidebarOpen} />
 
       <div
-        className={`flex min-w-0 flex-1 flex-col overflow-hidden lg:rounded-tl-[32px] lg:rounded-bl-none lg:border-l ${
+        className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:rounded-tl-[32px] lg:rounded-bl-none lg:border-l ${
           isDark
             ? 'bg-[#171717] lg:border-[#121212]'
             : 'bg-[#eef3fb] lg:border-[#1a1f2e]'
@@ -35,7 +35,7 @@ export default function AdminShell({ children, user }: AdminShellProps) {
       >
         <AdminHeader user={user} desktopSidebarOpen={desktopSidebarOpen} />
         <main
-          className="flex-1 overflow-y-auto px-4 pb-24 pt-4 [&::-webkit-scrollbar]:hidden sm:px-6 sm:pb-8 sm:pt-6"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 pb-24 pt-20 [-webkit-overflow-scrolling:touch] sm:px-6 sm:pb-8 lg:pt-6 [&::-webkit-scrollbar]:hidden"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {children}
