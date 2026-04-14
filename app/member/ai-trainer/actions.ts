@@ -1,13 +1,8 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
-
-const admin = () => createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { getCurrentGymContext } from '@/lib/auth/gym-context'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 
 type FitnessProfileRow = {
     goal: string | null
@@ -30,17 +25,16 @@ type ChatHistoryRow = {
 }
 
 export async function sendChatMessage(message: string) {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'Not authenticated' }
+    const viewer = await getCurrentGymContext()
+    if (!viewer.user || !viewer.member || !viewer.gym) return { error: 'Not authenticated' }
 
-    const db = admin()
+    const db = getSupabaseAdmin()
 
     // Get context
     const [{ data: profile }, { data: member }, { data: history }] = await Promise.all([
-        db.from('fitness_profiles').select('*').eq('user_id', user.id).single(),
-        db.from('members').select('full_name, status, membership_expiry_date').eq('user_id', user.id).single(),
-        db.from('chat_messages').select('role, content').eq('user_id', user.id).order('created_at', { ascending: true }).limit(20),
+        db.from('fitness_profiles').select('*').eq('user_id', viewer.user.id).single(),
+        db.from('members').select('full_name, status, membership_expiry_date').eq('id', viewer.member.id).eq('gym_id', viewer.gym.id).single(),
+        db.from('chat_messages').select('role, content').eq('user_id', viewer.user.id).order('created_at', { ascending: true }).limit(20),
     ])
 
     const p = profile as FitnessProfileRow | null
@@ -65,7 +59,7 @@ Be motivating, concise, and specific. Give practical advice. If asked about exer
     }))
 
     // Save user message first
-    await db.from('chat_messages').insert({ user_id: user.id, role: 'user', content: message })
+    await db.from('chat_messages').insert({ user_id: viewer.user.id, role: 'user', content: message })
 
     try {
         const { GoogleGenerativeAI } = await import('@google/generative-ai')
@@ -76,7 +70,7 @@ Be motivating, concise, and specific. Give practical advice. If asked about exer
         const reply = result.response.text()
 
         // Save assistant reply
-        await db.from('chat_messages').insert({ user_id: user.id, role: 'model', content: reply })
+        await db.from('chat_messages').insert({ user_id: viewer.user.id, role: 'model', content: reply })
 
         revalidatePath('/member/ai-trainer')
         return { success: true, reply }
@@ -87,14 +81,13 @@ Be motivating, concise, and specific. Give practical advice. If asked about exer
 }
 
 export async function getChatHistory() {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return []
+    const viewer = await getCurrentGymContext()
+    if (!viewer.user) return []
 
-    const { data } = await admin()
+    const { data } = await getSupabaseAdmin()
         .from('chat_messages')
         .select('role, content, created_at')
-        .eq('user_id', user.id)
+        .eq('user_id', viewer.user.id)
         .order('created_at', { ascending: true })
         .limit(50)
 
@@ -102,11 +95,10 @@ export async function getChatHistory() {
 }
 
 export async function clearChatHistory() {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'Not authenticated' }
+    const viewer = await getCurrentGymContext()
+    if (!viewer.user) return { error: 'Not authenticated' }
 
-    await admin().from('chat_messages').delete().eq('user_id', user.id)
+    await getSupabaseAdmin().from('chat_messages').delete().eq('user_id', viewer.user.id)
     revalidatePath('/member/ai-trainer')
     return { success: true }
 }

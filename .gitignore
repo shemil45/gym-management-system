@@ -2,6 +2,7 @@
 node_modules/
 .pnp
 .pnp.js
+.venv
 
 # Next.js
 .next/
@@ -49,5 +50,14 @@ coverage/
 *.pem
 
 # Supabase migrations
-supabase/migrations/
+supabase/migrations/*
+!supabase/migrations/008_multi_tenant_saas_refactor.sql
+
+# Supabase scratch files
 test-whatsapp.ts
+
+graphify-out/
+graphify/
+*.graph.json
+.codex/
+AGENTS.md

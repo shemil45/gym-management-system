@@ -1,25 +1,20 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
 import type { InsertTables, QueryResult, UpdateTables } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
 import { getAvatarStoragePath } from '@/lib/utils/storage'
 import { sendMemberWhatsAppNotification } from '@/lib/notifications/service'
-import { isStaffRole, type ProfileRole } from '@/lib/auth/roles'
+import { getCurrentGymContext } from '@/lib/auth/gym-context'
+import { findAuthUserByEmail, getSupabaseAdmin } from '@/lib/supabase/admin'
 
 type MemberIdRow = Pick<InsertTables<'members'>, 'member_id'>
 type PlanLookup = Pick<InsertTables<'membership_plans'>, 'duration_days' | 'price'>
 type ReferrerLookup = { id: string }
 type CreatedMember = { id: string }
-
-function getSupabaseAdmin() {
-    return createAdminClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
-}
+type ExistingProfile = { id: string; active_gym_id: string | null }
+type ExistingMember = { id: string; user_id: string | null }
 
 function getErrorMessage(error: unknown, fallback: string) {
     return error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
@@ -72,33 +67,17 @@ export async function generateNextMemberId(): Promise<string> {
 export async function createMember(formData: FormData) {
     const supabase = await createClient()
     const supabaseAdmin = getSupabaseAdmin()
+    const viewer = await getCurrentGymContext()
+    let createdNewAuthUser = false
     let createdUserId: string | null = null
     let createdMemberId: string | null = null
+    let createdProfile = false
     const uploadedPhotoPath = (formData.get('photo_path') as string | null)?.trim() || null
 
     try {
-        const {
-            data: { user },
-            error: authError,
-        } = await supabase.auth.getUser()
-
-        if (authError || !user) {
-            return { error: 'You must be signed in to add members.' }
-        }
-
-        const profileResult = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single()
-        const { data: actorProfile } = profileResult as unknown as QueryResult<{ role: ProfileRole } | null>
-
-        if (!actorProfile || !isStaffRole(actorProfile.role)) {
+        if (!viewer.user || !viewer.isStaff || !viewer.gym) {
             return { error: 'You do not have permission to add members.' }
         }
-
-        // Generate member ID
-        const memberId = await generateNextMemberId()
 
         const fullName = (formData.get('full_name') as string | null)?.trim()
         const email = (formData.get('email') as string | null)?.trim().toLowerCase()
@@ -116,6 +95,20 @@ export async function createMember(formData: FormData) {
         if (!generatedPassword) {
             return { error: 'Date of birth must be valid to generate the member password.' }
         }
+
+        const duplicateMemberResult = await supabaseAdmin
+            .from('members')
+            .select('id, user_id')
+            .eq('gym_id', viewer.gym.id)
+            .eq('email', email)
+            .maybeSingle()
+        const { data: duplicateMember } = duplicateMemberResult as unknown as QueryResult<ExistingMember | null>
+
+        if (duplicateMember) {
+            return { error: 'A member with this email already exists in the selected gym.' }
+        }
+
+        const memberId = await generateNextMemberId()
 
         // Get plan details
         const planResult = await supabase
@@ -154,44 +147,84 @@ export async function createMember(formData: FormData) {
         // Create member
         const photoUrl = (formData.get('photo_url') as string | null)?.trim() || null
 
-        const createUserResult = await supabaseAdmin.auth.admin.createUser({
-            email,
-            password: generatedPassword,
-            email_confirm: true,
-        })
+        const existingAuthUser = await findAuthUserByEmail(email)
 
-        if (createUserResult.error || !createUserResult.data.user) {
-            if (uploadedPhotoPath) {
-                await supabaseAdmin.storage.from('avatars').remove([uploadedPhotoPath])
+        if (existingAuthUser) {
+            createdUserId = existingAuthUser.id
+        } else {
+            const createUserResult = await supabaseAdmin.auth.admin.createUser({
+                email,
+                password: generatedPassword,
+                email_confirm: true,
+            })
+
+            if (createUserResult.error || !createUserResult.data.user) {
+                if (uploadedPhotoPath) {
+                    await supabaseAdmin.storage.from('avatars').remove([uploadedPhotoPath])
+                }
+                return { error: getErrorMessage(createUserResult.error, 'Failed to create member login.') }
             }
-            return { error: getErrorMessage(createUserResult.error, 'Failed to create member login.') }
+
+            createdNewAuthUser = true
+            createdUserId = createUserResult.data.user.id
         }
 
-        createdUserId = createUserResult.data.user.id
-
-        const profilePayload: InsertTables<'profiles'> = {
-            id: createdUserId,
-            role: 'member',
-            full_name: fullName,
-            phone,
-            photo_url: photoUrl,
-            created_at: new Date().toISOString(),
+        if (!createdUserId) {
+            return { error: 'Unable to resolve the member login account.' }
         }
 
-        const { error: profileInsertError } = await supabaseAdmin
+        const existingProfileResult = await supabaseAdmin
             .from('profiles')
-            .insert(profilePayload as never)
+            .select('id, active_gym_id')
+            .eq('id', createdUserId)
+            .maybeSingle()
+        const { data: existingProfile } = existingProfileResult as unknown as QueryResult<ExistingProfile | null>
 
-        if (profileInsertError) {
-            if (uploadedPhotoPath) {
-                await supabaseAdmin.storage.from('avatars').remove([uploadedPhotoPath])
+        if (existingProfile) {
+            const profileUpdate: UpdateTables<'profiles'> = {
+                full_name: fullName,
+                phone,
+                photo_url: photoUrl,
             }
-            await supabaseAdmin.auth.admin.deleteUser(createdUserId)
-            return { error: getErrorMessage(profileInsertError, 'Failed to create member profile.') }
+
+            if (!existingProfile.active_gym_id || existingProfile.active_gym_id === viewer.gym.id) {
+                profileUpdate.active_gym_id = viewer.gym.id
+                profileUpdate.role = 'member'
+            }
+
+            const { error: profileUpdateError } = await supabaseAdmin
+                .from('profiles')
+                .update(profileUpdate as never)
+                .eq('id', createdUserId)
+
+            if (profileUpdateError) {
+                throw profileUpdateError
+            }
+        } else {
+            const profilePayload: InsertTables<'profiles'> = {
+                id: createdUserId,
+                role: 'member',
+                full_name: fullName,
+                phone,
+                photo_url: photoUrl,
+                active_gym_id: viewer.gym.id,
+                created_at: new Date().toISOString(),
+            }
+
+            const { error: profileInsertError } = await supabaseAdmin
+                .from('profiles')
+                .insert(profilePayload as never)
+
+            if (profileInsertError) {
+                throw profileInsertError
+            }
+
+            createdProfile = true
         }
 
         const memberPayload: InsertTables<'members'> = {
             user_id: createdUserId,
+            gym_id: viewer.gym.id,
             member_id: memberId,
             full_name: fullName,
             email,
@@ -221,8 +254,10 @@ export async function createMember(formData: FormData) {
             if (uploadedPhotoPath) {
                 await supabaseAdmin.storage.from('avatars').remove([uploadedPhotoPath])
             }
-            if (createdUserId) {
+            if (createdProfile && createdUserId) {
                 await supabaseAdmin.from('profiles').delete().eq('id', createdUserId)
+            }
+            if (createdNewAuthUser && createdUserId) {
                 await supabaseAdmin.auth.admin.deleteUser(createdUserId)
             }
             return { error: getErrorMessage(memberError, 'Failed to create member') }
@@ -231,8 +266,10 @@ export async function createMember(formData: FormData) {
             if (uploadedPhotoPath) {
                 await supabaseAdmin.storage.from('avatars').remove([uploadedPhotoPath])
             }
-            if (createdUserId) {
+            if (createdProfile && createdUserId) {
                 await supabaseAdmin.from('profiles').delete().eq('id', createdUserId)
+            }
+            if (createdNewAuthUser && createdUserId) {
                 await supabaseAdmin.auth.admin.deleteUser(createdUserId)
             }
             return { error: 'Member record was not returned after creation' }
@@ -242,6 +279,7 @@ export async function createMember(formData: FormData) {
 
         // Create initial payment record
         const paymentPayload: InsertTables<'payments'> = {
+            gym_id: viewer.gym.id,
             member_id: member.id,
             amount: Number(paymentAmountValue),
             payment_method: paymentMethod,
@@ -255,8 +293,10 @@ export async function createMember(formData: FormData) {
 
         if (paymentError) {
             await supabase.from('members').delete().eq('id', member.id)
-            if (createdUserId) {
+            if (createdProfile && createdUserId) {
                 await supabaseAdmin.from('profiles').delete().eq('id', createdUserId)
+            }
+            if (createdNewAuthUser && createdUserId) {
                 await supabaseAdmin.auth.admin.deleteUser(createdUserId)
             }
             if (uploadedPhotoPath) {
@@ -268,6 +308,7 @@ export async function createMember(formData: FormData) {
         // If referred, create a referral record
         if (referrerId) {
             const referralPayload: InsertTables<'referrals'> = {
+                gym_id: viewer.gym.id,
                 referrer_id: referrerId,
                 referred_id: member.id,
                 referral_code: rawCode,
@@ -294,6 +335,7 @@ export async function createMember(formData: FormData) {
         }
 
         revalidatePath('/admin/members')
+        revalidatePath('/select-gym')
         return {
             success: true,
             memberId: member.id,
@@ -303,8 +345,10 @@ export async function createMember(formData: FormData) {
         if (createdMemberId) {
             await supabase.from('members').delete().eq('id', createdMemberId)
         }
-        if (createdUserId) {
+        if (createdProfile && createdUserId) {
             await supabaseAdmin.from('profiles').delete().eq('id', createdUserId)
+        }
+        if (createdNewAuthUser && createdUserId) {
             await supabaseAdmin.auth.admin.deleteUser(createdUserId)
         }
         if (uploadedPhotoPath) {
@@ -413,6 +457,7 @@ export async function updateMember(formData: FormData) {
         revalidatePath('/admin/members')
         revalidatePath(`/admin/members/${memberId}`)
         revalidatePath(`/admin/members/${memberId}/edit`)
+        revalidatePath('/select-gym')
         return { success: true }
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to update member'
@@ -459,6 +504,7 @@ export async function deleteMember(memberId: string) {
         revalidatePath('/admin/members')
         revalidatePath(`/admin/members/${memberId}`)
         revalidatePath(`/admin/members/${memberId}/edit`)
+        revalidatePath('/select-gym')
         return { success: true }
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to delete member'

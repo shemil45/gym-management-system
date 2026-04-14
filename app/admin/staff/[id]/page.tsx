@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import LoadingLinkButton from '@/components/ui/loading-link-button'
 import { formatRoleLabel, type StaffRole } from '@/lib/auth/roles'
@@ -14,27 +14,22 @@ import {
     ShieldCheck,
     User,
 } from 'lucide-react'
+import type { QueryResult } from '@/lib/types'
 
 type StaffDetail = {
-    id: string
-    full_name: string
-    phone: string | null
-    photo_url: string | null
+    user_id: string
     role: StaffRole
     created_at: string
-}
-
-type AuthUserEmail = string | null
-
-function getSupabaseAdmin() {
-    return createAdminClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    profile: {
+        id: string
+        full_name: string
+        phone: string | null
+        photo_url: string | null
+    } | null
 }
 
 function formatDate(value: string | null) {
-    if (!value) return '—'
+    if (!value) return '-'
     return new Date(value).toLocaleDateString('en-IN', {
         day: 'numeric',
         month: 'short',
@@ -90,24 +85,21 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
     const supabase = await createClient()
     const admin = getSupabaseAdmin()
 
-    const profileResult = await supabase
-        .from('profiles')
-        .select('id, full_name, phone, photo_url, role, created_at')
-        .eq('id', id)
-        .neq('role', 'member')
-        .single()
+    const staffResult = await supabase
+        .from('admins')
+        .select('user_id, role, created_at, profile:profiles!admins_user_id_fkey(id, full_name, phone, photo_url)')
+        .eq('user_id', id)
+        .maybeSingle()
+    const { data: staff } = staffResult as unknown as QueryResult<StaffDetail | null>
 
-    const staff = profileResult.data as StaffDetail | null
-
-    if (!staff) notFound()
-
-    let email: AuthUserEmail = null
-    const authUserResult = await admin.auth.admin.getUserById(id)
-    if (!authUserResult.error) {
-        email = authUserResult.data.user?.email ?? null
+    if (!staff?.profile) {
+        notFound()
     }
 
-    const initials = staff.full_name
+    const authUserResult = await admin.auth.admin.getUserById(id)
+    const email = authUserResult.error ? null : authUserResult.data.user?.email ?? null
+
+    const initials = staff.profile.full_name
         .split(' ')
         .map((name) => name[0])
         .join('')
@@ -128,7 +120,7 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
                 </LoadingLinkButton>
 
                 <LoadingLinkButton
-                    href={`/admin/staff/${staff.id}/edit`}
+                    href={`/admin/staff/${staff.user_id}/edit`}
                     loadingText="Opening..."
                     className="flex h-9 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700"
                 >
@@ -144,7 +136,7 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
                 <div className="relative flex items-center gap-4">
                     <div className="shrink-0 rounded-full ring-2 ring-white/30">
                         <Avatar className="h-14 w-14">
-                            <AvatarImage src={resolveAvatarUrl(staff.photo_url)} alt={staff.full_name} />
+                            <AvatarImage src={resolveAvatarUrl(staff.profile.photo_url)} alt={staff.profile.full_name} />
                             <AvatarFallback className="bg-gradient-to-br from-blue-300 to-violet-400 text-base font-bold text-white">
                                 {initials}
                             </AvatarFallback>
@@ -152,7 +144,7 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
                     </div>
 
                     <div className="min-w-0 flex-1">
-                        <h1 className="truncate text-lg font-bold text-white">{staff.full_name}</h1>
+                        <h1 className="truncate text-lg font-bold text-white">{staff.profile.full_name}</h1>
                         <p className="text-xs font-medium capitalize text-blue-200">{formatRoleLabel(staff.role)}</p>
                     </div>
                 </div>
@@ -163,10 +155,10 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
                     Staff Info
                 </p>
                 <div className="admin-detail-card-body">
-                    <InfoRow icon={User} label="Full Name" value={staff.full_name} />
+                    <InfoRow icon={User} label="Full Name" value={staff.profile.full_name} />
                     <InfoRow icon={ShieldCheck} label="Role" value={formatRoleLabel(staff.role)} />
-                    <InfoRow icon={Phone} label="Phone" value={staff.phone || '—'} href={staff.phone ? `tel:${staff.phone}` : undefined} />
-                    <InfoRow icon={Mail} label="Email" value={email || '—'} href={email ? `mailto:${email}` : undefined} />
+                    <InfoRow icon={Phone} label="Phone" value={staff.profile.phone || '-'} href={staff.profile.phone ? `tel:${staff.profile.phone}` : undefined} />
+                    <InfoRow icon={Mail} label="Email" value={email || '-'} href={email ? `mailto:${email}` : undefined} />
                     <InfoRow icon={Calendar} label="Created" value={formatDate(staff.created_at)} />
                 </div>
             </div>

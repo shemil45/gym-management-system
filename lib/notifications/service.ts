@@ -156,7 +156,16 @@ async function getMemberRecord(memberId: string) {
         throw result.error
     }
 
-    return result.data as MemberRecord
+    const raw = result.data as unknown as MemberRecord & {
+        membership_plan: MemberRecord['membership_plan'] | Array<MemberRecord['membership_plan']>
+    }
+
+    return {
+        ...raw,
+        membership_plan: Array.isArray(raw.membership_plan)
+            ? raw.membership_plan[0] ?? null
+            : raw.membership_plan ?? null,
+    }
 }
 
 async function getLatestPayment(memberId: string) {

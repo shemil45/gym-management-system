@@ -10,10 +10,14 @@ export default async function MemberLayout({
 }: {
     children: React.ReactNode
 }) {
-    const { user, profile, member } = await getCurrentMemberContext()
+    const { user, profile, member, gym, needsGymSelection } = await getCurrentMemberContext()
 
     if (!user) {
         redirect('/login')
+    }
+
+    if (needsGymSelection || !gym) {
+        redirect('/select-gym')
     }
 
     if (!profile || profile.role !== 'member') {
@@ -36,6 +40,7 @@ export default async function MemberLayout({
                             full_name: profile.full_name,
                             photo_url: profile.photo_url,
                             member_id: member?.member_id ?? null,
+                            gym_name: gym.name,
                         }}
                     />
                     <main className="p-4 sm:p-6">

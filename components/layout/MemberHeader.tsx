@@ -12,7 +12,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { LogOut, User, Bell, ChevronDown, Menu, Dumbbell } from 'lucide-react'
+import { LogOut, User, Bell, ChevronDown, Menu, Dumbbell, Building2 } from 'lucide-react'
 import { useSidebar } from '@/components/layout/SidebarContext'
 
 interface MemberHeaderProps {
@@ -21,6 +21,7 @@ interface MemberHeaderProps {
         full_name?: string
         photo_url?: string | null
         member_id?: string | null
+        gym_name?: string
     }
 }
 
@@ -62,6 +63,15 @@ export default function MemberHeader({ user }: MemberHeaderProps) {
                         GymFit Member Portal
                     </span>
                 </div>
+
+                {user.gym_name ? (
+                    <>
+                        <span className="hidden sm:block text-gray-300">·</span>
+                        <span className="hidden sm:block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                            {user.gym_name}
+                        </span>
+                    </>
+                ) : null}
 
                 {user.member_id && (
                     <>
@@ -114,6 +124,12 @@ export default function MemberHeader({ user }: MemberHeaderProps) {
                             <a href="/member/profile" className="cursor-pointer">
                                 <User className="mr-2 h-4 w-4" />
                                 <span>My Profile</span>
+                            </a>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                            <a href="/select-gym" className="cursor-pointer">
+                                <Building2 className="mr-2 h-4 w-4" />
+                                <span>Switch Gym</span>
                             </a>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />

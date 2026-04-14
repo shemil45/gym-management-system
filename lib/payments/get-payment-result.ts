@@ -1,10 +1,7 @@
 import 'server-only'
 
-import { createClient as createAdminClient } from '@supabase/supabase-js'
-import { createClient } from '@/lib/supabase/server'
-import type { QueryResult } from '@/lib/types'
-import type { ProfileRole } from '@/lib/auth/roles'
-import { isStaffRole } from '@/lib/auth/roles'
+import { getCurrentGymContext } from '@/lib/auth/gym-context'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 
 export type PaymentResult =
     | {
@@ -26,56 +23,27 @@ export type PaymentResult =
     }
     | { error: string }
 
-function getSupabaseAdmin() {
-    return createAdminClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
-}
-
 export async function getPaymentResultForViewer(invoiceNumber: string): Promise<PaymentResult> {
     try {
-        const supabase = await createClient()
+        const viewer = await getCurrentGymContext()
         const supabaseAdmin = getSupabaseAdmin()
-        const {
-            data: { user },
-            error: userError,
-        } = await supabase.auth.getUser()
 
-        if (userError || !user) {
+        if (!viewer.user || !viewer.gym) {
             return { error: 'Not authenticated' }
-        }
-
-        type ViewerProfile = { role: ProfileRole }
-
-        const profileResult = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single()
-        const { data: profile } = profileResult as unknown as QueryResult<ViewerProfile | null>
-
-        if (!profile) {
-            return { error: 'Profile not found' }
         }
 
         let paymentQuery = supabaseAdmin
             .from('payments')
             .select('member_id, amount, invoice_number, membership_start_date, membership_end_date, payment_date, payment_method, payment_status, razorpay_order_id, razorpay_payment_id, notes')
+            .eq('gym_id', viewer.gym.id)
             .eq('invoice_number', invoiceNumber)
 
-        if (!isStaffRole(profile.role)) {
-            const { data: member } = await supabaseAdmin
-                .from('members')
-                .select('id')
-                .eq('user_id', user.id)
-                .single()
-
-            if (!member) {
+        if (!viewer.isStaff) {
+            if (!viewer.member) {
                 return { error: 'Member record not found' }
             }
 
-            paymentQuery = paymentQuery.eq('member_id', member.id)
+            paymentQuery = paymentQuery.eq('member_id', viewer.member.id)
         }
 
         const { data: payment } = await paymentQuery.maybeSingle()

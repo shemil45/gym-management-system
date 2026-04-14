@@ -7,7 +7,9 @@ export type UpdateTables<T extends keyof Database['public']['Tables']> = Databas
 export type QueryResult<T> = { data: T; error: unknown }
 
 // Entity types
+export type Gym = Tables<'gyms'>
 export type Profile = Tables<'profiles'>
+export type AdminMembership = Tables<'admins'>
 export type MembershipPlan = Tables<'membership_plans'>
 export type Member = Tables<'members'>
 export type CheckIn = Tables<'check_ins'>

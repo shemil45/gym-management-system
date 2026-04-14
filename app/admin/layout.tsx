@@ -10,20 +10,24 @@ export default async function AdminLayout({
 }: {
     children: React.ReactNode
 }) {
-    const { user, profile } = await getCurrentAdminContext()
+    const { user, profile, gym, needsGymSelection, isStaff } = await getCurrentAdminContext()
 
     if (!user) {
         redirect('/login')
     }
 
-    if (!profile || !isStaffRole(profile.role)) {
+    if (needsGymSelection || !gym) {
+        redirect('/select-gym')
+    }
+
+    if (!profile || !isStaffRole(profile.role) || !isStaff) {
         redirect('/member/dashboard')
     }
 
     return (
         <SidebarProvider>
             <AdminThemeProvider>
-                <AdminShell user={{ ...user, ...profile }}>{children}</AdminShell>
+                <AdminShell user={{ ...user, ...profile, gym_name: gym.name }}>{children}</AdminShell>
             </AdminThemeProvider>
         </SidebarProvider>
     )

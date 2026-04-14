@@ -1,18 +1,17 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
-import { isStaffRole, STAFF_ROLES, type ProfileRole, type StaffRole } from '@/lib/auth/roles'
+import { getSupabaseAdmin, findAuthUserByEmail } from '@/lib/supabase/admin'
+import { getCurrentGymContext } from '@/lib/auth/gym-context'
+import { STAFF_ROLES, type StaffRole } from '@/lib/auth/roles'
 import type { InsertTables, QueryResult, UpdateTables } from '@/lib/types'
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
 import { getAvatarStoragePath } from '@/lib/utils/storage'
 
-function getSupabaseAdmin() {
-    return createAdminClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+type ExistingProfile = {
+    id: string
+    active_gym_id: string | null
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -22,26 +21,10 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 export async function createStaff(formData: FormData) {
-    const supabase = await createClient()
+    const viewer = await getCurrentGymContext()
     const admin = getSupabaseAdmin()
 
-    const {
-        data: { user },
-        error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-        return { error: 'You must be signed in to add staff.' }
-    }
-
-    const profileResult = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-    const { data: actorProfile } = profileResult as unknown as QueryResult<{ role: ProfileRole } | null>
-
-    if (!actorProfile || !isStaffRole(actorProfile.role)) {
+    if (!viewer.user || !viewer.isStaff || !viewer.gym) {
         return { error: 'You do not have permission to add staff.' }
     }
 
@@ -62,26 +45,41 @@ export async function createStaff(formData: FormData) {
         return { error: 'Please choose a valid staff role.' }
     }
 
+    let createdNewAuthUser = false
     let createdUserId: string | null = null
+    let createdProfile = false
     let photoUrl: string | null = uploadedPhotoUrl
     let finalUploadedPhotoPath: string | null = uploadedPhotoPath
 
     try {
-        const createUserResult = await admin.auth.admin.createUser({
-            email,
-            password,
-            email_confirm: true,
-        })
+        const existingAuthUser = await findAuthUserByEmail(email)
 
-        if (createUserResult.error || !createUserResult.data.user) {
-            return { error: getErrorMessage(createUserResult.error, 'Failed to create auth user.') }
+        if (existingAuthUser) {
+            createdUserId = existingAuthUser.id
+        } else {
+            const createUserResult = await admin.auth.admin.createUser({
+                email,
+                password,
+                email_confirm: true,
+            })
+
+            if (createUserResult.error || !createUserResult.data.user) {
+                return { error: getErrorMessage(createUserResult.error, 'Failed to create auth user.') }
+            }
+
+            createdNewAuthUser = true
+            createdUserId = createUserResult.data.user.id
         }
 
-        createdUserId = createUserResult.data.user.id
+        if (!createdUserId) {
+            return { error: 'Unable to resolve the staff account.' }
+        }
 
         if (!photoUrl && photoFile && photoFile.size > 0) {
             if (photoFile.size > MAX_UPLOAD_SIZE_BYTES) {
-                await admin.auth.admin.deleteUser(createdUserId)
+                if (createdNewAuthUser) {
+                    await admin.auth.admin.deleteUser(createdUserId)
+                }
                 return { error: `Photo must be under ${MAX_UPLOAD_SIZE_LABEL}.` }
             }
 
@@ -93,7 +91,9 @@ export async function createStaff(formData: FormData) {
                 .upload(fileName, photoFile, { upsert: true })
 
             if (uploadError) {
-                await admin.auth.admin.deleteUser(createdUserId)
+                if (createdNewAuthUser) {
+                    await admin.auth.admin.deleteUser(createdUserId)
+                }
                 return { error: getErrorMessage(uploadError, UPLOAD_FAILURE_MESSAGE) }
             }
 
@@ -105,34 +105,80 @@ export async function createStaff(formData: FormData) {
             photoUrl = publicUrl
         }
 
-        const profilePayload: InsertTables<'profiles'> = {
-            id: createdUserId,
-            full_name: fullName,
-            phone,
-            photo_url: photoUrl,
-            role,
-            created_at: new Date().toISOString(),
+        const existingProfileResult = await admin
+            .from('profiles')
+            .select('id, active_gym_id')
+            .eq('id', createdUserId)
+            .maybeSingle()
+        const { data: existingProfile } = existingProfileResult as unknown as QueryResult<ExistingProfile | null>
+
+        if (existingProfile) {
+            const updatePayload: UpdateTables<'profiles'> = {
+                full_name: fullName,
+                phone,
+                photo_url: photoUrl,
+            }
+
+            if (!existingProfile.active_gym_id || existingProfile.active_gym_id === viewer.gym.id) {
+                updatePayload.active_gym_id = viewer.gym.id
+                updatePayload.role = role
+            }
+
+            const { error: profileError } = await admin
+                .from('profiles')
+                .update(updatePayload as never)
+                .eq('id', createdUserId)
+
+            if (profileError) {
+                throw profileError
+            }
+        } else {
+            const profilePayload: InsertTables<'profiles'> = {
+                id: createdUserId,
+                full_name: fullName,
+                phone,
+                photo_url: photoUrl,
+                role,
+                active_gym_id: viewer.gym.id,
+                created_at: new Date().toISOString(),
+            }
+
+            const { error: profileError } = await admin
+                .from('profiles')
+                .insert(profilePayload as never)
+
+            if (profileError) {
+                throw profileError
+            }
+
+            createdProfile = true
         }
 
-        const { error: insertError } = await admin
-            .from('profiles')
-            .insert(profilePayload as never)
+        const { error: membershipError } = await admin
+            .from('admins')
+            .upsert(({
+                user_id: createdUserId,
+                gym_id: viewer.gym.id,
+                role,
+            } satisfies InsertTables<'admins'>) as never, {
+                onConflict: 'user_id,gym_id',
+            })
 
-        if (insertError) {
-            if (finalUploadedPhotoPath) {
-                await admin.storage.from('avatars').remove([finalUploadedPhotoPath])
-            }
-            await admin.auth.admin.deleteUser(createdUserId)
-            return { error: getErrorMessage(insertError, 'Failed to create staff profile.') }
+        if (membershipError) {
+            throw membershipError
         }
 
         revalidatePath('/admin/staff')
+        revalidatePath('/select-gym')
         return { success: true }
     } catch (error) {
         if (finalUploadedPhotoPath) {
             await admin.storage.from('avatars').remove([finalUploadedPhotoPath])
         }
-        if (createdUserId) {
+        if (createdProfile && createdUserId) {
+            await admin.from('profiles').delete().eq('id', createdUserId)
+        }
+        if (createdNewAuthUser && createdUserId) {
             await admin.auth.admin.deleteUser(createdUserId)
         }
 
@@ -141,26 +187,11 @@ export async function createStaff(formData: FormData) {
 }
 
 export async function updateStaff(formData: FormData) {
-    const supabase = await createClient()
+    const viewer = await getCurrentGymContext()
     const admin = getSupabaseAdmin()
+    const supabase = await createClient()
 
-    const {
-        data: { user },
-        error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-        return { error: 'You must be signed in to edit staff.' }
-    }
-
-    const profileResult = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-    const { data: actorProfile } = profileResult as unknown as QueryResult<{ role: ProfileRole } | null>
-
-    if (!actorProfile || !isStaffRole(actorProfile.role)) {
+    if (!viewer.user || !viewer.isStaff || !viewer.gym) {
         return { error: 'You do not have permission to edit staff.' }
     }
 
@@ -182,6 +213,17 @@ export async function updateStaff(formData: FormData) {
     }
 
     try {
+        const existingProfileResult = await admin
+            .from('profiles')
+            .select('id, active_gym_id')
+            .eq('id', id)
+            .maybeSingle()
+        const { data: existingProfile } = existingProfileResult as unknown as QueryResult<ExistingProfile | null>
+
+        if (!existingProfile) {
+            return { error: 'Staff profile not found.' }
+        }
+
         let photoUrl = uploadedPhotoUrl || existingPhotoUrl
         let finalUploadedPhotoPath: string | null = uploadedPhotoPath
 
@@ -212,20 +254,41 @@ export async function updateStaff(formData: FormData) {
         const updatePayload: UpdateTables<'profiles'> = {
             full_name: fullName,
             phone,
-            role,
             photo_url: photoUrl,
         }
 
-        const { error } = await supabase
+        if (!existingProfile.active_gym_id || existingProfile.active_gym_id === viewer.gym.id) {
+            updatePayload.active_gym_id = viewer.gym.id
+            updatePayload.role = role
+        }
+
+        const { error: profileError } = await supabase
             .from('profiles')
             .update(updatePayload as never)
             .eq('id', id)
 
-        if (error) {
+        if (profileError) {
             if (finalUploadedPhotoPath) {
                 await admin.storage.from('avatars').remove([finalUploadedPhotoPath])
             }
-            return { error: getErrorMessage(error, 'Failed to update staff.') }
+            return { error: getErrorMessage(profileError, 'Failed to update staff.') }
+        }
+
+        const { error: membershipError } = await admin
+            .from('admins')
+            .upsert(({
+                user_id: id,
+                gym_id: viewer.gym.id,
+                role,
+            } satisfies InsertTables<'admins'>) as never, {
+                onConflict: 'user_id,gym_id',
+            })
+
+        if (membershipError) {
+            if (finalUploadedPhotoPath) {
+                await admin.storage.from('avatars').remove([finalUploadedPhotoPath])
+            }
+            return { error: getErrorMessage(membershipError, 'Failed to update staff gym role.') }
         }
 
         const oldPhotoPath = finalUploadedPhotoPath ? getAvatarStoragePath(existingPhotoUrl) : null
@@ -236,6 +299,7 @@ export async function updateStaff(formData: FormData) {
         revalidatePath('/admin/staff')
         revalidatePath(`/admin/staff/${id}`)
         revalidatePath(`/admin/staff/${id}/edit`)
+        revalidatePath('/select-gym')
         return { success: true }
     } catch (error) {
         return { error: getErrorMessage(error, 'Failed to update staff.') }

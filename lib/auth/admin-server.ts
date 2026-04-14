@@ -1,39 +1,17 @@
 import { cache } from 'react'
-import { createClient } from '@/lib/supabase/server'
-import type { QueryResult } from '@/lib/types'
-import type { ProfileRole } from '@/lib/auth/roles'
-
-type AdminProfile = {
-    id: string
-    role: ProfileRole
-    full_name: string
-    phone: string | null
-    photo_url: string | null
-}
+import { getCurrentGymContext } from '@/lib/auth/gym-context'
 
 export const getCurrentAdminContext = cache(async () => {
-    const supabase = await createClient()
-
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-        return {
-            profile: null,
-            user: null,
-        }
-    }
-
-    const profileResult = await supabase
-        .from('profiles')
-        .select('id, role, full_name, phone, photo_url')
-        .eq('id', user.id)
-        .single()
-    const { data: profile } = profileResult as unknown as QueryResult<AdminProfile | null>
+    const context = await getCurrentGymContext()
 
     return {
-        profile,
-        user,
+        user: context.user,
+        profile: context.profile,
+        gym: context.gym,
+        admin: context.admin,
+        accessibleGyms: context.accessibleGyms,
+        needsGymSelection: context.needsGymSelection,
+        role: context.role,
+        isStaff: context.isStaff,
     }
 })

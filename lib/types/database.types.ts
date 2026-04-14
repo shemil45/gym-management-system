@@ -6,34 +6,110 @@ export type Json =
     | { [key: string]: Json | undefined }
     | Json[]
 
+type ProfileRole = 'admin' | 'owner' | 'manager' | 'receptionist' | 'trainer' | 'house_keeper' | 'member'
+type StaffRole = Exclude<ProfileRole, 'member'>
+type Gender = 'male' | 'female' | 'other'
+type MemberStatus = 'active' | 'inactive' | 'frozen' | 'expired'
+type CheckInMethod = 'manual' | 'qr' | 'kiosk' | 'fingerprint'
+type PaymentMethod = 'cash' | 'card' | 'upi' | 'bank_transfer' | 'online'
+type PaymentStatus = 'paid' | 'pending' | 'failed' | 'refunded'
+type ExpenseCategory = 'utilities' | 'salary' | 'equipment' | 'maintenance' | 'marketing' | 'rent' | 'other'
+type ReferralStatus = 'pending' | 'applied' | 'expired'
+type NotificationType =
+    | 'payment_reminder'
+    | 'membership_expiring'
+    | 'membership_expired'
+    | 'payment_received'
+    | 'welcome_new_member'
+    | 'referral_reward_earned'
+type NotificationStatus = 'sent' | 'failed'
+
 export interface Database {
     public: {
         Tables: {
-            profiles: {
+            gyms: {
                 Row: {
                     id: string
-                    role: 'admin' | 'owner' | 'manager' | 'receptionist' | 'trainer' | 'house_keeper' | 'member'
-                    full_name: string
-                    phone: string | null
-                    photo_url: string | null
+                    name: string
+                    slug: string | null
+                    subdomain: string | null
+                    is_active: boolean
                     created_at: string
                     updated_at: string
                 }
                 Insert: {
-                    id: string
-                    role: 'admin' | 'owner' | 'manager' | 'receptionist' | 'trainer' | 'house_keeper' | 'member'
-                    full_name: string
-                    phone?: string | null
-                    photo_url?: string | null
+                    id?: string
+                    name: string
+                    slug?: string | null
+                    subdomain?: string | null
+                    is_active?: boolean
                     created_at?: string
                     updated_at?: string
                 }
                 Update: {
                     id?: string
-                    role?: 'admin' | 'owner' | 'manager' | 'receptionist' | 'trainer' | 'house_keeper' | 'member'
+                    name?: string
+                    slug?: string | null
+                    subdomain?: string | null
+                    is_active?: boolean
+                    created_at?: string
+                    updated_at?: string
+                }
+            }
+            profiles: {
+                Row: {
+                    id: string
+                    role: ProfileRole
+                    full_name: string
+                    phone: string | null
+                    photo_url: string | null
+                    active_gym_id: string | null
+                    created_at: string
+                    updated_at: string
+                }
+                Insert: {
+                    id: string
+                    role: ProfileRole
+                    full_name: string
+                    phone?: string | null
+                    photo_url?: string | null
+                    active_gym_id?: string | null
+                    created_at?: string
+                    updated_at?: string
+                }
+                Update: {
+                    id?: string
+                    role?: ProfileRole
                     full_name?: string
                     phone?: string | null
                     photo_url?: string | null
+                    active_gym_id?: string | null
+                    created_at?: string
+                    updated_at?: string
+                }
+            }
+            admins: {
+                Row: {
+                    id: string
+                    user_id: string
+                    gym_id: string
+                    role: StaffRole
+                    created_at: string
+                    updated_at: string
+                }
+                Insert: {
+                    id?: string
+                    user_id: string
+                    gym_id?: string
+                    role: StaffRole
+                    created_at?: string
+                    updated_at?: string
+                }
+                Update: {
+                    id?: string
+                    user_id?: string
+                    gym_id?: string
+                    role?: StaffRole
                     created_at?: string
                     updated_at?: string
                 }
@@ -41,6 +117,7 @@ export interface Database {
             membership_plans: {
                 Row: {
                     id: string
+                    gym_id: string
                     name: string
                     duration_days: number
                     price: number
@@ -52,6 +129,7 @@ export interface Database {
                 }
                 Insert: {
                     id?: string
+                    gym_id?: string
                     name: string
                     duration_days: number
                     price: number
@@ -63,6 +141,7 @@ export interface Database {
                 }
                 Update: {
                     id?: string
+                    gym_id?: string
                     name?: string
                     duration_days?: number
                     price?: number
@@ -77,12 +156,13 @@ export interface Database {
                 Row: {
                     id: string
                     user_id: string | null
+                    gym_id: string
                     member_id: string
                     full_name: string
                     email: string | null
                     phone: string
                     date_of_birth: string | null
-                    gender: 'male' | 'female' | 'other' | null
+                    gender: Gender | null
                     photo_url: string | null
                     address: string | null
                     emergency_contact_name: string | null
@@ -90,7 +170,7 @@ export interface Database {
                     membership_plan_id: string | null
                     membership_start_date: string | null
                     membership_expiry_date: string | null
-                    status: 'active' | 'inactive' | 'frozen' | 'expired'
+                    status: MemberStatus
                     referral_coins_balance: number
                     referred_by: string | null
                     notes: string | null
@@ -100,12 +180,13 @@ export interface Database {
                 Insert: {
                     id?: string
                     user_id?: string | null
+                    gym_id?: string
                     member_id: string
                     full_name: string
                     email?: string | null
                     phone: string
                     date_of_birth?: string | null
-                    gender?: 'male' | 'female' | 'other' | null
+                    gender?: Gender | null
                     photo_url?: string | null
                     address?: string | null
                     emergency_contact_name?: string | null
@@ -113,7 +194,7 @@ export interface Database {
                     membership_plan_id?: string | null
                     membership_start_date?: string | null
                     membership_expiry_date?: string | null
-                    status?: 'active' | 'inactive' | 'frozen' | 'expired'
+                    status?: MemberStatus
                     referral_coins_balance?: number
                     referred_by?: string | null
                     notes?: string | null
@@ -123,12 +204,13 @@ export interface Database {
                 Update: {
                     id?: string
                     user_id?: string | null
+                    gym_id?: string
                     member_id?: string
                     full_name?: string
                     email?: string | null
                     phone?: string
                     date_of_birth?: string | null
-                    gender?: 'male' | 'female' | 'other' | null
+                    gender?: Gender | null
                     photo_url?: string | null
                     address?: string | null
                     emergency_contact_name?: string | null
@@ -136,7 +218,7 @@ export interface Database {
                     membership_plan_id?: string | null
                     membership_start_date?: string | null
                     membership_expiry_date?: string | null
-                    status?: 'active' | 'inactive' | 'frozen' | 'expired'
+                    status?: MemberStatus
                     referral_coins_balance?: number
                     referred_by?: string | null
                     notes?: string | null
@@ -147,30 +229,33 @@ export interface Database {
             check_ins: {
                 Row: {
                     id: string
+                    gym_id: string
                     member_id: string
                     check_in_time: string
                     check_out_time: string | null
-                    entry_method: 'manual' | 'qr' | 'kiosk' | 'fingerprint'
+                    entry_method: CheckInMethod
                     entered_by: string | null
                     notes: string | null
                     created_at: string
                 }
                 Insert: {
                     id?: string
+                    gym_id?: string
                     member_id: string
                     check_in_time?: string
                     check_out_time?: string | null
-                    entry_method?: 'manual' | 'qr' | 'kiosk' | 'fingerprint'
+                    entry_method?: CheckInMethod
                     entered_by?: string | null
                     notes?: string | null
                     created_at?: string
                 }
                 Update: {
                     id?: string
+                    gym_id?: string
                     member_id?: string
                     check_in_time?: string
                     check_out_time?: string | null
-                    entry_method?: 'manual' | 'qr' | 'kiosk' | 'fingerprint'
+                    entry_method?: CheckInMethod
                     entered_by?: string | null
                     notes?: string | null
                     created_at?: string
@@ -179,10 +264,11 @@ export interface Database {
             payments: {
                 Row: {
                     id: string
+                    gym_id: string
                     member_id: string
                     amount: number
-                    payment_method: 'cash' | 'card' | 'upi' | 'bank_transfer' | 'online'
-                    payment_status: 'paid' | 'pending' | 'failed' | 'refunded'
+                    payment_method: PaymentMethod
+                    payment_status: PaymentStatus
                     payment_date: string
                     invoice_number: string | null
                     razorpay_order_id: string | null
@@ -196,10 +282,11 @@ export interface Database {
                 }
                 Insert: {
                     id?: string
+                    gym_id?: string
                     member_id: string
                     amount: number
-                    payment_method: 'cash' | 'card' | 'upi' | 'bank_transfer' | 'online'
-                    payment_status?: 'paid' | 'pending' | 'failed' | 'refunded'
+                    payment_method: PaymentMethod
+                    payment_status?: PaymentStatus
                     payment_date?: string
                     invoice_number?: string | null
                     razorpay_order_id?: string | null
@@ -213,10 +300,11 @@ export interface Database {
                 }
                 Update: {
                     id?: string
+                    gym_id?: string
                     member_id?: string
                     amount?: number
-                    payment_method?: 'cash' | 'card' | 'upi' | 'bank_transfer' | 'online'
-                    payment_status?: 'paid' | 'pending' | 'failed' | 'refunded'
+                    payment_method?: PaymentMethod
+                    payment_status?: PaymentStatus
                     payment_date?: string
                     invoice_number?: string | null
                     razorpay_order_id?: string | null
@@ -232,7 +320,8 @@ export interface Database {
             expenses: {
                 Row: {
                     id: string
-                    category: 'utilities' | 'salary' | 'equipment' | 'maintenance' | 'marketing' | 'rent' | 'other'
+                    gym_id: string
+                    category: ExpenseCategory
                     amount: number
                     description: string
                     expense_date: string
@@ -243,7 +332,8 @@ export interface Database {
                 }
                 Insert: {
                     id?: string
-                    category: 'utilities' | 'salary' | 'equipment' | 'maintenance' | 'marketing' | 'rent' | 'other'
+                    gym_id?: string
+                    category: ExpenseCategory
                     amount: number
                     description: string
                     expense_date?: string
@@ -254,7 +344,8 @@ export interface Database {
                 }
                 Update: {
                     id?: string
-                    category?: 'utilities' | 'salary' | 'equipment' | 'maintenance' | 'marketing' | 'rent' | 'other'
+                    gym_id?: string
+                    category?: ExpenseCategory
                     amount?: number
                     description?: string
                     expense_date?: string
@@ -267,28 +358,31 @@ export interface Database {
             referrals: {
                 Row: {
                     id: string
+                    gym_id: string
                     referrer_id: string
                     referred_id: string
                     referral_code: string | null
-                    status: 'pending' | 'applied' | 'expired'
+                    status: ReferralStatus
                     created_at: string
                     applied_at: string | null
                 }
                 Insert: {
                     id?: string
+                    gym_id?: string
                     referrer_id: string
                     referred_id: string
                     referral_code?: string | null
-                    status?: 'pending' | 'applied' | 'expired'
+                    status?: ReferralStatus
                     created_at?: string
                     applied_at?: string | null
                 }
                 Update: {
                     id?: string
+                    gym_id?: string
                     referrer_id?: string
                     referred_id?: string
                     referral_code?: string | null
-                    status?: 'pending' | 'applied' | 'expired'
+                    status?: ReferralStatus
                     created_at?: string
                     applied_at?: string | null
                 }
@@ -296,46 +390,31 @@ export interface Database {
             notification_logs: {
                 Row: {
                     id: string
+                    gym_id: string
                     member_id: string
-                    notification_type:
-                    | 'payment_reminder'
-                    | 'membership_expiring'
-                    | 'membership_expired'
-                    | 'payment_received'
-                    | 'welcome_new_member'
-                    | 'referral_reward_earned'
+                    notification_type: NotificationType
                     message: string
-                    status: 'sent' | 'failed'
+                    status: NotificationStatus
                     sent_at: string
                     created_at: string
                 }
                 Insert: {
                     id?: string
+                    gym_id?: string
                     member_id: string
-                    notification_type:
-                    | 'payment_reminder'
-                    | 'membership_expiring'
-                    | 'membership_expired'
-                    | 'payment_received'
-                    | 'welcome_new_member'
-                    | 'referral_reward_earned'
+                    notification_type: NotificationType
                     message: string
-                    status: 'sent' | 'failed'
+                    status: NotificationStatus
                     sent_at?: string
                     created_at?: string
                 }
                 Update: {
                     id?: string
+                    gym_id?: string
                     member_id?: string
-                    notification_type?:
-                    | 'payment_reminder'
-                    | 'membership_expiring'
-                    | 'membership_expired'
-                    | 'payment_received'
-                    | 'welcome_new_member'
-                    | 'referral_reward_earned'
+                    notification_type?: NotificationType
                     message?: string
-                    status?: 'sent' | 'failed'
+                    status?: NotificationStatus
                     sent_at?: string
                     created_at?: string
                 }

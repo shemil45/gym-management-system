@@ -14,6 +14,7 @@ interface AdminShellProps {
     full_name?: string
     photo_url?: string | null
     role?: string
+    gym_name?: string
   }
 }
 

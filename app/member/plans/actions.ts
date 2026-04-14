@@ -2,8 +2,8 @@
 
 import crypto from 'node:crypto'
 import { revalidatePath } from 'next/cache'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
-import { createClient } from '@/lib/supabase/server'
+import { getCurrentGymContext } from '@/lib/auth/gym-context'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 
 type PurchaseContext = {
     availableCoins: number
@@ -13,6 +13,7 @@ type PurchaseContext = {
     expiryDate: string
     finalAmount: number
     fullName: string
+    gymId: string
     invoiceNumber: string
     memberId: string
     paymentDate: string
@@ -64,13 +65,6 @@ type PaymentResultDetails =
     }
     | { error: string }
 
-function getSupabaseAdmin() {
-    return createAdminClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
-}
-
 function ensureRazorpayConfig() {
     if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
         throw new Error('Razorpay is not configured. Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to your environment.')
@@ -84,22 +78,18 @@ function generateInvoiceNumber(date = new Date()) {
 }
 
 async function getPurchaseContext(planId: string, useReferralCoins: boolean): Promise<PurchaseContext> {
-    const supabase = await createClient()
+    const viewer = await getCurrentGymContext()
     const supabaseAdmin = getSupabaseAdmin()
 
-    const {
-        data: { user },
-        error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !user) {
+    if (!viewer.user || !viewer.member || !viewer.gym) {
         throw new Error('Not authenticated')
     }
 
     const { data: member } = await supabaseAdmin
         .from('members')
         .select('id, full_name, email, phone, membership_expiry_date, referral_coins_balance')
-        .eq('user_id', user.id)
+        .eq('id', viewer.member.id)
+        .eq('gym_id', viewer.gym.id)
         .single()
 
     if (!member) {
@@ -110,6 +100,7 @@ async function getPurchaseContext(planId: string, useReferralCoins: boolean): Pr
         .from('membership_plans')
         .select('id, name, price, duration_days, is_active')
         .eq('id', planId)
+        .eq('gym_id', viewer.gym.id)
         .single()
 
     if (!plan || !plan.is_active) {
@@ -136,6 +127,7 @@ async function getPurchaseContext(planId: string, useReferralCoins: boolean): Pr
         expiryDate: expiryStr,
         finalAmount,
         fullName: member.full_name || '',
+        gymId: viewer.gym.id,
         invoiceNumber: generateInvoiceNumber(today),
         memberId: member.id,
         paymentDate: today.toISOString().split('T')[0],
@@ -154,6 +146,7 @@ async function applyMembershipAfterPayment(context: PurchaseContext, razorpayOrd
     const { error: paymentError } = await supabaseAdmin
         .from('payments')
         .insert({
+            gym_id: context.gymId,
             member_id: context.memberId,
             amount: context.finalAmount,
             payment_method: 'online',
@@ -196,6 +189,7 @@ async function applyMembershipAfterPayment(context: PurchaseContext, razorpayOrd
             applied_at: new Date().toISOString(),
         })
         .select('referrer_id')
+        .eq('gym_id', context.gymId)
         .eq('referred_id', context.memberId)
         .eq('status', 'pending')
 
@@ -279,6 +273,7 @@ export async function createRazorpayOrder(planId: string, useReferralCoins = tru
         const { error: pendingPaymentError } = await supabaseAdmin
             .from('payments')
             .insert({
+                gym_id: context.gymId,
                 member_id: context.memberId,
                 amount: context.finalAmount,
                 payment_method: 'online',
@@ -341,6 +336,7 @@ export async function verifyRazorpayPayment(input: {
         const { data: existingPayment } = await supabaseAdmin
             .from('payments')
             .select('id, payment_status, invoice_number')
+            .eq('gym_id', context.gymId)
             .eq('member_id', context.memberId)
             .eq('razorpay_order_id', input.razorpayOrderId)
             .maybeSingle()
@@ -387,6 +383,7 @@ export async function verifyRazorpayPayment(input: {
                 applied_at: new Date().toISOString(),
             })
             .select('referrer_id')
+            .eq('gym_id', context.gymId)
             .eq('referred_id', context.memberId)
             .eq('status', 'pending')
 
@@ -423,25 +420,11 @@ export async function markRazorpayPaymentFailed(input: {
     reason?: string
 }) {
     try {
-        const supabase = await createClient()
+        const viewer = await getCurrentGymContext()
         const supabaseAdmin = getSupabaseAdmin()
-        const {
-            data: { user },
-            error: userError,
-        } = await supabase.auth.getUser()
 
-        if (userError || !user) {
+        if (!viewer.user || !viewer.member || !viewer.gym) {
             return { error: 'Not authenticated' }
-        }
-
-        const { data: member } = await supabaseAdmin
-            .from('members')
-            .select('id')
-            .eq('user_id', user.id)
-            .single()
-
-        if (!member) {
-            return { error: 'Member record not found' }
         }
 
         const { error } = await supabaseAdmin
@@ -452,7 +435,8 @@ export async function markRazorpayPaymentFailed(input: {
                     ? `Razorpay payment failed or cancelled. Reason: ${input.reason}`
                     : 'Razorpay payment failed or was cancelled by the user.',
             })
-            .eq('member_id', member.id)
+            .eq('gym_id', viewer.gym.id)
+            .eq('member_id', viewer.member.id)
             .eq('razorpay_order_id', input.razorpayOrderId)
             .eq('payment_status', 'pending')
 
@@ -470,31 +454,18 @@ export async function markRazorpayPaymentFailed(input: {
 
 export async function getPaymentResult(invoiceNumber: string): Promise<PaymentResultDetails> {
     try {
-        const supabase = await createClient()
+        const viewer = await getCurrentGymContext()
         const supabaseAdmin = getSupabaseAdmin()
-        const {
-            data: { user },
-            error: userError,
-        } = await supabase.auth.getUser()
 
-        if (userError || !user) {
+        if (!viewer.user || !viewer.member || !viewer.gym) {
             return { error: 'Not authenticated' }
-        }
-
-        const { data: member } = await supabaseAdmin
-            .from('members')
-            .select('id')
-            .eq('user_id', user.id)
-            .single()
-
-        if (!member) {
-            return { error: 'Member record not found' }
         }
 
         const { data: payment } = await supabaseAdmin
             .from('payments')
             .select('amount, invoice_number, membership_start_date, membership_end_date, payment_date, payment_method, payment_status, razorpay_order_id, razorpay_payment_id, notes')
-            .eq('member_id', member.id)
+            .eq('gym_id', viewer.gym.id)
+            .eq('member_id', viewer.member.id)
             .eq('invoice_number', invoiceNumber)
             .maybeSingle()
 
