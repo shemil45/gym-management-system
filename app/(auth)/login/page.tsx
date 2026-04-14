@@ -53,7 +53,7 @@ export default function LoginPage() {
                     Sign in
                 </h1>
                 <p className="text-base text-white/55">
-                    Enter your email and password to continue.
+                    Use the credentials provided by your gym admin to continue.
                 </p>
             </div>
 
@@ -136,10 +136,7 @@ export default function LoginPage() {
                     </Button>
 
                     <p className="text-center text-sm text-white/50">
-                        Don&apos;t have an account?{' '}
-                        <Link href="/register" className="font-semibold text-white transition-colors hover:text-[#7aa2ff]">
-                            Sign up
-                        </Link>
+                        New member accounts are created by gym admins. Use your email as the username and your assigned password to sign in.
                     </p>
                 </div>
             </form>

@@ -30,7 +30,6 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
     const { isDark } = useAdminTheme()
     const fileInputRef = useRef<HTMLInputElement>(null)
     const cameraInputRef = useRef<HTMLInputElement>(null)
-    const currentDate = new Date().toISOString().split('T')[0]
 
     const [loading, setLoading] = useState(false)
     const [selectedPlan, setSelectedPlan] = useState('')
@@ -228,15 +227,19 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
 
                         {/* Email */}
                         <div className="space-y-1.5">
-                            <Label htmlFor="email" className="text-sm font-medium text-gray-700">Email</Label>
+                            <Label htmlFor="email" className="text-sm font-medium text-gray-700">
+                                Email <span className="text-red-500">*</span>
+                            </Label>
                             <Input
                                 id="email"
                                 name="email"
                                 type="email"
                                 placeholder="email@example.com"
+                                required
                                 disabled={loading}
                                 className="h-10 border-gray-300 text-sm"
                             />
+                            <p className="text-xs text-gray-400">This email will be used as the member&apos;s username.</p>
                         </div>
 
                         {/* Phone */}
@@ -258,14 +261,18 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
 
                         {/* Date of Birth */}
                         <div className="space-y-1.5">
-                            <Label htmlFor="date_of_birth" className="text-sm font-medium text-gray-700">Date of Birth</Label>
+                            <Label htmlFor="date_of_birth" className="text-sm font-medium text-gray-700">
+                                Date of Birth <span className="text-red-500">*</span>
+                            </Label>
                             <Input
                                 id="date_of_birth"
                                 name="date_of_birth"
                                 type="date"
+                                required
                                 disabled={loading}
                                 className="h-10 border-gray-300 text-sm text-gray-500"
                             />
+                            <p className="text-xs text-gray-400">Initial password will be generated as DDMMYYYY, for example 23042005.</p>
                         </div>
 
                         {/* Gender — radio buttons */}
@@ -348,7 +355,7 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
                     </div>
 
                     {/* ── Membership Plan + Start Date ── */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                    <div className="grid grid-cols-1 gap-x-6 gap-y-4">
                         <div className="space-y-1.5">
                             <Label className="text-sm font-medium text-gray-700">
                                 Membership Plan <span className="text-red-500">*</span>
@@ -367,21 +374,6 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
                             </Select>
                         </div>
 
-                        <div className="space-y-1.5">
-                            <Label htmlFor="membership_start_date" className="text-sm font-medium text-gray-700">
-                                Start Date <span className="text-red-500">*</span>
-                            </Label>
-                            <Input
-                                id="membership_start_date"
-                                name="membership_start_date"
-                                type="date"
-                                required
-                                value={currentDate}
-                                readOnly
-                                disabled={loading}
-                                className="h-10 border-gray-300 text-sm text-gray-600"
-                            />
-                        </div>
                     </div>
 
                     {/* ── Payment Information (divider section) ── */}

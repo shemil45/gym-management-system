@@ -35,9 +35,9 @@ export default function HomePage() {
                 Login
               </Button>
             </Link>
-            <Link href="/register" className="flex-1 sm:flex-none">
+            <Link href="/login" className="flex-1 sm:flex-none">
               <Button className="w-full border-0 bg-blue-600 text-white hover:bg-blue-500 sm:w-auto">
-                Get Started
+                Admin Access
               </Button>
             </Link>
           </div>
@@ -56,12 +56,12 @@ export default function HomePage() {
           Built for mid-size gyms to streamline operations.
         </p>
         <div className="flex flex-col justify-center gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
-          <Link href="/register" className="sm:flex-none">
+          <Link href="/login" className="sm:flex-none">
             <Button
               size="lg"
               className="w-full border-0 bg-blue-600 px-6 text-base text-white shadow-lg shadow-blue-900/50 hover:bg-blue-500 sm:w-auto sm:px-8 sm:text-lg"
             >
-              Start Free Trial
+              Open Admin Portal
             </Button>
           </Link>
           <Link href="/login" className="sm:flex-none">
@@ -111,14 +111,14 @@ export default function HomePage() {
           <div className="mx-auto max-w-3xl rounded-2xl border border-blue-500/30 bg-blue-600/20 px-5 py-10 backdrop-blur-md sm:px-8 sm:py-16">
             <h2 className="mb-4 text-3xl font-bold text-white sm:text-4xl">Ready to Get Started?</h2>
             <p className="mb-8 text-base text-blue-200/80 sm:text-xl">
-              Join hundreds of gyms already using our platform
+              Sign in to manage members, payments, and daily operations
             </p>
-            <Link href="/register">
+            <Link href="/login">
               <Button
                 size="lg"
                 className="w-full bg-white px-6 text-base font-semibold text-blue-700 shadow-xl hover:bg-blue-50 sm:w-auto sm:px-8 sm:text-lg"
               >
-                Create Your Account
+                Go to Login
               </Button>
             </Link>
           </div>

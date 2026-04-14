@@ -7,16 +7,34 @@ import { revalidatePath } from 'next/cache'
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
 import { getAvatarStoragePath } from '@/lib/utils/storage'
 import { sendMemberWhatsAppNotification } from '@/lib/notifications/service'
+import { isStaffRole, type ProfileRole } from '@/lib/auth/roles'
 
 type MemberIdRow = Pick<InsertTables<'members'>, 'member_id'>
 type PlanLookup = Pick<InsertTables<'membership_plans'>, 'duration_days' | 'price'>
 type ReferrerLookup = { id: string }
 type CreatedMember = { id: string }
 
+function getSupabaseAdmin() {
+    return createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+}
+
 function getErrorMessage(error: unknown, fallback: string) {
     return error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
         ? error.message
         : fallback
+}
+
+function formatDateOfBirthPassword(dateOfBirth: string) {
+    const [year, month, day] = dateOfBirth.split('-')
+
+    if (!year || !month || !day) {
+        return null
+    }
+
+    return `${day}${month}${year}`
 }
 
 export async function generateNextMemberId(): Promise<string> {
@@ -53,17 +71,53 @@ export async function generateNextMemberId(): Promise<string> {
 
 export async function createMember(formData: FormData) {
     const supabase = await createClient()
-    const supabaseAdmin = createAdminClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabaseAdmin = getSupabaseAdmin()
+    let createdUserId: string | null = null
+    let createdMemberId: string | null = null
+    const uploadedPhotoPath = (formData.get('photo_path') as string | null)?.trim() || null
 
     try {
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser()
+
+        if (authError || !user) {
+            return { error: 'You must be signed in to add members.' }
+        }
+
+        const profileResult = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single()
+        const { data: actorProfile } = profileResult as unknown as QueryResult<{ role: ProfileRole } | null>
+
+        if (!actorProfile || !isStaffRole(actorProfile.role)) {
+            return { error: 'You do not have permission to add members.' }
+        }
+
         // Generate member ID
         const memberId = await generateNextMemberId()
 
+        const fullName = (formData.get('full_name') as string | null)?.trim()
+        const email = (formData.get('email') as string | null)?.trim().toLowerCase()
+        const phone = (formData.get('phone') as string | null)?.trim()
+        const dateOfBirth = (formData.get('date_of_birth') as string | null)?.trim()
+        const planId = (formData.get('membership_plan_id') as string | null)?.trim()
+        const paymentAmountValue = (formData.get('payment_amount') as string | null)?.trim()
+        const paymentMethod = (formData.get('payment_method') as string | null)?.trim() as InsertTables<'payments'>['payment_method'] | null
+
+        if (!fullName || !email || !phone || !dateOfBirth || !planId || !paymentAmountValue || !paymentMethod) {
+            return { error: 'Name, email, phone, date of birth, plan, and payment details are required.' }
+        }
+
+        const generatedPassword = formatDateOfBirthPassword(dateOfBirth)
+        if (!generatedPassword) {
+            return { error: 'Date of birth must be valid to generate the member password.' }
+        }
+
         // Get plan details
-        const planId = formData.get('membership_plan_id') as string
         const planResult = await supabase
             .from('membership_plans')
             .select('duration_days, price')
@@ -76,8 +130,8 @@ export async function createMember(formData: FormData) {
             return { error: 'Invalid membership plan' }
         }
 
-        // Calculate expiry date (add duration_days to start date)
-        const startDate = new Date(formData.get('membership_start_date') as string)
+        // Start date is set automatically to the creation date.
+        const startDate = new Date()
         const expiryDate = new Date(startDate)
         expiryDate.setDate(expiryDate.getDate() + plan.duration_days)
 
@@ -99,13 +153,50 @@ export async function createMember(formData: FormData) {
 
         // Create member
         const photoUrl = (formData.get('photo_url') as string | null)?.trim() || null
-        const uploadedPhotoPath = (formData.get('photo_path') as string | null)?.trim() || null
+
+        const createUserResult = await supabaseAdmin.auth.admin.createUser({
+            email,
+            password: generatedPassword,
+            email_confirm: true,
+        })
+
+        if (createUserResult.error || !createUserResult.data.user) {
+            if (uploadedPhotoPath) {
+                await supabaseAdmin.storage.from('avatars').remove([uploadedPhotoPath])
+            }
+            return { error: getErrorMessage(createUserResult.error, 'Failed to create member login.') }
+        }
+
+        createdUserId = createUserResult.data.user.id
+
+        const profilePayload: InsertTables<'profiles'> = {
+            id: createdUserId,
+            role: 'member',
+            full_name: fullName,
+            phone,
+            photo_url: photoUrl,
+            created_at: new Date().toISOString(),
+        }
+
+        const { error: profileInsertError } = await supabaseAdmin
+            .from('profiles')
+            .insert(profilePayload as never)
+
+        if (profileInsertError) {
+            if (uploadedPhotoPath) {
+                await supabaseAdmin.storage.from('avatars').remove([uploadedPhotoPath])
+            }
+            await supabaseAdmin.auth.admin.deleteUser(createdUserId)
+            return { error: getErrorMessage(profileInsertError, 'Failed to create member profile.') }
+        }
+
         const memberPayload: InsertTables<'members'> = {
+            user_id: createdUserId,
             member_id: memberId,
-            full_name: formData.get('full_name') as string,
-            email: formData.get('email') as string,
-            phone: formData.get('phone') as string,
-            date_of_birth: (formData.get('date_of_birth') as string) || null,
+            full_name: fullName,
+            email,
+            phone,
+            date_of_birth: dateOfBirth,
             gender: ((formData.get('gender') as string) || null) as InsertTables<'members'>['gender'],
             address: (formData.get('address') as string) || null,
             emergency_contact_name: (formData.get('emergency_contact_name') as string) || null,
@@ -130,20 +221,30 @@ export async function createMember(formData: FormData) {
             if (uploadedPhotoPath) {
                 await supabaseAdmin.storage.from('avatars').remove([uploadedPhotoPath])
             }
+            if (createdUserId) {
+                await supabaseAdmin.from('profiles').delete().eq('id', createdUserId)
+                await supabaseAdmin.auth.admin.deleteUser(createdUserId)
+            }
             return { error: getErrorMessage(memberError, 'Failed to create member') }
         }
         if (!member) {
             if (uploadedPhotoPath) {
                 await supabaseAdmin.storage.from('avatars').remove([uploadedPhotoPath])
             }
+            if (createdUserId) {
+                await supabaseAdmin.from('profiles').delete().eq('id', createdUserId)
+                await supabaseAdmin.auth.admin.deleteUser(createdUserId)
+            }
             return { error: 'Member record was not returned after creation' }
         }
+
+        createdMemberId = member.id
 
         // Create initial payment record
         const paymentPayload: InsertTables<'payments'> = {
             member_id: member.id,
-            amount: Number(formData.get('payment_amount') as string),
-            payment_method: (formData.get('payment_method') as string) as InsertTables<'payments'>['payment_method'],
+            amount: Number(paymentAmountValue),
+            payment_method: paymentMethod,
             payment_date: new Date().toISOString().split('T')[0],
             notes: 'Initial membership fee',
         }
@@ -153,6 +254,14 @@ export async function createMember(formData: FormData) {
             .insert(paymentPayload as never)
 
         if (paymentError) {
+            await supabase.from('members').delete().eq('id', member.id)
+            if (createdUserId) {
+                await supabaseAdmin.from('profiles').delete().eq('id', createdUserId)
+                await supabaseAdmin.auth.admin.deleteUser(createdUserId)
+            }
+            if (uploadedPhotoPath) {
+                await supabaseAdmin.storage.from('avatars').remove([uploadedPhotoPath])
+            }
             return { error: getErrorMessage(paymentError, 'Failed to create initial payment record') }
         }
 
@@ -191,6 +300,16 @@ export async function createMember(formData: FormData) {
             ...(notificationWarning ? { notificationWarning } : {}),
         }
     } catch (err: unknown) {
+        if (createdMemberId) {
+            await supabase.from('members').delete().eq('id', createdMemberId)
+        }
+        if (createdUserId) {
+            await supabaseAdmin.from('profiles').delete().eq('id', createdUserId)
+            await supabaseAdmin.auth.admin.deleteUser(createdUserId)
+        }
+        if (uploadedPhotoPath) {
+            await supabaseAdmin.storage.from('avatars').remove([uploadedPhotoPath])
+        }
         const message = err instanceof Error ? err.message : 'Failed to create member'
         return { error: message }
     }
@@ -198,10 +317,7 @@ export async function createMember(formData: FormData) {
 
 export async function updateMember(formData: FormData) {
     const supabase = await createClient()
-    const supabaseAdmin = createAdminClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabaseAdmin = getSupabaseAdmin()
 
     try {
         const memberId = formData.get('id') as string
@@ -306,10 +422,7 @@ export async function updateMember(formData: FormData) {
 
 export async function deleteMember(memberId: string) {
     const supabase = await createClient()
-    const supabaseAdmin = createAdminClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabaseAdmin = getSupabaseAdmin()
 
     try {
         if (!memberId) {

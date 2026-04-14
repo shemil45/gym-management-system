@@ -3,15 +3,14 @@ import { z } from 'zod'
 // Member validation schema
 export const memberSchema = z.object({
     full_name: z.string().min(2, 'Name must be at least 2 characters').max(100),
-    email: z.string().email('Invalid email address').optional().or(z.literal('')),
+    email: z.string().email('Invalid email address'),
     phone: z.string().regex(/^[6-9]\d{9}$/, 'Invalid phone number (must be 10 digits)'),
-    date_of_birth: z.string().optional(),
+    date_of_birth: z.string().min(1, 'Date of birth is required'),
     gender: z.enum(['male', 'female', 'other']).optional(),
     address: z.string().optional(),
     emergency_contact_name: z.string().optional(),
     emergency_contact_phone: z.string().regex(/^[6-9]\d{9}$/, 'Invalid phone number').optional().or(z.literal('')),
     membership_plan_id: z.string().uuid('Please select a membership plan'),
-    membership_start_date: z.string(),
     notes: z.string().optional(),
 })
 
@@ -46,18 +45,6 @@ export const membershipPlanSchema = z.object({
 export const loginSchema = z.object({
     email: z.string().email('Invalid email address'),
     password: z.string().min(6, 'Password must be at least 6 characters'),
-})
-
-// Register validation schema
-export const registerSchema = z.object({
-    full_name: z.string().min(2, 'Name must be at least 2 characters'),
-    email: z.string().email('Invalid email address'),
-    phone: z.string().regex(/^[6-9]\d{9}$/, 'Invalid phone number'),
-    password: z.string().min(6, 'Password must be at least 6 characters'),
-    confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ['confirmPassword'],
 })
 
 // Check-in validation schema
