@@ -138,6 +138,12 @@ export default function LoginPage() {
                     <p className="text-center text-sm text-white/50">
                         New member accounts are created by gym admins. Use your email as the username and your assigned password to sign in.
                     </p>
+                    <p className="text-center text-sm text-white/50">
+                        Opening a new gym?{' '}
+                        <Link href="/admin/register" className="text-[#7aa2ff] transition-colors hover:text-white">
+                            Create an owner account
+                        </Link>
+                    </p>
                 </div>
             </form>
         </div>

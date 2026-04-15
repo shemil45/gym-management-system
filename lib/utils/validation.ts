@@ -47,6 +47,13 @@ export const loginSchema = z.object({
     password: z.string().min(6, 'Password must be at least 6 characters'),
 })
 
+export const ownerRegistrationSchema = z.object({
+    name: z.string().trim().min(2, 'Name must be at least 2 characters').max(100),
+    email: z.string().trim().email('Please enter a valid email address'),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    gym_name: z.string().trim().min(2, 'Gym name must be at least 2 characters').max(120),
+})
+
 // Check-in validation schema
 export const checkInSchema = z.object({
     member_id: z.string().uuid('Please select a member'),

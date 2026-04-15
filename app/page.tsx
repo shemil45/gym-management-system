@@ -35,9 +35,9 @@ export default function HomePage() {
                 Login
               </Button>
             </Link>
-            <Link href="/login" className="flex-1 sm:flex-none">
+            <Link href="/admin/register" className="flex-1 sm:flex-none">
               <Button className="w-full border-0 bg-blue-600 text-white hover:bg-blue-500 sm:w-auto">
-                Admin Access
+                Start a Gym
               </Button>
             </Link>
           </div>
@@ -56,12 +56,12 @@ export default function HomePage() {
           Built for mid-size gyms to streamline operations.
         </p>
         <div className="flex flex-col justify-center gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
-          <Link href="/login" className="sm:flex-none">
+          <Link href="/admin/register" className="sm:flex-none">
             <Button
               size="lg"
               className="w-full border-0 bg-blue-600 px-6 text-base text-white shadow-lg shadow-blue-900/50 hover:bg-blue-500 sm:w-auto sm:px-8 sm:text-lg"
             >
-              Open Admin Portal
+              Create Gym Workspace
             </Button>
           </Link>
           <Link href="/login" className="sm:flex-none">
