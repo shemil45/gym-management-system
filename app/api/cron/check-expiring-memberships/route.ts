@@ -6,6 +6,7 @@ import {
     type SendMemberNotificationResult,
 } from '@/lib/notifications/service'
 import type { NotificationType } from '@/lib/notifications/templates'
+import { recordBackgroundJobRun, recordSystemEvent } from '@/lib/platform/server'
 
 export const runtime = 'nodejs'
 const BUSINESS_TIME_ZONE = 'Asia/Kolkata'
@@ -55,6 +56,7 @@ export async function GET(request: Request) {
     }
 
     try {
+        const startedAt = new Date().toISOString()
         const businessDate = getBusinessDateValue()
         const notificationRuns: NotificationRunConfig[] = [
             { notificationType: 'membership_expiring', offsetDays: 7 },
@@ -102,6 +104,19 @@ export async function GET(request: Request) {
 
         const totalMembers = byType.reduce((count, group) => count + group.totalMembers, 0)
 
+        await recordBackgroundJobRun({
+            jobName: 'cron.check-expiring-memberships',
+            status: 'completed',
+            startedAt,
+            finishedAt: new Date().toISOString(),
+            details: {
+                businessDate,
+                sent: summary.sent,
+                skipped: summary.skipped,
+                failed: summary.failed,
+            },
+        })
+
         return NextResponse.json({
             success: true,
             processedAt: new Date().toISOString(),
@@ -116,6 +131,18 @@ export async function GET(request: Request) {
         })
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to process expiring membership notifications.'
+        await Promise.all([
+            recordBackgroundJobRun({
+                jobName: 'cron.check-expiring-memberships',
+                status: 'failed',
+                startedAt: new Date().toISOString(),
+                finishedAt: new Date().toISOString(),
+                details: {
+                    error: message,
+                },
+            }),
+            recordSystemEvent('cron.check-expiring-memberships', 'error', message),
+        ])
 
         return NextResponse.json(
             {

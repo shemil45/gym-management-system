@@ -23,9 +23,5 @@ export default async function AuthRedirectPage() {
         redirect('/admin/dashboard')
     }
 
-    if (!context.member) {
-        redirect('/complete-profile')
-    }
-
     redirect('/member/dashboard')
 }

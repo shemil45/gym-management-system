@@ -24,10 +24,6 @@ export default async function MemberLayout({
         redirect('/admin/dashboard')
     }
 
-    if (!member) {
-        redirect('/complete-profile')
-    }
-
     return (
         <SidebarProvider>
             <div className="min-h-screen bg-[#f4f6fa]">

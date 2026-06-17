@@ -33,6 +33,14 @@ type MemberAccessRecord = Pick<
     gym: GymSummary | null
 }
 
+type PlatformImpersonationRecord = {
+    id: string
+    gym_id: string
+    started_at: string
+    ended_at: string | null
+    gym: GymSummary | null
+}
+
 export type GymAccessOption = {
     gym: GymSummary
     role: ProfileRole
@@ -66,7 +74,7 @@ async function getViewerProfile(userId: string) {
 async function getAccessibleGymsForUser(userId: string) {
     const admin = getSupabaseAdmin()
 
-    const [adminResult, memberResult] = await Promise.all([
+    const [adminResult, memberResult, impersonationResult] = await Promise.all([
         admin
             .from('admins')
             .select('id, user_id, gym_id, role, gym:gyms(id, name, subdomain)')
@@ -75,10 +83,18 @@ async function getAccessibleGymsForUser(userId: string) {
             .from('members')
             .select('id, user_id, gym_id, member_id, membership_plan_id, membership_expiry_date, status, referral_coins_balance, gym:gyms(id, name, subdomain)')
             .eq('user_id', userId),
+        (admin as any)
+            .from('impersonation_sessions')
+            .select('id, gym_id, started_at, ended_at, gym:gyms(id, name, subdomain), platform_admin:platform_admins!inner(user_id)')
+            .eq('platform_admin.user_id', userId)
+            .is('ended_at', null)
+            .order('started_at', { ascending: false })
+            .limit(1),
     ])
 
     const { data: adminRows } = adminResult as unknown as QueryResult<AdminAccessRecord[] | null>
     const { data: memberRows } = memberResult as unknown as QueryResult<MemberAccessRecord[] | null>
+    const { data: impersonationRows } = impersonationResult as unknown as QueryResult<PlatformImpersonationRecord[] | null>
 
     const accessMap = new Map<string, GymAccessOption>()
 
@@ -99,6 +115,16 @@ async function getAccessibleGymsForUser(userId: string) {
             gym: memberRow.gym,
             role: 'member',
             accessType: 'member',
+        })
+    }
+
+    for (const session of impersonationRows ?? []) {
+        if (!session.gym || accessMap.has(session.gym_id)) continue
+
+        accessMap.set(session.gym_id, {
+            gym: session.gym,
+            role: 'owner',
+            accessType: 'admin',
         })
     }
 
