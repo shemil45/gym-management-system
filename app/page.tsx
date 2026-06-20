@@ -3,150 +3,6 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link';
 
-/**
- * GMS Cloud — Gym Management Software landing page.
- *
- * This implementation is a direct port of the provided reference files:
- *   - stitch-light.html  (light theme, source of truth)
- *   - stitch-dark.html   (dark theme, source of truth)
- *
- * Both references share the same Tailwind config (custom Material-You-style
- * color tokens, custom spacing tokens, custom type tokens). Since this
- * project's own tailwind.config may not define those tokens, every value is
- * inlined here as CSS variables + Tailwind arbitrary-value syntax so the
- * output is pixel-identical regardless of the consuming app's config.
- *
- * Theme switching (light <-> dark) only swaps the CSS variable values via
- * the `.dark` class on the root wrapper — exactly mirroring how the two
- * reference files only differ in their `tailwind.config` color block and a
- * handful of class overrides (never in layout, spacing, or content).
- */
-
-// ---------------------------------------------------------------------------
-// Color tokens, lifted 1:1 from each reference file's tailwind.config script.
-// ---------------------------------------------------------------------------
-
-const lightVars: Record<string, string> = {
-  '--inverse-surface': '#2d3133',
-  '--on-tertiary-fixed': '#001a42',
-  '--primary-fixed-dim': '#bec6e0',
-  '--primary': '#000000',
-  '--on-secondary': '#ffffff',
-  '--on-primary': '#ffffff',
-  '--background': '#f7f9fb',
-  '--primary-container': '#131b2e',
-  '--secondary': '#9d4300',
-  '--on-error': '#ffffff',
-  '--on-secondary-container': '#5c2400',
-  '--on-tertiary': '#ffffff',
-  '--outline': '#76777d',
-  '--surface-variant': '#e0e3e5',
-  '--surface-bright': '#f7f9fb',
-  '--on-tertiary-container': '#3980f4',
-  '--surface-container-highest': '#e0e3e5',
-  '--primary-fixed': '#dae2fd',
-  '--tertiary': '#000000',
-  '--on-surface': '#191c1e',
-  '--secondary-fixed-dim': '#ffb690',
-  '--secondary-fixed': '#ffdbca',
-  '--error-container': '#ffdad6',
-  '--surface-container-lowest': '#ffffff',
-  '--surface-container': '#eceef0',
-  '--surface-container-low': '#f2f4f6',
-  '--error': '#ba1a1a',
-  '--on-primary-fixed-variant': '#3f465c',
-  '--tertiary-fixed-dim': '#adc6ff',
-  '--secondary-container': '#fd761a',
-  '--on-error-container': '#93000a',
-  '--surface-tint': '#565e74',
-  '--surface': '#f7f9fb',
-  '--surface-container-high': '#e6e8ea',
-  '--inverse-primary': '#bec6e0',
-  '--on-surface-variant': '#45464d',
-  '--on-secondary-fixed-variant': '#783200',
-  '--on-tertiary-fixed-variant': '#004395',
-  '--outline-variant': '#c6c6cd',
-  '--inverse-on-surface': '#eff1f3',
-  '--on-primary-fixed': '#131b2e',
-  '--tertiary-fixed': '#d8e2ff',
-  '--tertiary-container': '#001a42',
-  '--on-secondary-fixed': '#341100',
-  '--surface-dim': '#d8dadc',
-  '--on-primary-container': '#7c839b',
-  '--on-background': '#191c1e',
-  '--glass-card-bg': 'rgba(255, 255, 255, 0.7)',
-  '--glass-card-border': 'rgba(226, 232, 240, 0.8)',
-}
-
-const darkVars: Record<string, string> = {
-  '--on-secondary-fixed': '#341100',
-  '--tertiary-fixed-dim': '#adc6ff',
-  '--on-secondary-container': '#5c2400',
-  '--error-container': '#ffdad6',
-  '--surface-dim': '#131316',
-  '--on-tertiary-container': '#3980f4',
-  '--secondary-container': '#000000',
-  '--tertiary': '#000000',
-  '--secondary': '#ffffff',
-  '--on-primary-fixed-variant': '#3f465c',
-  '--on-tertiary-fixed': '#001a42',
-  '--secondary-fixed': '#ffdbca',
-  '--surface-bright': '#39393c',
-  '--outline-variant': '#c6c6cd',
-  '--surface-variant': '#e0e3e5',
-  '--surface-container': '#1e293b',
-  '--inverse-surface': '#2d3133',
-  '--error': '#ba1a1a',
-  '--on-surface-variant': '#cbd5e1',
-  '--primary-fixed-dim': '#bec6e0',
-  '--inverse-primary': '#bec6e0',
-  '--on-primary': '#000000',
-  '--on-secondary-fixed-variant': '#783200',
-  '--surface-container-lowest': '#0e0e11',
-  '--on-primary-fixed': '#131b2e',
-  '--on-surface': '#f8fafc',
-  '--surface-tint': '#ffffff',
-  '--on-background': '#f8fafc',
-  '--primary': '#ffffff',
-  '--surface-container-high': '#334155',
-  '--on-error': '#ffffff',
-  '--surface': '#131316',
-  '--background': '#0e0e11',
-  '--surface-container-low': '#1b1b1e',
-  // Tokens that are unchanged from light theme in stitch-dark.html's config
-  '--on-tertiary-fixed-variant': '#004395',
-  '--on-tertiary': '#ffffff',
-  '--outline': '#76777d',
-  '--surface-container-highest': '#e0e3e5',
-  '--primary-fixed': '#dae2fd',
-  '--primary-container': '#131b2e',
-  '--on-error-container': '#93000a',
-  '--inverse-on-surface': '#eff1f3',
-  '--tertiary-fixed': '#d8e2ff',
-  '--tertiary-container': '#001a42',
-  '--on-primary-container': '#7c839b',
-  '--on-secondary': '#ffffff',
-  '--glass-card-bg': 'rgba(30, 41, 59, 0.4)',
-  '--glass-card-border': 'rgba(255, 255, 255, 0.1)',
-}
-
-// Spacing tokens (identical across both reference files).
-const spacingVars: Record<string, string> = {
-  '--sp-sm': '16px',
-  '--sp-margin-desktop': '32px',
-  '--sp-xl': '64px',
-  '--sp-gutter': '24px',
-  '--sp-lg': '40px',
-  '--sp-xs': '8px',
-  '--sp-base': '4px',
-  '--sp-margin-mobile': '16px',
-  '--sp-md': '24px',
-}
-
-function cssVars(theme: 'light' | 'dark') {
-  return { ...(theme === 'light' ? lightVars : darkVars), ...spacingVars } as React.CSSProperties
-}
-
 // ---------------------------------------------------------------------------
 // Icon helper — renders Material Symbols Outlined glyphs by name, matching
 // the reference markup's <span class="material-symbols-outlined"> usage.
@@ -156,19 +12,16 @@ function Icon({
   name,
   className = '',
   filled = false,
-  style,
 }: {
   name: string
   className?: string
   filled?: boolean
-  style?: React.CSSProperties
 }) {
   return (
     <span
       className={`material-symbols-outlined ${className}`}
       style={{
         fontVariationSettings: `'FILL' ${filled ? 1 : 0}, 'wght' 400, 'GRAD' 0, 'opsz' 24`,
-        ...style,
       }}
     >
       {name}
@@ -181,7 +34,7 @@ function Icon({
 // ---------------------------------------------------------------------------
 
 export default function HomePage() {
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark')
+  const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly')
 
   const isDark = theme === 'dark'
@@ -206,17 +59,8 @@ export default function HomePage() {
   const duration = isYearly ? '/year' : '/month'
 
   return (
-    <div
-      className={isDark ? 'dark' : ''}
-      style={cssVars(theme)}
-    >
+    <div className={isDark ? 'dark' : ''}>
       <style>{`
-        .gms-root {
-          background: var(--background);
-          color: var(--on-surface);
-          font-family: Inter, sans-serif;
-          overflow-x: hidden;
-        }
         .material-symbols-outlined {
           font-family: 'Material Symbols Outlined';
           font-weight: normal;
@@ -230,10 +74,17 @@ export default function HomePage() {
           -webkit-font-feature-settings: 'liga';
           -webkit-font-smoothing: antialiased;
         }
-        .glass-card {
-          background: var(--glass-card-bg);
-          backdrop-filter: blur(12px);
-          border: 1px solid var(--glass-card-border);
+        @keyframes marquee {
+          from {
+            transform: translateX(0);
+          }
+          to {
+            transform: translateX(-50%);
+          }
+        }
+
+        .animate-marquee {
+          animation: marquee 20s linear infinite;
         }
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
         @keyframes fade-in-right { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
@@ -250,122 +101,83 @@ export default function HomePage() {
         rel="stylesheet"
       />
 
-      <div className="gms-root">
+      <div className={isDark ? 'bg-[#0e0e11] text-slate-50' : 'bg-[#f7f9fb] text-[#191c1e]'}>
         {/* ============================= Header ============================= */}
         <header
-          className="fixed inset-x-0 top-0 z-50 backdrop-blur-md"
-          style={{
-            background: isDark ? 'color-mix(in srgb, var(--surface) 80%, transparent)' : 'color-mix(in srgb, var(--surface) 80%, transparent)',
-            borderBottom: isDark
-              ? '1px solid color-mix(in srgb, var(--outline-variant) 10%, transparent)'
-              : '1px solid color-mix(in srgb, var(--outline-variant) 30%, transparent)',
-            boxShadow: isDark ? 'none' : '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-          }}
+          className={`fixed inset-x-0 top-0 z-50 border-b backdrop-blur-md ${
+            isDark
+              ? 'border-slate-500/10 bg-[#131316]/80'
+              : 'border-slate-300/30 bg-[#f7f9fb]/80 shadow-sm'
+          }`}
         >
-          <nav
-            className="mx-auto flex w-full items-center justify-between"
-            style={{
-              maxWidth: '1536px',
-              padding: '10px var(--sp-margin-mobile)',
-            }}
-          >
-            <div className="flex items-center" style={{ gap: 'var(--sp-md)' }}>
+          <nav className="mx-auto flex w-full max-w-screen-2xl items-center justify-between px-4 py-2.5">
+            <div className="flex items-center gap-6">
               <span
-                className="font-bold"
-                style={{ fontSize: '24px', lineHeight: 1.3, fontWeight: 600, color: 'var(--on-surface)' }}
+                className={`text-2xl font-semibold ${
+                  isDark ? 'text-slate-50' : 'text-[#191c1e]'
+                }`}
               >
                 GMS Cloud
               </span>
-              <div className="hidden items-center md:flex" style={{ gap: '24px' }}>
+
+              <div className="hidden items-center gap-6 md:flex">
                 <a
                   href="#"
-                  className="font-bold"
-                  style={{
-                    fontSize: '14px',
-                    lineHeight: 1.4,
-                    letterSpacing: '0.01em',
-                    fontWeight: 600,
-                    color: isDark ? 'var(--primary)' : 'var(--primary)',
-                    borderBottom: `2px solid ${isDark ? 'var(--primary)' : 'var(--secondary)'}`,
-                  }}
+                  className={`border-b-2 pb-1 text-sm font-semibold tracking-wide ${
+                    isDark
+                      ? 'border-white text-white'
+                      : 'border-[#9d4300] text-black'
+                  }`}
                 >
                   Solutions
                 </a>
+
                 <a
                   href="#"
-                  className="transition-colors"
-                  style={{
-                    fontSize: '14px',
-                    lineHeight: 1.4,
-                    letterSpacing: '0.01em',
-                    fontWeight: 600,
-                    color: isDark ? 'var(--on-surface-variant)' : 'var(--on-surface-variant)',
-                  }}
+                  className="text-sm font-semibold tracking-wide text-[#45464d] transition-colors dark:text-slate-300"
                 >
                   Pricing
                 </a>
+
                 <a
                   href="#"
-                  className="transition-colors"
-                  style={{
-                    fontSize: '14px',
-                    lineHeight: 1.4,
-                    letterSpacing: '0.01em',
-                    fontWeight: 600,
-                    color: 'var(--on-surface-variant)',
-                  }}
+                  className="text-sm font-semibold tracking-wide text-[#45464d] transition-colors dark:text-slate-300"
                 >
                   Guide
                 </a>
+
                 <a
                   href="#"
-                  className="transition-colors"
-                  style={{
-                    fontSize: '14px',
-                    lineHeight: 1.4,
-                    letterSpacing: '0.01em',
-                    fontWeight: 600,
-                    color: 'var(--on-surface-variant)',
-                  }}
+                  className="text-sm font-semibold tracking-wide text-[#45464d] transition-colors dark:text-slate-300"
                 >
                   Support
                 </a>
               </div>
             </div>
-            <div className="flex items-center" style={{ gap: 'var(--sp-md)' }}>
+
+            <div className="flex items-center gap-6">
               <button
                 onClick={toggleTheme}
-                className="rounded-lg p-2 transition-all"
-                style={{ color: isDark ? 'var(--on-surface-variant)' : 'inherit' }}
+                className="rounded-lg p-2 text-[#45464d] transition-all dark:text-slate-300"
                 aria-label="Toggle theme"
               >
                 <Icon name={isDark ? 'light_mode' : 'dark_mode'} />
               </button>
+
               <Link
                 href="/login"
-                className="hidden rounded-lg px-4 py-2 transition-all sm:block"
-                style={{
-                  fontSize: '14px',
-                  lineHeight: 1.4,
-                  letterSpacing: '0.01em',
-                  fontWeight: 600,
-                  color: 'var(--on-surface-variant)',
-                }}
+                className="hidden rounded-lg px-4 py-2 text-sm font-semibold tracking-wide text-[#45464d] transition-all dark:text-slate-300 sm:block"
               >
                 Log in
               </Link>
+
               <Link
                 href="/admin/register"
-                className="rounded-lg shadow-md transition-all duration-150 active:scale-95"
-                style={{
-                  background: 'var(--primary)',
-                  color: 'var(--on-primary)',
-                  padding: '10px 24px',
-                  fontSize: '14px',
-                  lineHeight: 1.4,
-                  letterSpacing: '0.01em',
-                  fontWeight: 600,
-                }}
+                className={`rounded-lg px-6 py-2.5 text-sm font-semibold tracking-wide shadow-md transition-all duration-150 active:scale-95 ${
+                  isDark
+                    ? 'bg-white text-black'
+                    : 'bg-black text-white'
+                }`}
               >
                 Sign up
               </Link>
@@ -375,69 +187,39 @@ export default function HomePage() {
 
         <main>
           {/* ============================= Hero ============================= */}
-          <section
-            className="relative overflow-hidden"
-            style={{
-              paddingTop: '68px',
-              paddingBottom: '128px',
-              paddingLeft: 'var(--sp-margin-mobile)',
-              paddingRight: 'var(--sp-margin-mobile)',
-            }}
-          >
-            <div className="relative z-10 mx-auto text-center" style={{ maxWidth: '1280px' }}>
+          <section className="relative overflow-hidden pt-16 pb-32 px-4">
+            <div className="relative z-10 mx-auto max-w-7xl text-center">
               <div
-                className="animate-fade-in mt-8 mb-8 inline-flex items-center gap-2 rounded-full"
-                style={{
-                  padding: '6px 16px',
-                  background: isDark
-                    ? 'color-mix(in srgb, var(--on-surface) 5%, transparent)'
-                    : 'color-mix(in srgb, var(--secondary) 10%, transparent)',
-                  color: isDark ? 'var(--on-surface)' : 'var(--secondary)',
-                  border: isDark ? '1px solid color-mix(in srgb, var(--on-surface) 10%, transparent)' : 'none',
-                }}
+                className={`animate-fade-in mt-8 mb-8 inline-flex items-center gap-2 rounded-full px-4 py-1.5 ${
+                  isDark
+                    ? 'bg-white/5 text-slate-50 border border-white/10'
+                    : 'bg-[#9d4300]/10 text-[#9d4300]'
+                }`}
               >
-                <Icon name="verified" style={{ fontSize: '18px' }} />
-                <span style={{ fontSize: '12px', lineHeight: 1.4, fontWeight: 500 }}>
+                <Icon name="verified" className='text-[18px]!'/>
+                <span className="text-xs leading-[1.4] font-medium">
                   Automatic WhatsApp receipts &amp; reminders
                 </span>
               </div>
 
               <h1
-                className="mx-auto mb-6 leading-tight"
-                style={{
-                  maxWidth: '896px',
-                  fontSize: '48px',
-                  lineHeight: 1.1,
-                  letterSpacing: '-0.02em',
-                  fontWeight: 700,
-                  color: isDark ? '#ffffff' : 'inherit',
-                }}
+                className={`mx-auto mb-2 max-w-4xl text-3xl md:text-5xl leading-[1.1] tracking-[-0.02em] font-bold ${
+                  isDark ? 'text-white' : ''
+                }`}
               >
                 Stop Managing Your Gym <br />
                 <span
-                  className="animate-fade-in-right inline-block bg-clip-text text-transparent pb-0.5"
-                  style={{
-                    backgroundImage: isDark
-                      ? 'linear-gradient(to right, #0363FF, #001F5C)'
-                      : 'linear-gradient(to right, #B65A00, #301301)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                  }}
+                  className={`animate-fade-in-right inline-block pb-1.5 bg-clip-text text-transparent ${
+                    isDark
+                      ? 'bg-linear-to-r from-[#0363FF] to-[#001F5C]'
+                      : 'bg-linear-to-r from-[#B65A00] to-[#301301]'
+                  }`}
                 >
                   on Registers and Excel Sheets
                 </span>
               </h1>
 
-              <p
-                className="mx-auto mb-10"
-                style={{
-                  maxWidth: '672px',
-                  fontSize: '18px',
-                  lineHeight: 1.6,
-                  fontWeight: 400,
-                  color: 'var(--on-surface-variant)',
-                }}
-              >
+              <p className="mx-auto mb-10 max-w-2xl text-md leading-[1.6] font-normal text-[#45464d] dark:text-slate-300">
                 GMS Cloud helps gym owners track members, record payments, send WhatsApp reminders,
                 and manage daily operations from one dashboard.
               </p>
@@ -445,11 +227,11 @@ export default function HomePage() {
               <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
                 <Link
                   href="/admin/register"
-                  className="flex items-center gap-2 rounded-lg px-8 py-4 text-sm font-semibold tracking-wide shadow-xl transition-all active:scale-95"
-                  style={{
-                    background: isDark ? 'var(--primary)' : 'var(--secondary)',
-                    color: isDark ? 'var(--on-primary)' : '#ffffff',
-                  }}
+                  className={`flex items-center gap-2 rounded-lg px-8 py-4 text-sm font-semibold tracking-wide shadow-xl transition-all active:scale-95 ${
+                    isDark
+                      ? 'bg-white text-black'
+                      : 'bg-[#9d4300] text-white'
+                  }`}
                 >
                   Get Started for Free
                   <Icon name="arrow_forward" />
@@ -457,55 +239,42 @@ export default function HomePage() {
 
                 <Link
                   href="/admin/register"
-                  className="rounded-lg px-8 py-4 text-sm font-semibold tracking-wide transition-all"
-                  style={{
-                    background: 'var(--surface-container-lowest)',
-                    color: 'var(--on-surface)',
-                    border: `1px solid ${
-                      isDark
-                        ? 'color-mix(in srgb, var(--outline-variant) 30%, transparent)'
-                        : 'var(--outline-variant)'
-                    }`,
-                  }}
+                  className={`rounded-lg px-8 py-4 text-sm font-semibold tracking-wide transition-all ${
+                    isDark
+                      ? 'bg-[#0e0e11] text-slate-50 border border-slate-300/30'
+                      : 'bg-white text-[#191c1e] border border-[#c6c6cd]'
+                  }`}
                 >
                   Book a Demo
                 </Link>
               </div>
 
               <p
-                className="mt-6"
-                style={{
-                  fontSize: '12px',
-                  lineHeight: 1.4,
-                  fontWeight: 500,
-                  color: 'var(--on-surface-variant)',
-                  opacity: isDark ? 0.6 : 0.8,
-                }}
+                className={`mt-6 text-xs leading-[1.4] font-medium text-[#45464d] dark:text-slate-300 ${
+                  isDark ? 'opacity-60' : 'opacity-80'
+                }`}
               >
                 Built for gym owners who want less paperwork and more time to grow their business.
               </p>
 
               {/* <div
-                className="group relative mx-auto mt-20 overflow-hidden rounded-xl shadow-2xl"
-                style={{
-                  maxWidth: '1024px',
-                  border: `1px solid ${
-                    isDark ? 'color-mix(in srgb, var(--outline-variant) 30%, transparent)' : 'var(--outline-variant)'
-                  }`,
-                }}
+                className={`group relative mx-auto mt-20 max-w-[1024px] overflow-hidden rounded-xl shadow-2xl ${
+                  isDark
+                    ? 'border border-slate-300/30'
+                    : 'border border-[#c6c6cd]'
+                }`}
               >
                 <div
-                  className="pointer-events-none absolute inset-0"
-                  style={{
-                    background: 'linear-gradient(to top, var(--surface), transparent)',
-                    opacity: isDark ? 0.3 : 0.1,
-                  }}
+                  className={`pointer-events-none absolute inset-0 bg-gradient-to-t from-[#f7f9fb] to-transparent ${
+                    isDark ? 'opacity-30' : 'opacity-10'
+                  }`}
                 />
                 <img
                   className={`h-auto w-full object-cover transition-transform duration-700 ${
-                    isDark ? 'group-hover:scale-[1.01]' : 'group-hover:scale-[1.02]'
+                    isDark
+                      ? 'group-hover:scale-[1.01] grayscale-[0.2]'
+                      : 'group-hover:scale-[1.02]'
                   }`}
-                  style={isDark ? { filter: 'grayscale(0.2)' } : undefined}
                   alt="GMS Cloud dashboard interface showing membership and revenue analytics"
                   src="https://lh3.googleusercontent.com/aida-public/AB6AXuDusjAfh-4GTK0sSCU_0ogtx-kMch41bvcJlnW7Op-36TJ1M8h5x2AEr64Zn3MQ1JON6TxRrA-i1P300KJTnE90T_49PiL5xHc3X35-MHJhgAN2UgDLocpZTfa_lkg7UudLaEe7kGWP5vNpjbv5ZkguAvMeXu0XJxjZvCSFhg3XQKcldapTxw9nbuIw2suWWhqs_W49dMMiijIcFvGm5-SesFg2wPBaXjPmPixL9P5jhO9aEpn621kVPHIgmMN_Xd-KXE6JK0IpRpUA"
                 />
@@ -515,99 +284,124 @@ export default function HomePage() {
             {/* Background atmosphere blobs */}
             {isDark ? (
               <>
-                <div className="absolute -z-10 right-0 top-0" style={{ opacity: 0.1, filter: 'blur(120px)' }}>
-                  <div className="rounded-full bg-white/10" style={{ width: '500px', height: '500px' }} />
+                <div className="absolute right-0 top-0 -z-10 opacity-10 blur-[120px]">
+                  <div className="h-125 w-125 rounded-full bg-white/10" />
                 </div>
-                <div className="absolute -z-10 bottom-0 left-0" style={{ opacity: 0.1, filter: 'blur(140px)' }}>
-                  <div className="rounded-full bg-white/5" style={{ width: '400px', height: '400px' }} />
+
+                <div className="absolute bottom-0 left-0 -z-10 opacity-10 blur-[140px]">
+                  <div className="h-100 w-100 rounded-full bg-white/5" />
                 </div>
               </>
             ) : (
               <>
-                <div className="absolute -z-10 right-0 top-0" style={{ opacity: 0.4, filter: 'blur(100px)' }}>
-                  <div
-                    className="rounded-full"
-                    style={{ width: '500px', height: '500px', background: 'color-mix(in srgb, var(--secondary) 10%, transparent)' }}
-                  />
+                <div className="absolute right-0 top-0 -z-10 opacity-40 blur-[100px]">
+                  <div className="h-125 w-125 rounded-full bg-[#9d4300]/10" />
                 </div>
-                <div className="absolute -z-10 bottom-0 left-0" style={{ opacity: 0.3, filter: 'blur(120px)' }}>
-                  <div
-                    className="rounded-full"
-                    style={{ width: '400px', height: '400px', background: 'color-mix(in srgb, var(--primary) 10%, transparent)' }}
-                  />
+
+                <div className="absolute bottom-0 left-0 -z-10 opacity-30 blur-[120px]">
+                  <div className="h-100 w-100 rounded-full bg-black/10" />
                 </div>
               </>
             )}
           </section>
 
           {/* ============================= Features ============================= */}
-          <section
-            style={{
-              padding: 'var(--sp-xl) var(--sp-margin-mobile)',
-              background: isDark ? 'var(--surface-container-low)' : 'transparent',
-            }}
-          >
-            <div className="mx-auto" style={{ maxWidth: '1280px' }}>
-              <div className="mb-16 text-center">
+          <section className={isDark ? 'bg-[#1b1b1e] py-16 lg:py-20' : 'py-16 lg:py-20'}>
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <div className="mb-10 text-center md:mb-12">
                 <h2
-                  className="mb-4"
-                  style={{
-                    fontSize: '32px',
-                    lineHeight: 1.2,
-                    letterSpacing: '-0.01em',
-                    fontWeight: 700,
-                    color: 'var(--on-surface)',
-                  }}
+                  className={`mb-2 text-3xl font-bold md:text-5xl ${
+                    isDark ? 'text-slate-50' : 'text-[#191c1e]'
+                  }`}
                 >
-                  Everything You Need to Manage Your Gym in One Platform
+                  Everything You Need to
+                  <br />
+                  <span
+                    className={`animate-fade-in-right inline-block bg-clip-text pb-1.5 text-transparent ${
+                      isDark
+                        ? 'bg-linear-to-r from-[#0363FF] to-[#001F5C]'
+                        : 'bg-linear-to-r from-[#B65A00] to-[#301301]'
+                    }`}
+                  >
+                    Manage Your Gym in One Platform
+                  </span>
                 </h2>
+
                 <p
-                  className="mx-auto"
-                  style={{
-                    maxWidth: '576px',
-                    color: 'var(--on-surface-variant)',
-                    opacity: isDark ? 0.8 : 1,
-                  }}
+                  className={`mx-auto max-w-2xl text-sm leading-7 ${
+                    isDark
+                      ? 'text-slate-300 opacity-80'
+                      : 'text-[#45464d]'
+                  }`}
                 >
-                  Manage memberships, track attendance, record payments, automate WhatsApp reminders,
-                  and monitor your gym&apos;s performance from a single dashboard.
+                  Save time, reduce manual work, and grow your gym with confidence.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-[24px] md:grid-cols-2 lg:grid-cols-4">
+              <div className="mx-5 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
                 {[
-                  { icon: 'event_upcoming', title: 'Never Miss a Renewal', body: 'Members automatically receive WhatsApp reminders before their membership expires, helping you improve renewals without manual follow-ups.' },
-                  { icon: 'account_balance_wallet', title: 'Track Every Payment', body: 'Know who paid, how much they paid, and when they paid with complete payment history for every member.' },
-                  { icon: 'how_to_reg', title: 'Attendance Without Registers', body: 'Replace paper registers with digital attendance tracking and instant member check-ins.' },
-                  { icon: 'dashboard', title: 'Complete Visibility', body: 'Monitor memberships, collections, renewals, and staff activity from anywhere through one dashboard.' },
+                  {
+                    icon: 'event_upcoming',
+                    title: 'Never Miss a Renewal',
+                    body:
+                      'Members automatically receive WhatsApp reminders before their membership expires, helping you improve renewals without manual follow-ups.',
+                  },
+                  {
+                    icon: 'account_balance_wallet',
+                    title: 'Track Every Payment',
+                    body:
+                      'Know who paid, how much they paid, and when they paid with complete payment history for every member.',
+                  },
+                  {
+                    icon: 'how_to_reg',
+                    title: 'Attendance Without Registers',
+                    body:
+                      'Replace paper registers with digital attendance tracking and instant member check-ins.',
+                  },
+                  {
+                    icon: 'dashboard',
+                    title: 'Complete Visibility',
+                    body:
+                      'Monitor memberships, collections, renewals, and staff activity from anywhere through one dashboard.',
+                  },
                 ].map((card) => (
                   <div
                     key={card.title}
-                    className="glass-card group rounded-xl p-8 shadow-sm transition-all duration-700 hover:shadow-lg"
+                    className={`group rounded-xl border p-5 shadow-sm backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-lg md:p-6 ${
+                      isDark
+                        ? 'border-white/10 bg-slate-800/40'
+                        : 'border-slate-200/80 bg-white/70'
+                    }`}
                   >
-                    <div
-                      className="mb-6 flex h-12 w-12 items-center justify-center rounded-lg transition-colors group-hover:bg-[var(--primary)]"
-                      style={{
-                        background: isDark
-                          ? 'color-mix(in srgb, var(--on-surface) 10%, transparent)'
-                          : 'color-mix(in srgb, var(--primary) 5%, transparent)',
-                        color: 'var(--primary)',
-                      }}
-                    >
+                    <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 transition-colors group-hover:bg-neutral-700 dark:bg-neutral-700 dark:group-hover:bg-white">
                       <span
-                        className="material-symbols-outlined transition-colors group-hover:!text-[var(--on-primary)]"
-                        style={{ fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
+                        className="material-symbols-outlined transition-colors group-hover:text-white dark:group-hover:text-black"
+                        style={{
+                          fontVariationSettings:
+                            "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20",
+                        }}
                       >
                         {card.icon}
                       </span>
                     </div>
+
                     <h3
-                      className="mb-3"
-                      style={{ fontSize: '24px', lineHeight: 1.3, fontWeight: 600, color: 'var(--on-surface)' }}
+                      className={`mb-3 text-xl font-semibold md:text-2xl ${
+                        isDark ? 'text-slate-50' : 'text-[#191c1e]'
+                      }`}
                     >
                       {card.title}
                     </h3>
-                    <p style={{ color: 'var(--on-surface-variant)', opacity: isDark ? 0.7 : 1 }}>{card.body}</p>
+
+                    <p
+                      className={`text-sm leading-7 md:text-base ${
+                        isDark
+                          ? 'text-slate-300 opacity-70'
+                          : 'text-[#45464d]'
+                      }`}
+                    >
+                      {card.body}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -616,100 +410,93 @@ export default function HomePage() {
 
           {/* ============================= Comparison ============================= */}
           <section
-            style={{
-              padding: 'var(--sp-xl) var(--sp-margin-mobile)',
-              background: isDark ? 'var(--surface-container-low)' : 'var(--surface)',
-              borderTop: `1px solid color-mix(in srgb, var(--outline-variant) ${isDark ? '10%' : '30%'}, transparent)`,
-              borderBottom: `1px solid color-mix(in srgb, var(--outline-variant) ${isDark ? '10%' : '30%'}, transparent)`,
-            }}
+            className={`py-12 lg:py-16 border-y ${
+              isDark
+                ? 'bg-[#1b1b1e] border-slate-500/10'
+                : 'bg-[#f7f9fb] border-slate-300/30'
+            }`}
           >
-            <div className="mx-auto" style={{ maxWidth: '1280px' }}>
-              <div className="mb-12 text-center">
-                <h2 style={{ fontSize: '32px', lineHeight: 1.2, letterSpacing: '-0.01em', fontWeight: 700, color: 'var(--on-surface)' }}>
+            <div className="mx-auto max-w-6xl px-6 lg:px-10">
+              <div className="mb-8 text-center">
+                <h2
+                  className={`text-2xl font-bold md:text-3xl lg:text-4xl ${
+                    isDark ? 'text-slate-50' : 'text-[#191c1e]'
+                  }`}
+                >
                   Still Running Your Gym Like This?
                 </h2>
               </div>
 
-              <div className="flex flex-col gap-8 lg:flex-row lg:gap-12">
+              <div className="mx-5 flex flex-col gap-5 md:flex-row">
                 {/* Problem column */}
-                <div
-                  className="flex-1 rounded-2xl p-8"
-                  style={{
-                    background: isDark ? 'var(--surface-container-low)' : 'color-mix(in srgb, var(--error-container) 20%, transparent)',
-                    border: `1px solid ${
-                      isDark ? 'color-mix(in srgb, var(--outline-variant) 10%, transparent)' : 'color-mix(in srgb, var(--error) 20%, transparent)'
-                    }`,
-                  }}
-                >
-                  <ul className="space-y-6">
-                    {['Attendance Registers', 'Excel Payment Records', 'Manual Renewal Tracking', 'Calling Members One by One', 'No Visibility Into Collections'].map(
-                      (item) => (
-                        <li key={item} className="flex items-center gap-4">
-                          <div
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                            style={{
-                              background: isDark ? 'rgba(255,255,255,0.05)' : 'color-mix(in srgb, var(--error) 10%, transparent)',
-                              color: isDark ? 'var(--on-surface-variant)' : 'var(--error)',
-                            }}
-                          >
-                            <Icon name="close" style={{ fontSize: '20px' }} />
-                          </div>
-                          <span
-                            style={{
-                              fontSize: '18px',
-                              lineHeight: 1.6,
-                              color: isDark ? 'color-mix(in srgb, var(--on-surface) 60%, transparent)' : 'var(--on-surface)',
-                            }}
-                          >
-                            {item}
-                          </span>
-                        </li>
-                      )
-                    )}
+                <div className="flex-1 rounded-xl border border-red-400/30 bg-red-300/10 p-5 shadow-sm dark:border-red-400/50 md:p-6">
+                  <ul className="space-y-4">
+                    {[
+                      'Paper Attendance Registers',
+                      'Excel Payment Records',
+                      'Manual Renewal Tracking',
+                      'Calling Members Individually',
+                      'No Revenue Visibility',
+                    ].map((item) => (
+                      <li key={item} className="flex items-center gap-3">
+                        <div
+                          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                            isDark
+                              ? 'bg-white/5 text-slate-400'
+                              : 'bg-red-500/10 text-red-600'
+                          }`}
+                        >
+                          <Icon name="close" className="text-base" />
+                        </div>
+
+                        <span className="text-sm leading-6 md:text-base">
+                          {item}
+                        </span>
+                      </li>
+                    ))}
                   </ul>
                 </div>
 
                 {/* Solution column */}
-                <div
-                  className="flex-1 rounded-2xl p-8 shadow-sm"
-                  style={{
-                    background: 'var(--surface-container)',
-                    border: `1px solid color-mix(in srgb, var(--outline-variant) ${isDark ? '30%' : '50%'}, transparent)`,
-                  }}
-                >
-                  <ul className="space-y-6">
-                    {['Digital Attendance Tracking', 'Automatic Payment Records', 'WhatsApp Renewal Reminders', 'Instant Receipts', 'Real-Time Business Dashboard'].map(
-                      (item) => (
-                        <li key={item} className="flex items-center gap-4">
-                          <div
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                            style={{
-                              background: isDark
-                                ? 'color-mix(in srgb, var(--primary) 10%, transparent)'
-                                : 'color-mix(in srgb, var(--secondary) 10%, transparent)',
-                              color: isDark ? 'var(--primary)' : 'var(--secondary)',
-                            }}
-                          >
-                            <Icon name="check" style={{ fontSize: '20px' }} />
-                          </div>
-                          <span className="font-medium" style={{ fontSize: '18px', lineHeight: 1.6, color: 'var(--on-surface)' }}>
-                            {item}
-                          </span>
-                        </li>
-                      )
-                    )}
+                <div className="flex-1 rounded-xl border border-green-500/30 bg-green-400/10 p-5 shadow-sm dark:border-green-500/50 md:p-6">
+                  <ul className="space-y-4">
+                    {[
+                      'Digital Attendance Tracking',
+                      'Automatic Payment Records',
+                      'WhatsApp Renewal Reminders',
+                      'Instant Receipts',
+                      'Real-Time Revenue Dashboard',
+                    ].map((item) => (
+                      <li key={item} className="flex items-center gap-3">
+                        <div
+                          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                            isDark
+                              ? 'bg-white/10 text-white'
+                              : 'bg-[#9d4300]/10 text-[#9d4300]'
+                          }`}
+                        >
+                          <Icon name="check" className="text-base" />
+                        </div>
+
+                        <span
+                          className={`text-sm font-medium leading-6 md:text-base ${
+                            isDark ? 'text-slate-50' : 'text-[#191c1e]'
+                          }`}
+                        >
+                          {item}
+                        </span>
+                      </li>
+                    ))}
                   </ul>
                 </div>
               </div>
 
               <p
-                className="mt-12 text-center"
-                style={{
-                  fontSize: '18px',
-                  lineHeight: 1.6,
-                  color: 'var(--on-surface-variant)',
-                  opacity: isDark ? 0.6 : 1,
-                }}
+                className={`mt-8 text-center text-sm md:text-base ${
+                  isDark
+                    ? 'text-slate-300 opacity-70'
+                    : 'text-[#45464d]'
+                }`}
               >
                 Everything your gym needs, managed from one simple platform.
               </p>
@@ -718,74 +505,87 @@ export default function HomePage() {
 
           {/* ============================= Staff Transparency ============================= */}
           <section
-            style={{
-              padding: 'var(--sp-xl) var(--sp-margin-mobile)',
-              background: isDark ? 'var(--background)' : 'var(--surface-container)',
-            }}
+            className={`px-6 md:px-12 py-16 ${
+              isDark ? 'bg-[#0e0e11]' : 'bg-[#eceef0]'
+            }`}
           >
-            <div className="mx-auto flex flex-col items-center gap-16 lg:flex-row" style={{ maxWidth: '1280px' }}>
-              <div className="order-2 flex-1 lg:order-1">
+          
+            <div className="mx-auto flex max-w-7xl flex-col items-center gap-10 md:flex-row">
+              <div className="flex-1">
                 <div
-                  className="mb-6 inline-flex items-center gap-2 rounded-full"
-                  style={{
-                    padding: '6px 16px',
-                    background: isDark
-                      ? 'color-mix(in srgb, var(--on-surface) 5%, transparent)'
-                      : 'color-mix(in srgb, var(--on-tertiary-container) 10%, transparent)',
-                    color: isDark ? 'var(--on-surface)' : 'var(--on-tertiary-container)',
-                    border: isDark ? '1px solid color-mix(in srgb, var(--on-surface) 10%, transparent)' : 'none',
-                  }}
+                  className={`mb-6 inline-flex items-center gap-2 rounded-full px-4 py-1.5 ${
+                    isDark
+                      ? 'border border-white/10 bg-white/5 text-slate-50'
+                      : 'bg-[#3980f4]/10 text-[#3980f4]'
+                  }`}
                 >
-                  <Icon name="verified_user" style={{ fontSize: '18px' }} />
-                  <span className="uppercase tracking-wider" style={{ fontSize: '12px', lineHeight: 1.4, fontWeight: 500 }}>
-                    Staff Transparency
-                  </span>
+                      <Icon name="verified_user" className="text-lg" />
+                      <span className="text-xs font-medium uppercase tracking-wider">
+                        Staff Transparency
+                      </span>
                 </div>
+
                 <h2
-                  className="mb-6"
-                  style={{ fontSize: '32px', lineHeight: 1.2, letterSpacing: '-0.01em', fontWeight: 700, color: 'var(--on-surface)' }}
+                  className={`mb-6 text-[1.63rem] font-bold leading-tight tracking-tight md:text-[1.78rem] lg:text-4xl ${
+                    isDark ? 'text-slate-50' : 'text-[#191c1e]'
+                  }`}
                 >
                   Your staff can&apos;t hide a single payment from you
                 </h2>
+
                 <p
-                  className="mb-8"
-                  style={{ fontSize: '18px', lineHeight: 1.6, color: 'var(--on-surface-variant)', opacity: isDark ? 0.7 : 1 }}
+                  className={`mb-8 text-md leading-relaxed ${
+                    isDark
+                      ? 'text-slate-300 opacity-70'
+                      : 'text-[#45464d]'
+                  }`}
                 >
-                  Every payment, membership renewal, and check-in is recorded instantly. Whether you&apos;re
-                  at the gym or away, you&apos;ll always know what&apos;s happening in your business.
+                  Every payment, membership renewal, and check-in is recorded instantly.
+                  Whether you&apos;re at the gym or away, you&apos;ll always know what&apos;s
+                  happening in your business.
                 </p>
+
                 <ul className="space-y-4">
                   {[
-                    { title: 'Every staff action is logged', body: 'Detailed timestamps for every check-in, renewal, and payment.' },
-                    { title: 'Instant WhatsApp alert to you', body: 'Get notified the second a member joins or pays.' },
-                    { title: 'Staff portal, separate access', body: 'Restrict sensitive data and financial reports to owners only.' },
+                    {
+                      title: 'Every staff action is logged',
+                      body: 'Detailed timestamps for every check-in, renewal, and payment.',
+                    },
+                    {
+                      title: 'Instant WhatsApp alert to you',
+                      body: 'Get notified the second a member joins or pays.',
+                    },
+                    {
+                      title: 'Staff portal, separate access',
+                      body: 'Restrict sensitive data and financial reports to owners only.',
+                    },
                   ].map((row) => (
                     <li key={row.title} className="flex items-start gap-4">
                       <div
-                        className="mt-1 flex h-6 w-6 items-center justify-center rounded-full"
-                        style={{
-                          background: isDark
-                            ? 'color-mix(in srgb, var(--on-surface) 10%, transparent)'
-                            : 'color-mix(in srgb, var(--secondary) 10%, transparent)',
-                          color: isDark ? 'var(--on-surface)' : 'var(--secondary)',
-                        }}
+                        className={`mt-1 flex h-6 w-6 items-center justify-center rounded-full ${
+                          isDark
+                            ? 'bg-white/10 text-slate-50'
+                            : 'bg-[#9d4300]/10 text-[#9d4300]'
+                        }`}
                       >
-                        <Icon name="done_all" style={{ fontSize: '16px' }} />
+                        <Icon name="done_all" className="text-base" />
                       </div>
+
                       <div>
                         <span
-                          className="block"
-                          style={{ fontSize: '14px', lineHeight: 1.4, letterSpacing: '0.01em', fontWeight: 600, color: 'var(--on-surface)' }}
+                          className={`block text-md font-semibold tracking-wide ${
+                            isDark ? 'text-slate-50' : 'text-[#191c1e]'
+                          }`}
                         >
                           {row.title}
                         </span>
+
                         <span
-                          style={{
-                            fontSize: '12px',
-                            lineHeight: 1.4,
-                            color: 'var(--on-surface-variant)',
-                            opacity: isDark ? 0.6 : 1,
-                          }}
+                          className={`text-xs leading-relaxed ${
+                            isDark
+                              ? 'text-slate-300 opacity-60'
+                              : 'text-[#45464d]'
+                          }`}
                         >
                           {row.body}
                         </span>
@@ -794,18 +594,23 @@ export default function HomePage() {
                   ))}
                 </ul>
               </div>
+
               <div className="order-1 flex-1 lg:order-2">
-                <div className="relative">
+                <div className="relative mx-auto max-w-md">
                   <div
-                    className="absolute -inset-4 -z-10 rounded-3xl blur-3xl"
-                    style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'color-mix(in srgb, var(--secondary) 5%, transparent)' }}
+                    className={`absolute -inset-4 -z-10 rounded-3xl blur-3xl ${
+                      isDark
+                        ? 'bg-white/5'
+                        : 'bg-[#9d4300]/5'
+                    }`}
                   />
+
                   <img
-                    className="h-auto w-full rounded-3xl shadow-2xl"
-                    style={{
-                      border: `1px solid color-mix(in srgb, var(--outline-variant) ${isDark ? '20%' : '100%'}, transparent)`,
-                      filter: isDark ? 'grayscale(0.3)' : undefined,
-                    }}
+                    className={`h-auto w-full rounded-3xl border shadow-2xl ${
+                      isDark
+                        ? 'border-slate-500/20 grayscale-[0.3]'
+                        : 'border-[#c6c6cd]'
+                    }`}
                     alt="Smartphone showing a GMS Cloud WhatsApp payment confirmation notification"
                     src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnH8fDLXXbEE7nguWkNqpjZy7_evkLoTPXN_gux05bKjlhs8Faml9wyLDhe4Km-2apO5u2p-gSHXNC4fBdD48SC7LFDv7OXHgi3eFQ9ngHb1s7hpZltPQzdZFZioYbNvLO5Kiq1oxUA3C1C39gE75ndokVVYflGPgITg1ZKhLfzAVKICJ0ZZtbL1arOOkxweqVKclqTkcv5qEOwbXl-XjVlx0q7EMhuinmrCH_at0erWqjLVFieHXR0CjHyqLFDPQWLcogLObrLWwg"
                   />
@@ -816,53 +621,69 @@ export default function HomePage() {
 
           {/* ============================= Value Proposition ============================= */}
           <section
-            style={{
-              padding: 'var(--sp-xl) var(--sp-margin-mobile)',
-              background: isDark ? 'var(--surface-container-low)' : 'transparent',
-              borderBottom: `1px solid color-mix(in srgb, var(--outline-variant) ${isDark ? '10%' : '30%'}, transparent)`,
-            }}
+            className={`px-6 md:px-12 py-16 border-b ${
+              isDark
+                ? 'bg-[#1b1b1e] border-slate-500/10'
+                : 'border-slate-300/30'
+            }`}
           >
-            <div className="mx-auto text-center" style={{ maxWidth: '1280px' }}>
+            <div className="mx-auto max-w-7xl text-center">
               <h2
-                className="mb-6"
-                style={{ fontSize: '32px', lineHeight: 1.2, letterSpacing: '-0.01em', fontWeight: 700, color: 'var(--on-surface)' }}
+                className={`mb-6 text-3xl font-bold leading-tight tracking-tight md:text-4xl ${
+                  isDark ? 'text-slate-50' : 'text-[#191c1e]'
+                }`}
               >
                 Built For The Way Indian Gyms Operate
               </h2>
+
               <p
-                className="mx-auto mb-12"
-                style={{
-                  maxWidth: '768px',
-                  fontSize: '18px',
-                  lineHeight: 1.6,
-                  color: 'var(--on-surface-variant)',
-                  opacity: isDark ? 0.8 : 1,
-                }}
+                className={`mx-auto mb-12 max-w-3xl text-md leading-relaxed ${
+                  isDark
+                    ? 'text-slate-300 opacity-80'
+                    : 'text-[#45464d]'
+                }`}
               >
-                Most gym software is expensive, complicated, and built for large fitness chains. GMS
-                Cloud is designed specifically for independent gym owners who need something simple,
-                affordable, and reliable.
+                Most gym software is expensive, complicated, and built for large fitness
+                chains. GMS Cloud is designed specifically for independent gym owners who
+                need something simple, affordable, and reliable.
               </p>
-              <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+
+              <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 sm:gap-10">
                 {[
-                  { icon: 'currency_rupee', title: 'Affordable monthly pricing' },
-                  { icon: 'forum', title: 'WhatsApp-first communication' },
-                  { icon: 'bolt', title: 'Quick setup without technical knowledge' },
+                  {
+                    icon: 'currency_rupee',
+                    title: 'Affordable monthly pricing',
+                  },
+                  {
+                    icon: 'forum',
+                    title: 'WhatsApp-first communication',
+                  },
+                  {
+                    icon: 'bolt',
+                    title: 'Quick setup without technical knowledge',
+                  },
                 ].map((item) => (
-                  <div key={item.title} className="p-6">
+                  <div
+                    key={item.title}
+                    className="flex flex-col items-center p-2 text-center sm:p-6"
+                  >
                     <div
-                      className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
-                      style={{
-                        background: isDark
-                          ? 'color-mix(in srgb, var(--on-surface) 5%, transparent)'
-                          : 'color-mix(in srgb, var(--primary) 5%, transparent)',
-                        color: 'var(--primary)',
-                        border: isDark ? '1px solid color-mix(in srgb, var(--on-surface) 10%, transparent)' : 'none',
-                      }}
+                      className={`mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full ${
+                        isDark
+                          ? 'border border-white/10 bg-white/5 text-white'
+                          : 'bg-black/5 text-black'
+                      }`}
                     >
                       <Icon name={item.icon} />
                     </div>
-                    <h3 style={{ fontSize: '24px', lineHeight: 1.3, fontWeight: 600, color: 'var(--on-surface)' }}>{item.title}</h3>
+
+                    <h3
+                      className={`mx-auto max-w-[180px] text-sm font-semibold leading-snug sm:text-base ${
+                        isDark ? 'text-slate-50' : 'text-[#191c1e]'
+                      }`}
+                    >
+                      {item.title}
+                    </h3>
                   </div>
                 ))}
               </div>
@@ -871,192 +692,171 @@ export default function HomePage() {
 
           {/* ============================= Pricing ============================= */}
           <section
-            style={{
-              padding: 'var(--sp-xl) var(--sp-margin-mobile)',
-              background: isDark ? 'var(--background)' : 'var(--surface-container-low)',
-              borderBottom: isDark ? '1px solid color-mix(in srgb, var(--outline-variant) 10%, transparent)' : 'none',
-            }}
+            className={`px-6 md:px-12 py-16 ${
+              isDark
+                ? 'bg-[#0e0e11] border-b border-slate-500/10'
+                : 'bg-[#f2f4f6]'
+            }`}
           >
-            <div className="mx-auto text-center" style={{ maxWidth: '1280px' }}>
+            <div className="mx-auto max-w-7xl text-center">
               <div
-                className="mb-6 inline-flex items-center gap-2 rounded-full"
-                style={{
-                  padding: '6px 16px',
-                  background: isDark
-                    ? 'color-mix(in srgb, var(--on-surface) 5%, transparent)'
-                    : 'color-mix(in srgb, var(--secondary) 10%, transparent)',
-                  color: isDark ? 'var(--on-surface)' : 'var(--secondary)',
-                  border: isDark ? '1px solid color-mix(in srgb, var(--on-surface) 10%, transparent)' : 'none',
-                }}
+                className={`mb-6 inline-flex items-center gap-2 rounded-full px-4 py-1.5 ${
+                  isDark
+                    ? 'border border-white/10 bg-white/5 text-slate-50'
+                    : 'bg-[#9d4300]/10 text-[#9d4300]'
+                }`}
               >
-                <Icon name="verified" style={{ fontSize: '18px' }} />
-                <span className="uppercase tracking-wider" style={{ fontSize: '12px', lineHeight: 1.4, fontWeight: 500 }}>
+                <Icon name="verified" className="text-[18px]!" />
+
+                <span className="text-xs font-medium uppercase tracking-wider">
                   Built Specifically for Indian Gym Owners
                 </span>
               </div>
+
               <h2
-                className="mb-6"
-                style={{ fontSize: '32px', lineHeight: 1.2, letterSpacing: '-0.01em', fontWeight: 700, color: 'var(--on-surface)' }}
+                className={`mb-6 text-3xl font-bold leading-tight tracking-tight md:text-4xl ${
+                  isDark ? 'text-slate-50' : 'text-[#191c1e]'
+                }`}
               >
                 Simple Pricing Built for Independent Gym Owners
               </h2>
+
               <p
-                className="mx-auto mb-10"
-                style={{
-                  maxWidth: '768px',
-                  fontSize: '18px',
-                  lineHeight: 1.6,
-                  color: 'var(--on-surface-variant)',
-                  opacity: isDark ? 0.7 : 1,
-                }}
+                className={`mx-auto mb-10 max-w-3xl text-lg leading-relaxed ${
+                  isDark
+                    ? 'text-slate-300 opacity-70'
+                    : 'text-[#45464d]'
+                }`}
               >
-                Everything you need to manage memberships, attendance, payments, and renewals without
-                expensive software or hidden charges.
+                Everything you need to manage memberships, attendance, payments, and
+                renewals without expensive software or hidden charges.
               </p>
 
-              <div className="mb-16 flex flex-wrap justify-center gap-x-8 gap-y-4">
-                {['WhatsApp Receipts & Reminders', 'Attendance Tracking', 'Payment Records', 'Renewal Tracking', 'Revenue Dashboard'].map(
-                  (item) => (
-                    <div key={item} className="flex items-center gap-2">
+              <div className="mb-16 overflow-hidden">
+                <div className="flex w-max animate-marquee gap-8">
+                  {[
+                    'WhatsApp Receipts & Reminders',
+                    'Attendance Tracking',
+                    'Payment Records',
+                    'Renewal Tracking',
+                    'Revenue Dashboard',
+                    'WhatsApp Receipts & Reminders',
+                    'Attendance Tracking',
+                    'Payment Records',
+                    'Renewal Tracking',
+                    'Revenue Dashboard',
+                  ].map((item, index) => (
+                    <div
+                      key={`${item}-${index}`}
+                      className="flex shrink-0 items-center gap-2"
+                    >
                       <Icon
                         name="check_circle"
                         filled
-                        style={{ fontSize: '20px', color: isDark ? 'var(--primary)' : 'var(--secondary)' }}
+                        className={`text-xl ${
+                          isDark ? 'text-white' : 'text-[#9d4300]'
+                        }`}
                       />
-                      <span style={{ fontSize: '14px', lineHeight: 1.4, letterSpacing: '0.01em', fontWeight: 600, color: 'var(--on-surface)' }}>
+
+                      <span
+                        className={`whitespace-nowrap text-sm font-semibold tracking-wide ${
+                          isDark ? 'text-slate-50' : 'text-[#191c1e]'
+                        }`}
+                      >
                         {item}
                       </span>
                     </div>
-                  )
-                )}
+                  ))}
+                </div>
               </div>
 
               {/* Toggle */}
-              <div className="mb-12 flex flex-col items-center justify-center">
+              <div className="mb-8 flex flex-col items-center justify-center">
                 <div
-                  className="relative mx-auto flex w-max items-center rounded-full p-1 shadow-inner"
-                  style={{
-                    background: 'var(--surface-container-high)',
-                    border: '1px solid color-mix(in srgb, var(--outline-variant) 20%, transparent)',
-                  }}
+                  className={`relative mx-auto flex w-max items-center rounded-full border p-1 shadow-inner ${
+                    isDark
+                      ? 'border-slate-500/20 bg-slate-700'
+                      : 'border-slate-300/20 bg-slate-200'
+                  }`}
                 >
-                  {/* Sliding Background */}
                   <div
                     className="absolute rounded-full shadow-sm transition-transform duration-300 ease-in-out"
                     style={{
                       left: '4px',
                       width: isYearly ? 'calc(56% - 4px)' : 'calc(44% - 4px)',
                       height: 'calc(100% - 8px)',
-                      background: isDark ? 'var(--on-surface)' : 'var(--surface-container-lowest)',
+                      background: isDark ? '#f8fafc' : '#ffffff',
                       transform: isYearly ? 'translateX(79%)' : 'translateX(0)',
                     }}
                   />
 
-                  {/* Monthly */}
                   <button
                     onClick={() => setBilling('monthly')}
-                    className="relative z-10 w-32 rounded-full px-6 py-2.5 transition-colors"
-                    style={{
-                      fontSize: '14px',
-                      lineHeight: 1.4,
-                      letterSpacing: '0.01em',
-                      fontWeight: isYearly ? 600 : 700,
-                      color: isYearly
-                        ? 'var(--on-surface-variant)'
+                    className={`relative z-10 w-32 rounded-full px-6 py-2.5 text-sm tracking-wide transition-colors ${
+                      isYearly
+                        ? 'font-semibold text-slate-500'
                         : isDark
-                        ? 'var(--on-primary)'
-                        : 'var(--on-surface)',
-                    }}
+                        ? 'font-bold text-black'
+                        : 'font-bold text-[#191c1e]'
+                    }`}
                   >
                     Monthly
                   </button>
 
-                  {/* Yearly */}
                   <button
                     onClick={() => setBilling('yearly')}
-                    className="relative z-10 flex w-44 items-center justify-center gap-2 rounded-full px-6 py-2.5 transition-colors"
-                    style={{
-                      fontSize: '14px',
-                      lineHeight: 1.4,
-                      letterSpacing: '0.01em',
-                      fontWeight: isYearly ? 700 : 600,
-                      color: isYearly
+                    className={`relative z-10 flex w-44 items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm tracking-wide transition-colors ${
+                      isYearly
                         ? isDark
-                          ? 'var(--on-primary)'
-                          : 'var(--on-surface)'
-                        : 'var(--on-surface-variant)',
-                    }}
+                          ? 'font-bold text-black'
+                          : 'font-bold text-[#191c1e]'
+                        : 'font-semibold text-slate-500'
+                    }`}
                   >
                     <span>Yearly</span>
 
-                    <span
-                      className="whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold"
-                      style={{
-                        background: 'rgba(16,185,129,0.12)',
-                        color: '#10b981',
-                        border: '1px solid rgba(16,185,129,0.25)',
-                      }}
-                    >
+                    <span className="whitespace-nowrap rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-500">
                       Save 17%
                     </span>
                   </button>
                 </div>
-
-                <p
-                  className="mt-4"
-                  style={{
-                    fontSize: '12px',
-                    lineHeight: 1.4,
-                    fontWeight: 500,
-                    color: 'var(--on-surface-variant)',
-                    opacity: isDark ? 0.6 : 1,
-                  }}
-                >
-                  Choose yearly billing and save 17% compared to monthly pricing.
-                </p>
               </div>
 
               {/* Plan cards */}
-              <div className="mx-auto grid max-w-3xl grid-cols-1 gap-6 lg:grid-cols-2">
+              <div className="mx-auto grid max-w-3xl grid-cols-1 gap-6 md:grid-cols-2">
                 {/* Basic */}
                 <div
-                  className="flex flex-col rounded-2xl p-5 md:p-6"
-                  style={{
-                    background: isDark
-                      ? 'var(--surface-container)'
-                      : 'var(--surface-container-lowest)',
-                    border: `1px solid color-mix(in srgb, var(--outline-variant) ${
-                      isDark ? '30%' : '100%'
-                    }, transparent)`,
-                    boxShadow: isDark ? '0 1px 2px 0 rgb(0 0 0 / 0.05)' : 'none',
-                  }}
+                  className={`flex flex-col rounded-2xl border p-4 md:p-5 ${
+                    isDark
+                      ? 'border-slate-500/30 bg-slate-800 shadow-sm'
+                      : 'border-[#c6c6cd] bg-white'
+                  }`}
                 >
                   <div className="mb-4">
                     <h3
-                      className="mb-1 text-2xl font-semibold"
-                      style={{ color: 'var(--on-surface)' }}
+                      className={`mb-1 text-2xl font-semibold ${
+                        isDark ? 'text-slate-50' : 'text-[#191c1e]'
+                      }`}
                     >
                       Basic
                     </h3>
 
                     <div className="flex items-end gap-1">
                       <span
-                        className="text-4xl font-bold leading-none md:text-5xl"
-                        style={{ color: 'var(--on-surface)' }}
+                        className={`text-4xl font-bold leading-none md:text-5xl ${
+                          isDark ? 'text-slate-50' : 'text-[#191c1e]'
+                        }`}
                       >
                         {basicPrice}
                       </span>
 
-                      <span
-                        className="mb-1 text-sm"
-                        style={{ color: 'var(--on-surface-variant)' }}
-                      >
+                      <span className="mb-1 text-sm text-[#45464d] dark:text-slate-300">
                         {duration}
                       </span>
                     </div>
                   </div>
 
-                  <ul className="flex-1 space-y-3">
+                  <ul className="flex-1 space-y-1.5">
                     {[
                       'Up to 100 members',
                       'Up to 10 membership plans',
@@ -1068,88 +868,74 @@ export default function HomePage() {
                     ].map((item) => (
                       <li
                         key={item}
-                        className="flex items-center gap-3 text-sm md:text-md"
-                        style={{ color: 'var(--on-surface-variant)' }}
+                        className="flex items-center gap-3 text-sm text-[#45464d] dark:text-slate-300"
                       >
                         <Icon
                           name="check"
-                          className="shrink-0"
-                          style={{
-                            fontSize: '16px',
-                            color: isDark
-                              ? 'color-mix(in srgb, var(--on-surface) 60%, transparent)'
-                              : 'var(--secondary)',
-                          }}
+                          className={`shrink-0 text-base ${
+                            isDark ? 'text-slate-400' : 'text-[#9d4300]'
+                          }`}
                         />
                         {item}
                       </li>
                     ))}
                   </ul>
 
-                  <button>
-                    <Link
-                      href="/admin/register"
-                      className="mt-5 block w-full rounded-lg py-3 text-center font-semibold transition-all"
-                      style={{
-                        border: `1px solid color-mix(in srgb, var(--outline-variant) ${
-                          isDark ? '50%' : '100%'
-                        }, transparent)`,
-                        color: isDark ? 'var(--on-surface)' : 'inherit',
-                      }}
-                    >
-                      Get Started
-                    </Link>
-                  </button>
+                  <Link
+                    href="/admin/register"
+                    className={`mt-5 block w-full rounded-lg border py-3 text-center font-semibold transition-all ${
+                      isDark
+                        ? 'border-slate-500/50 text-slate-50'
+                        : 'border-[#c6c6cd]'
+                    }`}
+                  >
+                    Get Started
+                  </Link>
                 </div>
 
                 {/* Growth */}
                 <div
-                  className="relative flex flex-col rounded-2xl p-5 md:p-6"
-                  style={{
-                    background: isDark
-                      ? 'var(--surface-container)'
-                      : 'var(--surface-container-lowest)',
-                    border: `2px solid ${
-                      isDark ? 'var(--primary)' : 'var(--secondary)'
-                    }`,
-                  }}
+                  className={`relative flex flex-col rounded-2xl border-2 p-4 md:p-5 ${
+                    isDark
+                      ? 'border-white bg-slate-800'
+                      : 'border-[#9d4300] bg-white'
+                  }`}
                 >
                   <div
-                    className="absolute right-5 top-0 -translate-y-1/2 rounded-full px-3 py-1 text-xs font-medium"
-                    style={{
-                      background: isDark ? 'var(--primary)' : 'var(--secondary)',
-                      color: isDark ? 'var(--on-primary)' : '#fff',
-                    }}
+                    className={`absolute right-5 top-0 -translate-y-1/2 rounded-full px-3 py-1 text-xs font-medium ${
+                      isDark
+                        ? 'bg-white text-black'
+                        : 'bg-[#9d4300] text-white'
+                    }`}
                   >
                     Most Popular
                   </div>
 
                   <div className="mb-4">
                     <h3
-                      className="mb-1 text-2xl font-semibold"
-                      style={{ color: 'var(--on-surface)' }}
+                      className={`mb-1 text-2xl font-semibold ${
+                        isDark ? 'text-slate-50' : 'text-[#191c1e]'
+                      }`}
                     >
                       Growth
                     </h3>
 
                     <div className="flex items-end gap-1">
                       <span
-                        className="text-4xl font-bold leading-none md:text-5xl"
-                        style={{ color: 'var(--on-surface)' }}
+                        className={`text-4xl font-bold leading-none md:text-5xl ${
+                          isDark ? 'text-slate-50' : 'text-[#191c1e]'
+                        }`}
                       >
                         {growthPrice}
                       </span>
 
-                      <span
-                        className="mb-1 text-sm"
-                        style={{ color: 'var(--on-surface-variant)' }}
-                      >
+                      <span className="mb-1 text-sm text-[#45464d] dark:text-slate-300">
                         {duration}
                       </span>
                     </div>
                   </div>
 
-                  <ul className="flex-1 space-y-3">
+                  <ul className="flex-1 space-y-1.5">
                     {[
                       'Unlimited members',
                       'Unlimited plans',
@@ -1162,159 +948,183 @@ export default function HomePage() {
                     ].map((item) => (
                       <li
                         key={item}
-                        className="flex items-center gap-3 text-sm md:text-md"
-                        style={{ color: 'var(--on-surface-variant)' }}
+                        className="flex items-center gap-3 text-sm text-[#45464d] dark:text-slate-300"
                       >
                         <Icon
                           name="check"
-                          className="shrink-0"
-                          style={{
-                            fontSize: '16px',
-                            color: isDark
-                              ? 'var(--primary)'
-                              : 'var(--secondary)',
-                          }}
+                          className={`shrink-0 text-base ${
+                            isDark ? 'text-white' : 'text-[#9d4300]'
+                          }`}
                         />
                         {item}
                       </li>
                     ))}
                   </ul>
 
-                  <button>
-                    <Link
-                      href="/admin/register"
-                      className="mt-5 block w-full rounded-lg py-3 text-center font-semibold shadow-md transition-all"
-                      style={{
-                        background: isDark ? 'var(--primary)' : 'var(--secondary)',
-                        color: isDark ? 'var(--on-primary)' : '#fff',
-                      }}
-                    >
-                      Get Started
-                    </Link>
-                  </button>
+                  <Link
+                    href="/admin/register"
+                    className={`mt-5 block w-full rounded-lg py-3 text-center font-semibold shadow-md transition-all ${
+                      isDark
+                        ? 'bg-white text-black'
+                        : 'bg-[#9d4300] text-white'
+                    }`}
+                  >
+                    Get Started
+                  </Link>
                 </div>
               </div>
 
               <p
-                className="mt-12"
-                style={{ fontSize: '14px', lineHeight: 1.4, color: 'var(--on-surface-variant)', opacity: isDark ? 0.4 : 0.8 }}
+                className={`mt-12 text-sm ${
+                  isDark
+                    ? 'text-slate-300 opacity-40'
+                    : 'text-[#45464d] opacity-80'
+                }`}
               >
-                Setup takes less than 2 minutes • No technical knowledge required • Built for gym owners, not enterprises
+                Setup takes less than 2 minutes • No technical knowledge required • Built
+                for gym owners, not enterprises
               </p>
             </div>
           </section>
 
-          {/* ============================= Ready to Get Started ============================= */}
-          <section
-            style={{
-              padding: 'var(--sp-xl) var(--sp-margin-mobile)',
-              background: isDark ? 'var(--surface-container-low)' : 'transparent',
-            }}
-          >
-            <div className="mx-auto" style={{ maxWidth: '1280px' }}>
-              <div
-                className="relative overflow-hidden p-12 text-center shadow-lg md:p-20"
-                style={{
-                  borderRadius: '2rem',
-                  background: isDark ? 'var(--surface-container)' : 'var(--surface-container-lowest)',
-                  border: `1px solid color-mix(in srgb, var(--outline-variant) ${isDark ? '30%' : '100%'}, transparent)`,
-                }}
-              >
-                <div className="relative z-10">
-                  <h2 className="mb-6" style={{ fontSize: '32px', lineHeight: 1.2, letterSpacing: '-0.01em', fontWeight: 700, color: 'var(--on-surface)' }}>
-                    Stop Wasting Time on Registers
-                  </h2>
-                  <p
-                    className="mx-auto mb-10"
-                    style={{ maxWidth: '672px', fontSize: '18px', lineHeight: 1.6, color: 'var(--on-surface-variant)', opacity: isDark ? 0.8 : 1 }}
-                  >
-                    Create your workspace in under 2 minutes and start managing your gym the smarter way.
-                  </p>
-                  <div className="flex flex-col justify-center gap-4 sm:flex-row">
-                    <Link
-                      href="/admin/register"
-                      className="rounded-lg px-10 py-4 text-sm font-semibold tracking-wide shadow-md transition-all"
-                      style={{
-                        background: isDark ? 'var(--primary)' : 'var(--secondary)',
-                        color: isDark ? 'var(--on-primary)' : '#ffffff',
-                      }}
-                    >
-                      Start Free Trial
-                    </Link>
+        {/* ============================= Ready to Get Started ============================= */}
+        <section
+          className={`px-4 py-16 ${
+            isDark ? 'bg-[#1b1b1e]' : ''
+          }`}
+        >
+          <div className="mx-auto max-w-7xl">
+            <div
+              className={`relative overflow-hidden rounded-xl p-12 text-center shadow-lg md:p-20 ${
+                isDark
+                  ? 'border border-slate-500/30 bg-slate-800'
+                  : 'border border-[#c6c6cd] bg-white'
+              }`}
+            >
+              <div className="relative z-10">
+                <h2
+                  className={`mb-6 text-3xl font-bold leading-tight tracking-tight md:text-4xl ${
+                    isDark ? 'text-slate-50' : 'text-[#191c1e]'
+                  }`}
+                >
+                  Stop Wasting Time on Registers
+                </h2>
 
-                    <Link
-                      href="/admin/register"
-                      className="rounded-lg bg-transparent px-10 py-4 text-sm font-semibold tracking-wide transition-all"
-                      style={{
-                        color: 'var(--on-surface)',
-                        border: `1px solid color-mix(in srgb, var(--outline-variant) ${
-                          isDark ? '50%' : '100%'
-                        }, transparent)`,
-                      }}
-                    >
-                      Book a Demo
-                    </Link>
-                  </div>
-                  <p
-                    className="mt-8"
-                    style={{ fontSize: '12px', lineHeight: 1.4, color: 'var(--on-surface-variant)', opacity: isDark ? 0.6 : 0.8 }}
+                <p
+                  className={`mx-auto mb-10 max-w-2xl text-lg leading-relaxed ${
+                    isDark
+                      ? 'text-slate-300 opacity-80'
+                      : 'text-[#45464d]'
+                  }`}
+                >
+                  Create your workspace in under 2 minutes and start managing your gym
+                  the smarter way.
+                </p>
+
+                <div className="flex flex-col justify-center gap-4 sm:flex-row">
+                  <Link
+                    href="/admin/register"
+                    className={`rounded-lg px-10 py-4 text-sm font-semibold tracking-wide shadow-md transition-all ${
+                      isDark
+                        ? 'bg-white text-black'
+                        : 'bg-[#9d4300] text-white'
+                    }`}
                   >
-                    No credit card required • 30-day free trial • Setup in minutes
-                  </p>
+                    Start Free Trial
+                  </Link>
+
+                  <Link
+                    href="/admin/register"
+                    className={`rounded-lg border px-10 py-4 text-sm font-semibold tracking-wide transition-all ${
+                      isDark
+                        ? 'border-slate-500/50 text-slate-50'
+                        : 'border-[#c6c6cd] text-[#191c1e]'
+                    }`}
+                  >
+                    Book a Demo
+                  </Link>
                 </div>
+
+                <p
+                  className={`mt-8 text-xs ${
+                    isDark
+                      ? 'text-slate-300 opacity-60'
+                      : 'text-[#45464d] opacity-80'
+                  }`}
+                >
+                  No credit card required • 30-day free trial • Setup in minutes
+                </p>
               </div>
             </div>
-          </section>
+          </div>
+        </section>
         </main>
 
         {/* ============================= Footer ============================= */}
         <footer
-          style={{
-            background: isDark ? 'var(--background)' : 'var(--surface-container-lowest)',
-            borderTop: `1px solid color-mix(in srgb, var(--outline-variant) ${isDark ? '10%' : '50%'}, transparent)`,
-            marginTop: 'var(--sp-xl)',
-          }}
+          className={`mt-16 border-t ${
+            isDark
+              ? 'border-slate-500/10 bg-[#0e0e11]'
+              : 'border-slate-300/50 bg-white'
+          }`}
         >
-          <div
-            className="mx-auto grid grid-cols-1 gap-[24px] md:grid-cols-4"
-            style={{ maxWidth: '1536px', padding: 'var(--sp-xl) var(--sp-margin-mobile)' }}
-          >
+          <div className="mx-auto grid max-w-screen-2xl grid-cols-1 gap-6 px-4 pt-12 pb-5 md:grid-cols-4">
             <div className="col-span-1 md:col-span-2 lg:col-span-1">
-              <span className="mb-4 block font-bold" style={{ fontSize: '24px', lineHeight: 1.3, fontWeight: 600, color: 'var(--on-surface)' }}>
+              <span
+                className={`mb-4 block text-2xl font-semibold ${
+                  isDark ? 'text-slate-50' : 'text-[#191c1e]'
+                }`}
+              >
                 GMS Cloud
               </span>
-              <p className="mb-6" style={{ fontSize: '12px', lineHeight: 1.4, fontWeight: 500, color: 'var(--on-surface-variant)', opacity: isDark ? 0.6 : 1 }}>
-                GMS Cloud helps gym owners replace registers and spreadsheets with a modern platform
-                for memberships, attendance, payments, and renewals.
+
+              <p
+                className={`mb-6 text-xs font-medium ${
+                  isDark
+                    ? 'text-slate-300 opacity-60'
+                    : 'text-[#45464d]'
+                }`}
+              >
+                GMS Cloud helps gym owners replace registers and spreadsheets with a
+                modern platform for memberships, attendance, payments, and renewals.
               </p>
+
               <div className="flex gap-4">
                 {['public', 'mail'].map((icon) => (
                   <a
                     key={icon}
                     href="#"
-                    className="flex h-8 w-8 items-center justify-center rounded-full transition-all hover:!bg-[var(--secondary)] hover:!text-white"
-                    style={{
-                      background: 'var(--surface-container-high)',
-                      color: isDark ? 'var(--on-surface-variant)' : 'inherit',
-                    }}
+                    className={`flex h-8 w-8 items-center justify-center rounded-full transition-all hover:bg-[#9d4300] hover:text-white ${
+                      isDark
+                        ? 'bg-slate-700 text-slate-300'
+                        : 'bg-slate-200 text-[#191c1e]'
+                    }`}
                   >
-                    <Icon name={icon} style={{ fontSize: '18px' }} />
+                    <Icon name={icon} className="text-lg" />
                   </a>
                 ))}
               </div>
             </div>
 
             <div>
-              <h4 className="mb-6 uppercase tracking-wider" style={{ fontSize: '14px', lineHeight: 1.4, letterSpacing: '0.01em', fontWeight: 600, color: 'var(--on-surface)' }}>
+              <h4
+                className={`mb-6 text-sm font-semibold uppercase tracking-wider ${
+                  isDark ? 'text-slate-50' : 'text-[#191c1e]'
+                }`}
+              >
                 Product
               </h4>
+
               <ul className="space-y-3">
                 {['Features', 'Pricing'].map((item) => (
                   <li key={item}>
                     <a
                       href="#"
-                      className="transition-all hover:underline"
-                      style={{ fontSize: '12px', lineHeight: 1.4, fontWeight: 500, color: 'var(--on-surface-variant)', opacity: isDark ? 0.7 : 1 }}
+                      className={`text-xs font-medium transition-all hover:underline ${
+                        isDark
+                          ? 'text-slate-300 opacity-70'
+                          : 'text-[#45464d]'
+                      }`}
                     >
                       {item}
                     </a>
@@ -1324,16 +1134,24 @@ export default function HomePage() {
             </div>
 
             <div>
-              <h4 className="mb-6 uppercase tracking-wider" style={{ fontSize: '14px', lineHeight: 1.4, letterSpacing: '0.01em', fontWeight: 600, color: 'var(--on-surface)' }}>
+              <h4
+                className={`mb-6 text-sm font-semibold uppercase tracking-wider ${
+                  isDark ? 'text-slate-50' : 'text-[#191c1e]'
+                }`}
+              >
                 Support
               </h4>
+
               <ul className="space-y-3">
                 {['FAQ', 'Contact'].map((item) => (
                   <li key={item}>
                     <a
                       href="#"
-                      className="transition-all hover:underline"
-                      style={{ fontSize: '12px', lineHeight: 1.4, fontWeight: 500, color: 'var(--on-surface-variant)', opacity: isDark ? 0.7 : 1 }}
+                      className={`text-xs font-medium transition-all hover:underline ${
+                        isDark
+                          ? 'text-slate-300 opacity-70'
+                          : 'text-[#45464d]'
+                      }`}
                     >
                       {item}
                     </a>
@@ -1343,16 +1161,24 @@ export default function HomePage() {
             </div>
 
             <div>
-              <h4 className="mb-6 uppercase tracking-wider" style={{ fontSize: '14px', lineHeight: 1.4, letterSpacing: '0.01em', fontWeight: 600, color: 'var(--on-surface)' }}>
+              <h4
+                className={`mb-6 text-sm font-semibold uppercase tracking-wider ${
+                  isDark ? 'text-slate-50' : 'text-[#191c1e]'
+                }`}
+              >
                 Legal
               </h4>
+
               <ul className="space-y-3">
                 {['Privacy Policy', 'Terms of Service'].map((item) => (
                   <li key={item}>
                     <a
                       href="#"
-                      className="transition-all hover:underline"
-                      style={{ fontSize: '12px', lineHeight: 1.4, fontWeight: 500, color: 'var(--on-surface-variant)', opacity: isDark ? 0.7 : 1 }}
+                      className={`text-xs font-medium transition-all hover:underline ${
+                        isDark
+                          ? 'text-slate-300 opacity-70'
+                          : 'text-[#45464d]'
+                      }`}
                     >
                       {item}
                     </a>
@@ -1362,26 +1188,49 @@ export default function HomePage() {
             </div>
 
             <div
-              className="col-span-1 flex flex-col items-center justify-between gap-4 md:col-span-4 md:flex-row"
-              style={{
-                marginTop: '64px',
-                paddingTop: '32px',
-                borderTop: `1px solid color-mix(in srgb, var(--outline-variant) ${isDark ? '10%' : '30%'}, transparent)`,
-              }}
+              className={`col-span-1 flex flex-col items-center justify-between gap-4 border-t pt-8 md:col-span-4 md:flex-row ${
+                isDark
+                  ? 'border-slate-500/10'
+                  : 'border-slate-300/30'
+              }`}
             >
-              <p style={{ fontSize: '12px', lineHeight: 1.4, fontWeight: 500, color: 'var(--on-surface-variant)', opacity: isDark ? 0.5 : 1 }}>
-                © 2024 GMS Cloud. All rights reserved. Built for high-performance fitness operations.
+              <p
+                className={`text-xs font-medium ${
+                  isDark
+                    ? 'text-slate-300 opacity-50'
+                    : 'text-[#45464d]'
+                }`}
+              >
+                © 2024 GMS Cloud. All rights reserved. Built for high-performance
+                fitness operations.
               </p>
+
               <div className="flex items-center gap-2">
-                <span style={{ fontSize: '12px', lineHeight: 1.4, fontWeight: 500, color: 'var(--on-surface-variant)', opacity: isDark ? 0.5 : 1 }}>
+                <span
+                  className={`text-xs font-medium ${
+                    isDark
+                      ? 'text-slate-300 opacity-50'
+                      : 'text-[#45464d]'
+                  }`}
+                >
                   Made with
                 </span>
+
                 <Icon
                   name="favorite"
                   filled
-                  style={{ fontSize: '16px', color: isDark ? 'color-mix(in srgb, var(--on-surface) 40%, transparent)' : 'var(--error)' }}
+                  className={`text-base ${
+                    isDark ? 'text-slate-400' : 'text-red-600'
+                  }`}
                 />
-                <span style={{ fontSize: '12px', lineHeight: 1.4, fontWeight: 500, color: 'var(--on-surface-variant)', opacity: isDark ? 0.5 : 1 }}>
+
+                <span
+                  className={`text-xs font-medium ${
+                    isDark
+                      ? 'text-slate-300 opacity-50'
+                      : 'text-[#45464d]'
+                  }`}
+                >
                   for Indian gym owners
                 </span>
               </div>
