@@ -1,8 +1,9 @@
 'use client'
 
 import { createContext, useContext, useMemo, useState, useEffect, type ReactNode } from 'react'
+import { applyTheme, getPreferredTheme, persistTheme, type AppTheme } from '@/lib/theme'
 
-export type AdminTheme = 'light' | 'dark'
+export type AdminTheme = AppTheme
 
 interface AdminThemeContextType {
   theme: AdminTheme
@@ -13,16 +14,9 @@ interface AdminThemeContextType {
 
 const AdminThemeContext = createContext<AdminThemeContextType | undefined>(undefined)
 
-const STORAGE_KEY = 'gym-admin-theme'
-
 export function AdminThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<AdminTheme>(() => {
-    if (typeof window === 'undefined') {
-      return 'dark'
-    }
-
-    const stored = window.localStorage.getItem(STORAGE_KEY)
-    return stored === 'light' || stored === 'dark' ? stored : 'dark'
+    return getPreferredTheme('light')
   })
 
   const value = useMemo(
@@ -31,12 +25,12 @@ export function AdminThemeProvider({ children }: { children: ReactNode }) {
       isDark: theme === 'dark',
       setTheme: (nextTheme: AdminTheme) => {
         setThemeState(nextTheme)
-        window.localStorage.setItem(STORAGE_KEY, nextTheme)
+        persistTheme(nextTheme)
       },
       toggleTheme: () => {
         setThemeState((current) => {
           const nextTheme = current === 'dark' ? 'light' : 'dark'
-          window.localStorage.setItem(STORAGE_KEY, nextTheme)
+          persistTheme(nextTheme)
           return nextTheme
         })
       },
@@ -45,9 +39,7 @@ export function AdminThemeProvider({ children }: { children: ReactNode }) {
   )
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (theme === 'dark') document.documentElement.classList.add('dark')
-    else document.documentElement.classList.remove('dark')
+    applyTheme(theme)
   }, [theme])
 
   return <AdminThemeContext.Provider value={value}>{children}</AdminThemeContext.Provider>

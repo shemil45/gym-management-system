@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Dumbbell, Moon, Sun } from 'lucide-react'
+import { Dumbbell } from 'lucide-react'
+import { AnimatedThemeToggler } from '@/components/ui/animated-theme-toggler'
+import { applyTheme, getPreferredTheme, persistTheme, type AppTheme } from '@/lib/theme'
 
 export default function AuthLayout({
     children,
@@ -60,48 +62,21 @@ export default function AuthLayout({
 }
 
 function ThemeToggle() {
-    const [isDark, setIsDark] = useState(false)
+    const [theme, setTheme] = useState<AppTheme>(() => getPreferredTheme('light'))
+    const isDark = theme === 'dark'
 
     useEffect(() => {
-        if (typeof window === 'undefined') return
-        const stored = window.localStorage.getItem('gms-theme')
-        if (stored === 'dark' || stored === 'light') {
-            const dark = stored === 'dark'
-            setIsDark(dark)
-            if (dark) document.documentElement.classList.add('dark')
-            else document.documentElement.classList.remove('dark')
-            return
-        }
-
-        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
-        setIsDark(prefersDark)
-        if (prefersDark) document.documentElement.classList.add('dark')
-    }, [])
-
-    const toggle = () => {
-        const next = !isDark
-        setIsDark(next)
-        if (next) document.documentElement.classList.add('dark')
-        else document.documentElement.classList.remove('dark')
-        window.localStorage.setItem('gms-theme', next ? 'dark' : 'light')
-    }
+        applyTheme(theme)
+        persistTheme(theme)
+    }, [theme])
 
     return (
-        <button
-            onClick={toggle}
+        <AnimatedThemeToggler
+            isDark={isDark}
+            onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
             type="button"
-            aria-label="Toggle theme"
-            className="p-2 text-[#45464d] transition-colors hover:text-[#191c1e] dark:text-[#cfc4c5] dark:hover:text-white"
-        >
-            {isDark ? <IconSun /> : <IconMoon />}
-        </button>
+            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            className="p-2 text-[#45464d] transition-colors hover:text-[#191c1e] dark:text-[#cfc4c5] dark:hover:text-white [&_svg]:h-5 [&_svg]:w-5"
+        />
     )
-}
-
-function IconSun() {
-    return <Sun className="h-5 w-5" />
-}
-
-function IconMoon() {
-    return <Moon className="h-5 w-5" />
 }

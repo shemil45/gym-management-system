@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { Moon, Sun } from "lucide-react"
 import { flushSync } from "react-dom"
 
+import { persistTheme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 
 interface AnimatedThemeTogglerProps extends React.ComponentPropsWithoutRef<"button"> {
@@ -61,8 +62,8 @@ export const AnimatedThemeToggler = ({
       const newTheme = !isDark
       if (!isControlled) {
         setUncontrolledIsDark(newTheme)
-        document.documentElement.classList.toggle("dark")
-        localStorage.setItem("theme", newTheme ? "dark" : "light")
+        document.documentElement.classList.toggle("dark", newTheme)
+        persistTheme(newTheme ? "dark" : "light")
       }
       onClick?.(event)
     }

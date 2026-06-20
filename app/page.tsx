@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link';
+import { AnimatedThemeToggler } from '@/components/ui/animated-theme-toggler'
+import { applyTheme, getPreferredTheme, persistTheme, type AppTheme } from '@/lib/theme'
 
 // ---------------------------------------------------------------------------
 // Icon helper — renders Material Symbols Outlined glyphs by name, matching
@@ -34,22 +36,15 @@ function Icon({
 // ---------------------------------------------------------------------------
 
 export default function HomePage() {
-  const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  const [theme, setTheme] = useState<AppTheme>(() => getPreferredTheme('light'))
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly')
 
   const isDark = theme === 'dark'
   const isYearly = billing === 'yearly'
 
   useEffect(() => {
-    const savedTheme = window.localStorage.getItem('gms-theme')
-
-    if (savedTheme === 'light' || savedTheme === 'dark') {
-      setTheme(savedTheme)
-    }
-  }, [])
-
-  useEffect(() => {
-    window.localStorage.setItem('gms-theme', theme)
+    applyTheme(theme)
+    persistTheme(theme)
   }, [theme])
 
   const toggleTheme = () => setTheme((t) => (t === 'light' ? 'dark' : 'light'))
@@ -156,13 +151,13 @@ export default function HomePage() {
             </div>
 
             <div className="flex items-center gap-6">
-              <button
+              <AnimatedThemeToggler
+                type="button"
+                isDark={isDark}
                 onClick={toggleTheme}
-                className="rounded-lg p-2 text-[#45464d] transition-all dark:text-slate-300"
-                aria-label="Toggle theme"
-              >
-                <Icon name={isDark ? 'light_mode' : 'dark_mode'} />
-              </button>
+                className="rounded-lg p-2 text-[#45464d] transition-all dark:text-slate-300 [&_svg]:h-5 [&_svg]:w-5"
+                aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              />
 
               <Link
                 href="/login"
