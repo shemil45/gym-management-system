@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useMemo, useState, useEffect, type ReactNode } from 'react'
 
 export type AdminTheme = 'light' | 'dark'
 
@@ -43,6 +43,12 @@ export function AdminThemeProvider({ children }: { children: ReactNode }) {
     }),
     [theme]
   )
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (theme === 'dark') document.documentElement.classList.add('dark')
+    else document.documentElement.classList.remove('dark')
+  }, [theme])
 
   return <AdminThemeContext.Provider value={value}>{children}</AdminThemeContext.Provider>
 }

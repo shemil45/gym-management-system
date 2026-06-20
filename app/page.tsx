@@ -415,14 +415,17 @@ export default function HomePage() {
               >
                 Stop Managing Your Gym <br />
                 <span
-                  className="animate-fade-in-right inline-block bg-clip-text text-transparent"
+                  className="animate-fade-in-right inline-block bg-clip-text text-transparent pb-0.5"
                   style={{
-                    backgroundImage:
-                      'linear-gradient(to right, #0363FF, #001F5C)',
+                    backgroundImage: isDark
+                      ? 'linear-gradient(to right, #0363FF, #001F5C)'
+                      : 'linear-gradient(to right, #B65A00, #301301)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
                   }}
-                  >
-                    on Registers and Excel Sheets
-                  </span>
+                >
+                  on Registers and Excel Sheets
+                </span>
               </h1>
 
               <p
