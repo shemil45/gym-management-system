@@ -994,7 +994,7 @@ export default function HomePage() {
             <div
               className={`relative overflow-hidden rounded-xl p-12 text-center shadow-lg md:p-20 ${
                 isDark
-                  ? 'border border-slate-500/30 bg-black'
+                  ? 'border border-slate-500/30 bg-[#0e0e11]'
                   : 'border border-[#c6c6cd] bg-white'
               }`}
             >
