@@ -182,7 +182,7 @@ export default function HomePage() {
 
         <main>
           {/* ============================= Hero ============================= */}
-          <section className="relative overflow-hidden pt-16 pb-32 px-4">
+          <section className="min-h-screen relative overflow-hidden pt-30 pb-32 px-4">
             <div className="relative z-10 mx-auto max-w-7xl text-center">
               <div
                 className={`animate-fade-in mt-8 mb-8 inline-flex items-center gap-2 rounded-full px-4 py-1.5 ${
@@ -992,7 +992,7 @@ export default function HomePage() {
             <div
               className={`relative overflow-hidden rounded-xl p-12 text-center shadow-lg md:p-20 ${
                 isDark
-                  ? 'border border-slate-500/30 bg-slate-800'
+                  ? 'border border-slate-500/30 bg-black'
                   : 'border border-[#c6c6cd] bg-white'
               }`}
             >
