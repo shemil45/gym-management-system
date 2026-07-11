@@ -1,5 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+// Ignore TS complaining about side-effect CSS import in the app directory
+// @ts-ignore
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,6 +20,12 @@ export const metadata: Metadata = {
     template: "%s | FitGym",
   },
   description: "Gym operations platform for members, payments, plans, check-ins, and analytics.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({
