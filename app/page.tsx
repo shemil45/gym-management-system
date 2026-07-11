@@ -155,6 +155,7 @@ export default function HomePage() {
                 type="button"
                 isDark={isDark}
                 onClick={toggleTheme}
+                disableViewTransition
                 className="rounded-lg p-2 text-[#45464d] transition-all dark:text-slate-300 [&_svg]:h-5 [&_svg]:w-5"
                 aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
               />
@@ -695,15 +696,14 @@ export default function HomePage() {
           >
             <div className="mx-auto max-w-7xl text-center">
               <div
-                className={`mb-6 inline-flex items-center gap-2 rounded-full px-4 py-1.5 ${
+                className={`animate-fade-in mt-8 mb-8 inline-flex items-center gap-2 rounded-full px-4 py-1.5 ${
                   isDark
-                    ? 'border border-white/10 bg-white/5 text-slate-50'
+                    ? 'bg-white/5 text-slate-50 border border-white/10'
                     : 'bg-[#9d4300]/10 text-[#9d4300]'
                 }`}
               >
-                <Icon name="verified" className="text-[18px]!" />
-
-                <span className="text-xs font-medium uppercase tracking-wider">
+                <Icon name="verified" className='text-[18px]!'/>
+                <span className="text-xs leading-[1.4] font-medium">
                   Built Specifically for Indian Gym Owners
                 </span>
               </div>

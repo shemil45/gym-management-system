@@ -10,7 +10,7 @@ type Role = 'owner' | 'team'
 
 function GoogleIcon() {
     return (
-        <svg className="h-5 w-5" viewBox="0 0 24 24">
+        <svg className="h-4 w-4" viewBox="0 0 24 24">
             <path
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                 fill="#4285F4"
@@ -68,21 +68,21 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="relative w-full max-w-[480px] dark:max-w-md">
+        <div className="relative w-full max-w-100 text-sm">
             {/* Ambient glow — dark theme only, scoped to the card now instead of the viewport */}
-            <div className="pointer-events-none absolute -top-16 -left-16 hidden h-72 w-72 rounded-full bg-white/5 blur-[100px] dark:block" />
-            <div className="pointer-events-none absolute -bottom-16 -right-16 hidden h-72 w-72 rounded-full bg-white/5 blur-[100px] dark:block" />
+            <div className="pointer-events-none absolute -top-12 -left-12 hidden h-60 w-60 rounded-full bg-white/5 blur-[80px] dark:block" />
+            <div className="pointer-events-none absolute -bottom-12 -right-12 hidden h-60 w-60 rounded-full bg-white/5 blur-[80px] dark:block" />
 
             <div className="relative z-10">
                 {/* Role Toggle */}
-                <div
-                    className="mx-auto mb-8 flex w-fit rounded-xl bg-[#f2f4f6] p-1.5 sm:mb-10
-                    dark:rounded-xl dark:border dark:border-[#27272a] dark:bg-[#1b1b1e] dark:p-1"
+                {/* <div
+                    className="mx-auto mb-6 flex w-fit rounded-xl bg-[#f2f4f6] p-1 sm:mb-8
+                    dark:border dark:border-[#27272a] dark:bg-[#1b1b1e]"
                 >
                     <button
                         type="button"
                         onClick={() => setRole('owner')}
-                        className={`rounded-lg px-6 py-2.5 text-sm font-bold tracking-[0.01em] transition-all ${
+                        className={`rounded-lg px-5 py-2 text-xs font-bold tracking-[0.01em] transition-all ${
                             role === 'owner'
                                 ? 'bg-white text-[#191c1e] shadow-sm dark:bg-white dark:text-black'
                                 : 'text-[#45464d] hover:bg-[#e6e8ea] dark:text-[#cfc4c5] dark:hover:text-[#c6c6c6] dark:hover:bg-transparent'
@@ -93,7 +93,7 @@ export default function LoginPage() {
                     <button
                         type="button"
                         onClick={() => setRole('team')}
-                        className={`rounded-lg px-6 py-2.5 text-sm font-bold tracking-[0.01em] transition-all ${
+                        className={`rounded-lg px-5 py-2 text-xs font-bold tracking-[0.01em] transition-all ${
                             role === 'team'
                                 ? 'bg-white text-[#191c1e] shadow-sm dark:bg-white dark:text-black'
                                 : 'text-[#45464d] hover:bg-[#e6e8ea] dark:text-[#cfc4c5] dark:hover:text-[#c6c6c6] dark:hover:bg-transparent'
@@ -101,24 +101,24 @@ export default function LoginPage() {
                     >
                         Team Login
                     </button>
-                </div>
+                </div> */}
 
                 {/* Login Card */}
                 <div
-                    className="rounded-xl border border-[#c6c6cd] bg-white p-6 shadow-[0px_4px_6px_rgba(15,23,42,0.05)] sm:p-10
-                    dark:rounded-2xl dark:border-[#27272a] dark:bg-[#0e0e11] dark:shadow-none"
+                    className="rounded-xl border border-[#c6c6cd] bg-white p-5 shadow-[0px_4px_6px_rgba(15,23,42,0.05)] sm:p-8
+                    dark:border-[#27272a] dark:bg-[#0e0e11]"
                 >
-                    <div className="mb-8 text-center sm:mb-10">
-                        <h1 className="font-['Hanken_Grotesk',_sans-serif] text-[32px] leading-[1.1] tracking-[-0.02em] font-bold text-[#191c1e] sm:text-[40px] dark:text-white dark:text-[32px] dark:leading-[40px] dark:tracking-[-0.01em] dark:font-semibold">
+                    <div className="mb-6 text-center sm:mb-8">
+                        <h1 className="font-['Hanken_Grotesk',sans-serif] text-2xl leading-[1.1] tracking-[-0.02em] font-bold text-[#191c1e] sm:text-3xl dark:text-white">
                             Welcome back
                         </h1>
-                        <p className="mt-2 text-[18px] font-medium text-[#45464d] dark:mt-2 dark:text-[12px] dark:font-medium dark:uppercase dark:tracking-[0.2em] dark:text-[#cfc4c5]/70">
+                        <p className="mt-2 text-sm font-medium text-[#45464d] dark:text-[#cfc4c5]/70">
                             Admin Login Portal
                         </p>
                     </div>
 
                     {error && (
-                        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+                        <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
                             {error}
                         </div>
                     )}
@@ -126,8 +126,8 @@ export default function LoginPage() {
                     {/* Google SSO */}
                     <button
                         type="button"
-                        className="group mb-6 flex w-full items-center justify-center gap-2 rounded-lg border border-[#c6c6cd] py-3 transition-colors hover:bg-[#f7f9fb]
-                        dark:mb-8 dark:border-[#4c4546] dark:bg-transparent dark:hover:bg-[#1f1f22]"
+                        className="group mb-5 flex w-full items-center justify-center gap-2 rounded-lg border border-[#c6c6cd] py-2.5 transition-colors hover:bg-[#f7f9fb]
+                         dark:border-[#4c4546] dark:bg-transparent dark:hover:bg-[#1f1f22]"
                     >
                         <GoogleIcon />
                         <span className="text-sm font-semibold text-[#191c1e] dark:text-[#e4e1e6]">
@@ -136,19 +136,19 @@ export default function LoginPage() {
                     </button>
 
                     {/* Separator */}
-                    <div className="relative mb-6 flex items-center dark:mb-8">
-                        <div className="flex-grow border-t border-[#c6c6cd] dark:border-[#4c4546]" />
-                        <span className="mx-4 flex-shrink-0 text-xs font-medium tracking-widest text-[#76777d] uppercase dark:text-[#988e90]">
+                    <div className="relative mb-5 flex items-center">
+                        <div className="grow border-t border-[#c6c6cd] dark:border-[#4c4546]" />
+                        <span className="mx-3 shrink-0 text-xs font-medium tracking-widest text-[#76777d] uppercase dark:text-[#988e90]">
                             or continue with email
                         </span>
-                        <div className="flex-grow border-t border-[#c6c6cd] dark:border-[#4c4546]" />
+                        <div className="grow border-t border-[#c6c6cd] dark:border-[#4c4546]" />
                     </div>
 
-                    <form onSubmit={handleLogin} className="space-y-6">
-                        <div className="space-y-2">
+                    <form onSubmit={handleLogin} className="space-y-5">
+                        <div className="space-y-1.5">
                             <label
                                 htmlFor="email"
-                                className="block text-sm font-semibold tracking-[0.01em] text-[#191c1e] dark:text-[#e4e1e6]"
+                                className="block text-xs font-semibold tracking-[0.01em] text-[#191c1e] dark:text-[#e4e1e6]"
                             >
                                 Email or Mobile Number
                             </label>
@@ -160,16 +160,16 @@ export default function LoginPage() {
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
                                 disabled={loading}
-                                className="w-full rounded-lg border border-[#c6c6cd] bg-white px-4 py-3 text-base text-[#191c1e] outline-none transition-shadow placeholder:text-[#76777d] focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20
+                                className="w-full rounded-lg border border-[#c6c6cd] bg-white px-3.5 py-2.5 text-sm text-[#191c1e] outline-none transition-shadow placeholder:text-[#76777d] focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20
                                 dark:border-[#4c4546] dark:bg-[#1b1b1e] dark:text-[#e4e1e6] dark:placeholder:text-[#cfc4c5]/40 dark:focus:border-white dark:focus:ring-1 dark:focus:ring-white/10"
                             />
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                             <div className="flex items-center justify-between">
                                 <label
                                     htmlFor="password"
-                                    className="block text-sm font-semibold tracking-[0.01em] text-[#191c1e] dark:text-[#e4e1e6]"
+                                    className="block text-xs font-semibold tracking-[0.01em] text-[#191c1e] dark:text-[#e4e1e6]"
                                 >
                                     Password
                                 </label>
@@ -177,28 +177,28 @@ export default function LoginPage() {
                                     href="/reset-password"
                                     className="text-xs font-medium text-[#9d4300] hover:underline dark:text-[#cfc4c5] dark:hover:text-white"
                                 >
-                                    Forgot?
+                                    Forgot Password?
                                 </Link>
                             </div>
                             <div className="relative flex items-center">
                                 <input
                                     id="password"
                                     type={showPassword ? 'text' : 'password'}
-                                    placeholder="••••••••"
+                                    placeholder="•••••••••••••"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     required
                                     disabled={loading}
-                                    className="w-full rounded-lg border border-[#c6c6cd] bg-white px-4 py-3 pr-12 text-base text-[#191c1e] outline-none transition-shadow placeholder:text-[#76777d] focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20
+                                    className="w-full rounded-lg border border-[#c6c6cd] bg-white px-3.5 py-2.5 pr-10 text-sm text-[#191c1e] outline-none transition-shadow placeholder:text-[#76777d] focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20
                                     dark:border-[#4c4546] dark:bg-[#1b1b1e] dark:text-[#e4e1e6] dark:focus:border-white dark:focus:ring-1 dark:focus:ring-white/10"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword((v) => !v)}
                                     aria-label={showPassword ? 'Hide password' : 'Show password'}
-                                    className="absolute right-4 text-[#c6c6cd] transition-colors hover:text-[#45464d] dark:text-[#cfc4c5] dark:hover:text-white"
+                                    className="absolute right-3 text-[#c6c6cd] transition-colors hover:text-[#45464d] dark:text-[#cfc4c5] dark:hover:text-white"
                                 >
-                                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                 </button>
                             </div>
                         </div>
@@ -206,26 +206,28 @@ export default function LoginPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#131b2e] py-3.5 text-sm font-bold text-white transition-all
-                            hover:bg-black active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60
-                            dark:bg-white dark:text-black dark:hover:bg-[#e4e4e7] dark:hover:-translate-y-px"
+                            className="group relative w-full overflow-hidden rounded-lg bg-[#9d4300] py-2.5 text-sm font-bold text-white transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-white"
                         >
-                            {loading ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    Signing in...
-                                </>
-                            ) : (
-                                <>
-                                    Sign In
-                                    <ArrowRight className="hidden h-4 w-4 dark:inline-block" />
-                                </>
-                            )}
+                            <span className="absolute inset-y-0 left-1/2 w-0 bg-[#823700] transition-all duration-400 ease-out group-hover:left-0 group-hover:w-full dark:bg-zinc-200" />
+
+                            <span className="relative z-10 flex items-center justify-center gap-2">
+                                {loading ? (
+                                    <>
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                        Signing in...
+                                    </>
+                                ) : (
+                                    <>
+                                        Sign In
+                                        <ArrowRight className="h-3.5 w-3.5" />
+                                    </>
+                                )}
+                            </span>
                         </button>
                     </form>
 
-                    <div className="mt-8 text-center">
-                        <p className="text-base text-[#45464d] dark:text-sm dark:text-[#cfc4c5]">
+                    <div className="mt-6 text-center">
+                        <p className="text-xs text-[#45464d] dark:text-[#cfc4c5]">
                             Don&apos;t have an account?{' '}
                             <Link
                                 href="/admin/register"
@@ -238,7 +240,7 @@ export default function LoginPage() {
                 </div>
 
                 {/* Supplementary helper copy — kept from prior implementation, styled to match card */}
-                <div className="mt-6 space-y-2 text-center">
+                <div className="mt-5 space-y-2 text-center">
                     <p className="text-xs text-[#76777d] dark:text-[#988e90]">
                         New member accounts are created by gym admins. Use your email as the username and your
                         assigned password to sign in.

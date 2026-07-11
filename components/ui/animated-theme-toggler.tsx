@@ -10,12 +10,14 @@ import { cn } from "@/lib/utils"
 interface AnimatedThemeTogglerProps extends React.ComponentPropsWithoutRef<"button"> {
   isDark?: boolean
   duration?: number
+  disableViewTransition?: boolean
 }
 
 export const AnimatedThemeToggler = ({
   className,
   isDark: controlledIsDark,
   duration = 400,
+  disableViewTransition = false,
   onClick,
   ...props
 }: AnimatedThemeTogglerProps) => {
@@ -44,6 +46,24 @@ export const AnimatedThemeToggler = ({
     return () => observer.disconnect()
   }, [isControlled])
 
+  const runLightweightAnimation = useCallback(() => {
+    const target = document.body
+    if (!target || typeof target.animate !== "function") {
+      return
+    }
+
+    target.animate(
+      [
+        { opacity: 0.82, filter: "brightness(0.98)" },
+        { opacity: 1, filter: "brightness(1)" },
+      ],
+      {
+        duration: Math.min(duration, 220),
+        easing: "ease-out",
+      }
+    )
+  }, [duration])
+
   const toggleTheme = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
     const button = buttonRef.current
     if (!button) return
@@ -66,6 +86,12 @@ export const AnimatedThemeToggler = ({
         persistTheme(newTheme ? "dark" : "light")
       }
       onClick?.(event)
+    }
+
+    if (disableViewTransition) {
+      applyTheme()
+      runLightweightAnimation()
+      return
     }
 
     if (typeof document.startViewTransition !== "function") {
@@ -95,7 +121,7 @@ export const AnimatedThemeToggler = ({
         )
       })
     }
-  }, [duration, isControlled, isDark, onClick])
+  }, [disableViewTransition, duration, isControlled, isDark, onClick, runLightweightAnimation])
 
   return (
     <button
