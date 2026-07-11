@@ -82,7 +82,7 @@ function BrandBlock({ desktopOpen }: { desktopOpen?: boolean }) {
               expanded ? 'text-sm' : 'text-[11px]'
             )}
           >
-            FitGym
+            GMS Cloud
           </span>
         </div>
       </div>
@@ -270,7 +270,7 @@ function DesktopNav({
               <span>Log out</span>
             </button>
           ) : null}
-          <p className={cn('text-center', open ? 'text-[11px]' : 'text-[9px]', isDark ? 'text-zinc-500' : 'text-slate-500')}>&copy; 2026 GymFit</p>
+          <p className={cn('text-center', open ? 'text-[11px]' : 'text-[9px]', isDark ? 'text-zinc-500' : 'text-slate-500')}>&copy; 2026 GMS Cloud</p>
           <p className={cn('text-center', open ? 'text-[11px]' : 'text-[9px]', isDark ? 'text-zinc-600' : 'text-slate-600')}>Version 1.0.0</p>
         </div>
       </SidebarBody>
@@ -315,7 +315,7 @@ function MobileSidebarContent({ onClose }: { onClose?: () => void }) {
               <Dumbbell className="h-5 w-5 text-white" />
             </div>
             <div className="min-w-0">
-              <span className="block text-base font-bold tracking-wide text-white">GymFit</span>
+              <span className="block text-base font-bold tracking-wide text-white">GMS Cloud</span>
               <span className={cn('text-xs', isDark ? 'text-zinc-400' : 'text-blue-100/80')}>Management</span>
             </div>
           </div>
@@ -470,7 +470,7 @@ function MobileSidebarContent({ onClose }: { onClose?: () => void }) {
           <LogOut className="h-4 w-4" />
           <span>Log out</span>
         </button>
-        <p className={cn('text-center text-[10px]', isDark ? 'text-zinc-400' : 'text-blue-100/80')}>&copy; 2026 GymFit</p>
+        <p className={cn('text-center text-[10px]', isDark ? 'text-zinc-400' : 'text-blue-100/80')}>&copy; 2026 GMS Cloud</p>
         <p className={cn('text-center text-[10px]', isDark ? 'text-zinc-500' : 'text-blue-100/60')}>Version 1.0.0</p>
       </div>
     </div>

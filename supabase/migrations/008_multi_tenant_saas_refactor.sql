@@ -54,7 +54,7 @@ BEGIN
 
   IF default_gym IS NULL THEN
     INSERT INTO public.gyms (name, slug)
-    VALUES ('FitGym Default', 'fitgym-default')
+    VALUES ('GMS Cloud Default', 'fitgym-default')
     RETURNING id INTO default_gym;
   END IF;
 

@@ -15,7 +15,7 @@ export default async function SelectGymPage() {
         return (
             <main className="mx-auto flex min-h-screen max-w-3xl items-center px-6 py-16">
                 <div className="w-full rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-                    <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">FitGym</p>
+                    <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">GMS Cloud</p>
                     <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">No gym access found</h1>
                     <p className="mt-3 text-sm leading-6 text-slate-600">
                         Your account is signed in, but it is not linked to any gym yet. Ask a gym admin to add you to a location and then try again.

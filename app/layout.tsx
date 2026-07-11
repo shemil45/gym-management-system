@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "FitGym",
-    template: "%s | FitGym",
+    default: "GMS Cloud",
+    template: "%s | GMS Cloud",
   },
   description: "Gym operations platform for members, payments, plans, check-ins, and analytics.",
 };

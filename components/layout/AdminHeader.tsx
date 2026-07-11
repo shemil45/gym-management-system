@@ -57,7 +57,7 @@ export default function AdminHeader({ user, desktopSidebarOpen = false }: AdminH
                     className="absolute left-1/2 max-w-[calc(100%-7rem)] -translate-x-1/2 px-3 text-center"
                     aria-label="Go to dashboard"
                 >
-                    <p className="truncate text-lg font-semibold tracking-tight">FitGymSoftware</p>
+                    <p className="truncate text-lg font-semibold tracking-tight">GMS Cloud</p>
                 </Link>
 
                 <div className="flex items-center gap-2">
@@ -116,7 +116,7 @@ export default function AdminHeader({ user, desktopSidebarOpen = false }: AdminH
                         }`}
                     >
                         <span className="block whitespace-nowrap text-xl font-semibold text-white/90">
-                            FitGym Software
+                            GMS Cloud
                         </span>
                         {user.gym_name ? (
                             <span className="mt-0.5 block text-xs uppercase tracking-[0.2em] text-white/55">
