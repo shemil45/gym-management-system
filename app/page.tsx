@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link';
+import { Dumbbell } from 'lucide-react'
 import { AnimatedThemeToggler } from '@/components/ui/animated-theme-toggler'
 import { applyTheme, getPreferredTheme, persistTheme, type AppTheme } from '@/lib/theme'
 
@@ -105,23 +106,25 @@ export default function HomePage() {
               : 'border-slate-300/30 bg-[#f7f9fb]/80 shadow-sm'
           }`}
         >
-          <nav className="mx-auto flex w-full max-w-screen-2xl items-center justify-between px-4 py-2.5">
-            <div className="flex items-center gap-6">
+          <nav className="relative mx-auto flex w-full max-w-screen-2xl items-center justify-between px-4 py-2.5 sm:px-6 md:px-8">
+            <Link href="/" className="flex items-center gap-2">
+              <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${isDark ? 'bg-white' : 'bg-black'}`}>
+                <Dumbbell className={`h-4 w-4 ${isDark ? 'text-black' : 'text-white'}`} />
+              </div>
               <span
-                className={`text-2xl font-semibold ${
+                className={`text-base font-bold tracking-tight ${
                   isDark ? 'text-slate-50' : 'text-[#191c1e]'
                 }`}
               >
                 GMS Cloud
               </span>
+            </Link>
 
-              <div className="hidden items-center gap-6 md:flex">
+            <div className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 md:flex">
                 <a
                   href="#"
-                  className={`border-b-2 pb-1 text-sm font-semibold tracking-wide ${
-                    isDark
-                      ? 'border-white text-white'
-                      : 'border-[#9d4300] text-black'
+                  className={`text-sm font-medium ${
+                    isDark ? 'text-white' : 'text-black'
                   }`}
                 >
                   Solutions
@@ -129,25 +132,24 @@ export default function HomePage() {
 
                 <a
                   href="#"
-                  className="text-sm font-semibold tracking-wide text-[#45464d] transition-colors dark:text-slate-300"
+                  className="text-sm font-medium text-[#45464d] transition-colors dark:text-slate-300"
                 >
                   Pricing
                 </a>
 
                 <a
                   href="#"
-                  className="text-sm font-semibold tracking-wide text-[#45464d] transition-colors dark:text-slate-300"
+                  className="text-sm font-medium text-[#45464d] transition-colors dark:text-slate-300"
                 >
                   Guide
                 </a>
 
                 <a
                   href="#"
-                  className="text-sm font-semibold tracking-wide text-[#45464d] transition-colors dark:text-slate-300"
+                  className="text-sm font-medium text-[#45464d] transition-colors dark:text-slate-300"
                 >
                   Support
                 </a>
-              </div>
             </div>
 
             <div className="flex items-center gap-6">
@@ -162,14 +164,14 @@ export default function HomePage() {
 
               <Link
                 href="/login"
-                className="hidden rounded-lg px-4 py-2 text-sm font-semibold tracking-wide text-[#45464d] transition-all dark:text-slate-300 sm:block"
+                className="hidden rounded-lg px-4 py-2 text-sm font-medium text-[#45464d] transition-all dark:text-slate-300 sm:block"
               >
                 Log in
               </Link>
 
               <Link
                 href="/admin/register"
-                className={`rounded-lg px-6 py-2.5 text-sm font-semibold tracking-wide shadow-md transition-all duration-150 active:scale-95 ${
+                className={`rounded-lg px-5 py-2 text-sm font-bold shadow-md transition-all duration-150 active:scale-95 ${
                   isDark
                     ? 'bg-white text-black'
                     : 'bg-black text-white'
@@ -186,7 +188,7 @@ export default function HomePage() {
           <section className="min-h-screen relative overflow-hidden pt-30 pb-32 px-4">
             <div className="relative z-10 mx-auto max-w-7xl text-center">
               <div
-                className={`animate-fade-in mt-8 mb-8 inline-flex items-center gap-2 rounded-full px-4 py-1.5 ${
+                className={`animate-fade-in mb-8 inline-flex items-center gap-2 rounded-full px-4 py-1.5 ${
                   isDark
                     ? 'bg-white/5 text-slate-50 border border-white/10'
                     : 'bg-[#9d4300]/10 text-[#9d4300]'
@@ -215,7 +217,7 @@ export default function HomePage() {
                 </span>
               </h1>
 
-              <p className="mx-auto mb-10 max-w-2xl text-md leading-[1.6] font-normal text-[#45464d] dark:text-slate-300">
+              <p className="mx-auto mb-10 max-w-2xl text-sm md:text-md leading-[1.6] font-normal text-[#45464d] dark:text-slate-300">
                 GMS Cloud helps gym owners track members, record payments, send WhatsApp reminders,
                 and manage daily operations from one dashboard.
               </p>
@@ -530,7 +532,7 @@ export default function HomePage() {
                 </h2>
 
                 <p
-                  className={`mb-8 text-md leading-relaxed ${
+                  className={`mb-8 text-sm md:text-md leading-relaxed ${
                     isDark
                       ? 'text-slate-300 opacity-70'
                       : 'text-[#45464d]'
@@ -569,7 +571,7 @@ export default function HomePage() {
 
                       <div>
                         <span
-                          className={`block text-md font-semibold tracking-wide ${
+                          className={`block text-md md:text-lg font-semibold tracking-wide ${
                             isDark ? 'text-slate-50' : 'text-[#191c1e]'
                           }`}
                         >
@@ -577,7 +579,7 @@ export default function HomePage() {
                         </span>
 
                         <span
-                          className={`text-xs leading-relaxed ${
+                          className={`text-sm leading-relaxed ${
                             isDark
                               ? 'text-slate-300 opacity-60'
                               : 'text-[#45464d]'
@@ -633,7 +635,7 @@ export default function HomePage() {
               </h2>
 
               <p
-                className={`mx-auto mb-12 max-w-3xl text-md leading-relaxed ${
+                className={`mx-auto mb-12 max-w-3xl text-sm md:text-lg leading-relaxed ${
                   isDark
                     ? 'text-slate-300 opacity-80'
                     : 'text-[#45464d]'
@@ -717,7 +719,7 @@ export default function HomePage() {
               </h2>
 
               <p
-                className={`mx-auto mb-10 max-w-3xl text-lg leading-relaxed ${
+                className={`mx-auto mb-10 max-w-3xl text-sm md:text-lg leading-relaxed ${
                   isDark
                     ? 'text-slate-300 opacity-70'
                     : 'text-[#45464d]'
@@ -988,7 +990,7 @@ export default function HomePage() {
             isDark ? 'bg-[#1b1b1e]' : ''
           }`}
         >
-          <div className="mx-auto max-w-7xl">
+          <div className="mx-auto max-w-6xl">
             <div
               className={`relative overflow-hidden rounded-xl p-12 text-center shadow-lg md:p-20 ${
                 isDark
@@ -1006,7 +1008,7 @@ export default function HomePage() {
                 </h2>
 
                 <p
-                  className={`mx-auto mb-10 max-w-2xl text-lg leading-relaxed ${
+                  className={`mx-auto mb-10 max-w-3xl text-sm md:text-lg leading-relaxed ${
                     isDark
                       ? 'text-slate-300 opacity-80'
                       : 'text-[#45464d]'
@@ -1066,7 +1068,7 @@ export default function HomePage() {
           <div className="mx-auto grid max-w-screen-2xl grid-cols-1 gap-6 px-4 pt-12 pb-5 md:grid-cols-4">
             <div className="col-span-1 md:col-span-2 lg:col-span-1">
               <span
-                className={`mb-4 block text-2xl font-semibold ${
+                className={`mb-4 block text-base font-bold tracking-tight ${
                   isDark ? 'text-slate-50' : 'text-[#191c1e]'
                 }`}
               >
@@ -1074,7 +1076,7 @@ export default function HomePage() {
               </span>
 
               <p
-                className={`mb-6 text-xs font-medium ${
+                className={`mb-6 text-xs font-medium leading-5 ${
                   isDark
                     ? 'text-slate-300 opacity-60'
                     : 'text-[#45464d]'
@@ -1085,7 +1087,7 @@ export default function HomePage() {
               </p>
 
               <div className="flex gap-4">
-                {['public', 'mail'].map((icon) => (
+                {['call', 'mail'].map((icon) => (
                   <a
                     key={icon}
                     href="#"
@@ -1103,7 +1105,7 @@ export default function HomePage() {
 
             <div>
               <h4
-                className={`mb-6 text-sm font-semibold uppercase tracking-wider ${
+                className={`mb-6 text-sm font-medium ${
                   isDark ? 'text-slate-50' : 'text-[#191c1e]'
                 }`}
               >
@@ -1130,7 +1132,7 @@ export default function HomePage() {
 
             <div>
               <h4
-                className={`mb-6 text-sm font-semibold uppercase tracking-wider ${
+                className={`mb-6 text-sm font-medium ${
                   isDark ? 'text-slate-50' : 'text-[#191c1e]'
                 }`}
               >
@@ -1157,7 +1159,7 @@ export default function HomePage() {
 
             <div>
               <h4
-                className={`mb-6 text-sm font-semibold uppercase tracking-wider ${
+                className={`mb-6 text-sm font-medium ${
                   isDark ? 'text-slate-50' : 'text-[#191c1e]'
                 }`}
               >
