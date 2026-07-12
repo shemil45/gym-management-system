@@ -10,7 +10,6 @@ export const getCurrentAdminContext = cache(async () => {
         gym: context.gym,
         admin: context.admin,
         accessibleGyms: context.accessibleGyms,
-        needsGymSelection: context.needsGymSelection,
         role: context.role,
         isStaff: context.isStaff,
     }

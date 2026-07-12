@@ -169,7 +169,6 @@ export async function createStaff(formData: FormData) {
         }
 
         revalidatePath('/admin/staff')
-        revalidatePath('/select-gym')
         return { success: true }
     } catch (error) {
         if (finalUploadedPhotoPath) {
@@ -299,7 +298,6 @@ export async function updateStaff(formData: FormData) {
         revalidatePath('/admin/staff')
         revalidatePath(`/admin/staff/${id}`)
         revalidatePath(`/admin/staff/${id}/edit`)
-        revalidatePath('/select-gym')
         return { success: true }
     } catch (error) {
         return { error: getErrorMessage(error, 'Failed to update staff.') }

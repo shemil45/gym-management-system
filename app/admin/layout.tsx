@@ -12,15 +12,15 @@ export default async function AdminLayout({
 }: {
     children: React.ReactNode
 }) {
-    const { user, profile, gym, needsGymSelection, isStaff } = await getCurrentAdminContext()
+    const { user, profile, gym, isStaff } = await getCurrentAdminContext()
     const platformContext = await getCurrentPlatformContext()
 
     if (!user) {
         redirect('/login')
     }
 
-    if (needsGymSelection || !gym) {
-        redirect('/select-gym')
+    if (!gym) {
+        redirect('/login')
     }
 
     if (!profile || !isStaffRole(profile.role) || !isStaff) {

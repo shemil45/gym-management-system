@@ -335,7 +335,6 @@ export async function createMember(formData: FormData) {
         }
 
         revalidatePath('/admin/members')
-        revalidatePath('/select-gym')
         return {
             success: true,
             memberId: member.id,
@@ -457,7 +456,6 @@ export async function updateMember(formData: FormData) {
         revalidatePath('/admin/members')
         revalidatePath(`/admin/members/${memberId}`)
         revalidatePath(`/admin/members/${memberId}/edit`)
-        revalidatePath('/select-gym')
         return { success: true }
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to update member'
@@ -504,7 +502,6 @@ export async function deleteMember(memberId: string) {
         revalidatePath('/admin/members')
         revalidatePath(`/admin/members/${memberId}`)
         revalidatePath(`/admin/members/${memberId}/edit`)
-        revalidatePath('/select-gym')
         return { success: true }
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to delete member'

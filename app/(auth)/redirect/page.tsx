@@ -13,12 +13,6 @@ export default async function AuthRedirectPage() {
         redirect('/login')
     }
 
-    // Always show the chooser after sign-in when the account can access multiple gyms,
-    // even if a previous active_gym_id exists.
-    if (context.needsGymSelection || context.accessibleGyms.length > 1) {
-        redirect('/select-gym')
-    }
-
     if (context.isStaff) {
         redirect('/admin/dashboard')
     }

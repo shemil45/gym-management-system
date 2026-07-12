@@ -56,7 +56,6 @@ export type CurrentGymContext = {
     admin: AdminAccessRecord | null
     member: MemberAccessRecord | null
     accessibleGyms: GymAccessOption[]
-    needsGymSelection: boolean
 }
 
 async function getViewerProfile(userId: string) {
@@ -166,7 +165,6 @@ export const getCurrentGymContext = cache(async (): Promise<CurrentGymContext> =
             admin: null,
             member: null,
             accessibleGyms: [],
-            needsGymSelection: false,
         }
     }
 
@@ -183,7 +181,7 @@ export const getCurrentGymContext = cache(async (): Promise<CurrentGymContext> =
     let resolvedAccess = activeAccess
     let resolvedProfile = profile
 
-    if (!resolvedAccess && access.accessibleGyms.length === 1 && profile) {
+    if (!resolvedAccess && access.accessibleGyms.length > 0 && profile) {
         resolvedAccess = access.accessibleGyms[0]
         await syncActiveGym(profile.id, resolvedAccess.gym.id, resolvedAccess.role)
         resolvedProfile = {
@@ -203,7 +201,6 @@ export const getCurrentGymContext = cache(async (): Promise<CurrentGymContext> =
             admin: null,
             member: null,
             accessibleGyms: access.accessibleGyms,
-            needsGymSelection: access.accessibleGyms.length > 1,
         }
     }
 
@@ -228,7 +225,6 @@ export const getCurrentGymContext = cache(async (): Promise<CurrentGymContext> =
         admin: adminMembership,
         member: memberMembership,
         accessibleGyms: access.accessibleGyms,
-        needsGymSelection: false,
     }
 })
 

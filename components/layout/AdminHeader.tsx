@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { AnimatedThemeToggler } from '@/components/ui/animated-theme-toggler'
 import { useAdminTheme } from '@/components/layout/AdminThemeContext'
-import { Bell, Building2, LogOut, Menu, Settings } from 'lucide-react'
+import { Bell, LogOut, Menu, Settings } from 'lucide-react'
 import { useSidebar } from '@/components/layout/SidebarContext'
 
 interface AdminHeaderProps {
@@ -61,21 +61,6 @@ export default function AdminHeader({ user, desktopSidebarOpen = false }: AdminH
                 </Link>
 
                 <div className="flex items-center gap-2">
-                    <Button
-                        asChild
-                        variant="ghost"
-                        size="icon"
-                        className={`h-10 w-10 rounded-full text-white hover:text-white ${
-                            isDark
-                                ? 'border border-[#2a2a2a] bg-[#1c1c1c] hover:bg-[#222222]'
-                                : 'bg-white/10 hover:bg-white/20'
-                        }`}
-                    >
-                        <Link href="/select-gym" aria-label="Switch gym">
-                            <Building2 className="h-5 w-5" />
-                        </Link>
-                    </Button>
-
                     <AnimatedThemeToggler
                         type="button"
                         isDark={isDark}
@@ -127,21 +112,6 @@ export default function AdminHeader({ user, desktopSidebarOpen = false }: AdminH
                 </div>
 
                 <div className="flex items-center gap-x-3">
-                    <Button
-                        asChild
-                        variant="ghost"
-                        size="icon"
-                        className={`h-9 w-9 rounded-full text-white hover:text-white ${
-                            isDark
-                                ? 'border border-[#2a2a2a] bg-[#1c1c1c] hover:bg-[#222222]'
-                                : 'bg-white/10 hover:bg-white/20'
-                        }`}
-                    >
-                        <Link href="/select-gym" aria-label="Switch gym">
-                            <Building2 className="h-4 w-4" />
-                        </Link>
-                    </Button>
-
                     <AnimatedThemeToggler
                         type="button"
                         isDark={isDark}

@@ -12,7 +12,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { LogOut, User, Bell, ChevronDown, Menu, Dumbbell, Building2 } from 'lucide-react'
+import { LogOut, User, Bell, ChevronDown, Menu, Dumbbell } from 'lucide-react'
 import { useSidebar } from '@/components/layout/SidebarContext'
 
 interface MemberHeaderProps {
@@ -124,12 +124,6 @@ export default function MemberHeader({ user }: MemberHeaderProps) {
                             <a href="/member/profile" className="cursor-pointer">
                                 <User className="mr-2 h-4 w-4" />
                                 <span>My Profile</span>
-                            </a>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                            <a href="/select-gym" className="cursor-pointer">
-                                <Building2 className="mr-2 h-4 w-4" />
-                                <span>Switch Gym</span>
                             </a>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
