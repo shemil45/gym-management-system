@@ -20,23 +20,23 @@ interface AdminShellProps {
 
 export default function AdminShell({ children, user }: AdminShellProps) {
   const { isDark } = useAdminTheme()
-  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
-    <div className={`admin-theme-${isDark ? 'dark' : 'light'} flex h-[100dvh] min-h-[100svh] w-full overflow-hidden lg:h-screen ${isDark ? 'bg-[#121212]' : 'bg-[#1a1f2e]'}`}>
+    <div className={`admin-theme-${isDark ? 'dark' : 'light'} flex h-[100dvh] min-h-[100svh] w-full flex-col overflow-hidden md:flex-row lg:h-screen ${isDark ? 'bg-neutral-800' : 'bg-gray-100'}`}>
       <Toaster richColors position="top-right" />
-      <AdminSidebar desktopOpen={desktopSidebarOpen} setDesktopOpen={setDesktopSidebarOpen} />
+      <AdminSidebar user={user} open={sidebarOpen} setOpen={setSidebarOpen} />
 
       <div
-        className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:rounded-tl-[32px] lg:rounded-bl-none lg:border-l ${
+        className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-tl-2xl border ${
           isDark
-            ? 'bg-[#171717] lg:border-[#121212]'
-            : 'bg-[#eef3fb] lg:border-[#1a1f2e]'
+            ? 'border-neutral-700 bg-neutral-900'
+            : 'border-neutral-200 bg-white'
         }`}
       >
-        <AdminHeader user={user} desktopSidebarOpen={desktopSidebarOpen} />
+        <AdminHeader user={user} onMenuClick={() => setSidebarOpen((current) => !current)} />
         <main
-          className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 pb-24 pt-20 [-webkit-overflow-scrolling:touch] sm:px-6 sm:pb-8 lg:pt-6 [&::-webkit-scrollbar]:hidden"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 pb-24 pt-6 [-webkit-overflow-scrolling:touch] sm:px-6 sm:pb-8 [&::-webkit-scrollbar]:hidden"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {children}

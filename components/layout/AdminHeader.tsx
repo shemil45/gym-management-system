@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button'
 import { AnimatedThemeToggler } from '@/components/ui/animated-theme-toggler'
 import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { Bell, LogOut, Menu } from 'lucide-react'
-import { useSidebar } from '@/components/layout/SidebarContext'
 
 interface AdminHeaderProps {
     user: {
@@ -17,13 +16,11 @@ interface AdminHeaderProps {
         role?: string
         gym_name?: string
     }
-    desktopSidebarOpen?: boolean
+    onMenuClick?: () => void
 }
 
-export default function AdminHeader({ user, desktopSidebarOpen = false }: AdminHeaderProps) {
-    void user
+export default function AdminHeader({ user, onMenuClick }: AdminHeaderProps) {
     const router = useRouter()
-    const { toggle } = useSidebar()
     const { isDark, toggleTheme } = useAdminTheme()
     const headerSurface = isDark ? '#171717' : '#f7f9fb'
 
@@ -35,36 +32,37 @@ export default function AdminHeader({ user, desktopSidebarOpen = false }: AdminH
     }
 
     return (
-        <header className={`fixed inset-x-0 top-0 z-40 lg:sticky lg:inset-x-auto ${isDark ? 'border-b border-[#2a2a2a]' : 'border-b border-[#c6c6cd]'}`}>
+        <header className={`sticky top-0 z-40 ${isDark ? 'border-b border-[#2a2a2a]' : 'border-b border-[#c6c6cd]'}`}>
             <div
-                className={`relative flex h-16 items-center justify-between px-4 lg:hidden ${isDark ? 'text-white' : 'text-[#191c1e]'}`}
+                className={`relative flex h-16 items-center justify-between px-4 md:hidden ${isDark ? 'text-white' : 'text-[#191c1e]'}`}
                 style={{ background: headerSurface }}
             >
-                <button
-                    onClick={toggle}
-                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
-                        isDark
-                            ? 'border border-[#2a2a2a] bg-[#1c1c1c]'
-                            : 'border border-[#e7e9ee] bg-white text-[#45464d]'
-                    }`}
-                    aria-label="Open navigation"
-                >
-                    <Menu className="h-5 w-5" />
-                </button>
-
-                <Link
-                    href="/admin/dashboard"
-                    className="absolute left-1/2 max-w-[calc(100%-7rem)] -translate-x-1/2 px-3 text-center"
-                    aria-label="Go to dashboard"
-                >
-                    <p
-                        className={`truncate text-lg font-bold tracking-tight ${
-                            isDark ? 'text-white' : 'text-[#191c1e]'
+                <Button
+                        type="button"
+                        onClick={onMenuClick}
+                        className={`h-10 w-10 rounded-full p-0 ${
+                            isDark
+                                ? 'border border-[#2a2a2a] bg-[#1c1c1c] text-white'
+                                : 'border border-[#e7e9ee] bg-white text-[#45464d]'
                         }`}
+                        aria-label="Open navigation"
                     >
-                        {user.gym_name || 'Gym Dashboard'}
-                    </p>
-                </Link>
+                        <Menu className="h-5 w-5" />
+                    </Button>
+
+                    <Link
+                        href="/admin/dashboard"
+                        className="absolute left-1/2 max-w-[calc(100%-11rem)] -translate-x-1/2"
+                        aria-label="Go to dashboard"
+                    >
+                        <p
+                            className={`truncate text-center text-lg font-bold tracking-tight ${
+                                isDark ? 'text-white' : 'text-[#191c1e]'
+                            }`}
+                        >
+                            {user.gym_name || 'Gym Dashboard'}
+                        </p>
+                    </Link>
 
                 <div className="flex items-center gap-2">
                     <AnimatedThemeToggler
@@ -91,18 +89,19 @@ export default function AdminHeader({ user, desktopSidebarOpen = false }: AdminH
                     >
                         <LogOut className="h-5 w-5" />
                     </Button>
+
                 </div>
             </div>
 
             <div
-                className={`hidden h-20 shrink-0 items-center gap-x-4 px-6 lg:flex ${isDark ? 'text-white' : 'text-[#191c1e]'}`}
+                className={`hidden h-20 shrink-0 items-center gap-x-4 px-6 md:flex ${isDark ? 'text-white' : 'text-[#191c1e]'}`}
                 style={{ background: headerSurface }}
             >
                 <div className="flex flex-1 items-center gap-4">
-                    <div
-                        className={`transition-opacity duration-200 ${
-                            desktopSidebarOpen ? 'opacity-0' : 'opacity-100'
-                        }`}
+                    <Link
+                        href="/admin/dashboard"
+                        className="block min-w-0 transition-opacity duration-200"
+                        aria-label="Go to dashboard"
                     >
                         <div className="flex items-center">
                             <span
@@ -113,7 +112,7 @@ export default function AdminHeader({ user, desktopSidebarOpen = false }: AdminH
                                 {user.gym_name || 'Gym Dashboard'}
                             </span>
                         </div>
-                    </div>
+                    </Link>
                 </div>
 
                 <div className="flex items-center gap-x-3">
