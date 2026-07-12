@@ -23,12 +23,12 @@ export default function AdminShell({ children, user }: AdminShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
-    <div className={`admin-theme-${isDark ? 'dark' : 'light'} flex h-[100dvh] min-h-[100svh] w-full flex-col overflow-hidden md:flex-row lg:h-screen ${isDark ? 'bg-neutral-800' : 'bg-gray-100'}`}>
+    <div className={`admin-theme-${isDark ? 'dark' : 'light'} flex h-[100dvh] min-h-[100svh] w-full flex-col overflow-hidden md:flex-row lg:h-screen ${isDark ? 'bg-[#222222]' : 'bg-gray-100'}`}>
       <Toaster richColors position="top-right" />
       <AdminSidebar user={user} open={sidebarOpen} setOpen={setSidebarOpen} />
 
       <div
-        className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-tl-2xl border ${
+        className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:rounded-tl-2xl md:border ${
           isDark
             ? 'border-neutral-700 bg-neutral-900'
             : 'border-neutral-200 bg-white'

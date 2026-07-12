@@ -76,11 +76,11 @@ const links = [
     href: '/admin/reports',
     icon: <IconReportAnalytics className={iconClassName} />,
   },
-  {
-    label: 'Settings',
-    href: '/admin/settings',
-    icon: <IconSettings className={iconClassName} />,
-  },
+  // {
+  //   label: 'Settings',
+  //   href: '/admin/settings',
+  //   icon: <IconSettings className={iconClassName} />,
+  // },
 ]
 
 export default function AdminSidebar({ user, open, setOpen }: AdminSidebarProps) {
@@ -103,7 +103,7 @@ export default function AdminSidebar({ user, open, setOpen }: AdminSidebarProps)
     <Sidebar open={open} setOpen={setOpen}>
       <SidebarBody
         showMobileTrigger={false}
-        className="justify-between gap-10 border-r border-neutral-200 bg-gray-100 dark:border-neutral-700 dark:bg-neutral-800"
+        className="justify-between gap-10 bg-gray-100 dark:bg-neutral-800"
       >
         <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
           {open ? <Logo /> : <LogoIcon />}
@@ -121,7 +121,7 @@ export default function AdminSidebar({ user, open, setOpen }: AdminSidebarProps)
                   className={cn(
                     'rounded-md px-2 transition-colors',
                     isActive
-                      ? 'bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-white'
+                      ? 'bg-white text-neutral-900 dark:bg-neutral-700 dark:text-white'
                       : 'hover:bg-white/70 dark:hover:bg-neutral-700/70'
                   )}
                 />
@@ -145,8 +145,7 @@ export default function AdminSidebar({ user, open, setOpen }: AdminSidebarProps)
                   unoptimized
                 />
               ) : (
-                <IconChartBar className="h-7 w-7 shrink-0 rounded-full bg-neutral-200 p-1.5 text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200" />
-              ),
+                <IconSettings className={iconClassName} />              ),
             }}
             onClick={() => setOpen(false)}
             className="rounded-md px-2 hover:bg-white/70 dark:hover:bg-neutral-700/70"
@@ -179,7 +178,7 @@ function Logo() {
       <motion.span
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="font-medium whitespace-pre text-black dark:text-white"
+        className="font-medium whitespace-pre text-black dark:text-white text-xl"
       >
         GMS Cloud
       </motion.span>
