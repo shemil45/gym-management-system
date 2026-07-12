@@ -5,19 +5,18 @@ import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion } from 'motion/react'
 import {
-  IconArrowLeft,
-  IconBarbell,
-  IconCash,
-  IconChartBar,
-  IconChecklist,
-  IconCreditCard,
-  IconLayoutDashboard,
-  IconReportAnalytics,
-  IconSettings,
-  IconUserBolt,
-  IconUserCheck,
-  IconUsers,
-} from '@tabler/icons-react'
+  LayoutDashboard,
+  Users,
+  User,
+  UserCheck,
+  CreditCard,
+  DollarSign,
+  ClipboardList,
+  BarChart2,
+  Settings,
+  ArrowLeft,
+  Dumbbell,
+} from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
@@ -39,48 +38,48 @@ const links = [
   {
     label: 'Dashboard',
     href: '/admin/dashboard',
-    icon: <IconLayoutDashboard className={iconClassName} />,
+    icon: <LayoutDashboard className={iconClassName} />,
   },
   {
     label: 'Members',
     href: '/admin/members',
-    icon: <IconUsers className={iconClassName} />,
+    icon: <Users className={iconClassName} />,
   },
   {
     label: 'Staff',
     href: '/admin/staff',
-    icon: <IconUserBolt className={iconClassName} />,
+    icon: <User className={iconClassName} />,
   },
   {
     label: 'Check-ins',
     href: '/admin/check-ins',
-    icon: <IconUserCheck className={iconClassName} />,
+    icon: <UserCheck className={iconClassName} />,
   },
   {
     label: 'Payments',
     href: '/admin/finances/payments',
-    icon: <IconCreditCard className={iconClassName} />,
+    icon: <CreditCard className={iconClassName} />,
   },
   {
     label: 'Expenses',
     href: '/admin/finances/expenses',
-    icon: <IconCash className={iconClassName} />,
+    icon: <DollarSign className={iconClassName} />,
   },
   {
     label: 'Plans',
     href: '/admin/plans',
-    icon: <IconChecklist className={iconClassName} />,
+    icon: <ClipboardList className={iconClassName} />,
   },
   {
     label: 'Reports',
     href: '/admin/reports',
-    icon: <IconReportAnalytics className={iconClassName} />,
+    icon: <BarChart2 className={iconClassName} />,
   },
-  // {
-  //   label: 'Settings',
-  //   href: '/admin/settings',
-  //   icon: <IconSettings className={iconClassName} />,
-  // },
+  {
+    label: 'Settings',
+    href: '/admin/settings',
+    icon: <Settings className={iconClassName} />,
+  },
 ]
 
 export default function AdminSidebar({ user, open, setOpen }: AdminSidebarProps) {
@@ -145,7 +144,7 @@ export default function AdminSidebar({ user, open, setOpen }: AdminSidebarProps)
                   unoptimized
                 />
               ) : (
-                <IconSettings className={iconClassName} />              ),
+                <Settings className={iconClassName} />              ),
             }}
             onClick={() => setOpen(false)}
             className="rounded-md px-2 hover:bg-white/70 dark:hover:bg-neutral-700/70"
@@ -155,7 +154,7 @@ export default function AdminSidebar({ user, open, setOpen }: AdminSidebarProps)
             link={{
               label: 'Logout',
               href: '/login',
-              icon: <IconArrowLeft className={iconClassName} />,
+              icon: <ArrowLeft className={iconClassName} />,
             }}
             onClick={(event) => void handleLogout(event)}
             className="rounded-md px-2 hover:bg-white/70 dark:hover:bg-neutral-700/70"
@@ -168,21 +167,23 @@ export default function AdminSidebar({ user, open, setOpen }: AdminSidebarProps)
 
 function Logo() {
   return (
-    <a
-      href="/admin/dashboard"
-      className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black"
+    <div
+      className="relative z-20 flex items-center space-x-2 py-1 text-black"
     >
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-black dark:bg-white">
-        <IconBarbell className="h-4 w-4 text-white dark:text-black" />
-      </div>
-      <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="font-medium whitespace-pre text-black dark:text-white text-xl"
-      >
-        GMS Cloud
-      </motion.span>
-    </a>
+      <a href="/admin/dashboard"
+      className='flex gap-2 items-center'>
+        <div className="md:mt-2.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-black dark:bg-white">
+          <Dumbbell className="h-4 w-4 text-white dark:text-black" />
+        </div>
+        <motion.span
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="md:mt-2.5 font-['Hanken_Grotesk',sans-serif] text-2xl leading-[1.1] tracking-[-0.02em] font-bold text-black dark:text-white sm:text-3xl whitespace-pre"
+        >
+          GMS Cloud
+        </motion.span>
+      </a>
+    </div>
   )
 }
 
@@ -193,8 +194,8 @@ function LogoIcon() {
       className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black"
       aria-label="Go to dashboard"
     >
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-black dark:bg-white">
-        <IconBarbell className="h-4 w-4 text-white dark:text-black" />
+      <div className="mt-2.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-black dark:bg-white">
+        <Dumbbell className="h-4 w-4 text-white dark:text-black" />
       </div>
     </a>
   )
