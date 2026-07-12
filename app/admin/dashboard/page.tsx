@@ -145,10 +145,10 @@ function OverviewCard({
         return (
             <Link
                 href={href}
-                className={`block rounded-2xl px-4 py-5 transition-all hover:-translate-y-0.5 sm:px-5 ${
+                className={`block rounded-xl px-4 py-5 transition-all hover:-translate-y-0.5 sm:px-5 ${
                     isDark
                         ? 'border border-[#2a2a2a] bg-[#1c1c1c] shadow-[0_18px_40px_rgba(0,0,0,0.24)] hover:border-[#3a3a3a]'
-                        : 'bg-white shadow-[0_10px_28px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 hover:shadow-[0_16px_38px_rgba(15,23,42,0.12)]'
+                        : 'border border-[#e7e9ee] bg-white shadow-[0_10px_28px_rgba(15,23,42,0.07)] hover:border-[#d9dde5] hover:shadow-[0_16px_38px_rgba(15,23,42,0.12)]'
                 }`}
             >
                 {content}
@@ -173,20 +173,24 @@ function SectionShell({
     children,
     action,
     mobileStackAction = false,
+    className = '',
+    contentClassName = '',
 }: {
     title: string
     subtitle?: string
     children: React.ReactNode
     action?: React.ReactNode
     mobileStackAction?: boolean
+    className?: string
+    contentClassName?: string
 }) {
     const { isDark } = useAdminTheme()
     return (
         <section className={`rounded-2xl p-4 sm:p-5 ${
             isDark
                 ? 'border border-[#2a2a2a] bg-[#1c1c1c] shadow-[0_18px_40px_rgba(0,0,0,0.24)]'
-                : 'bg-white shadow-[0_14px_32px_rgba(15,23,42,0.07)] ring-1 ring-slate-100'
-        }`}>
+                : 'border border-[#e7e9ee] bg-white shadow-[0_14px_32px_rgba(15,23,42,0.07)] hover:border-[#d9dde5] hover:shadow-[0_18px_38px_rgba(15,23,42,0.1)]'
+        } ${className}`}>
             <div className={`mb-4 flex gap-3 ${mobileStackAction ? 'flex-col sm:flex-row sm:items-start sm:justify-between' : 'items-start justify-between'}`}>
                 <div>
                     <h2 className={`text-xl font-semibold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>{title}</h2>
@@ -194,7 +198,7 @@ function SectionShell({
                 </div>
                 {action}
             </div>
-            {children}
+            <div className={contentClassName}>{children}</div>
         </section>
     )
 }
@@ -401,15 +405,30 @@ export default function AdminDashboard() {
     return (
         <div className="space-y-5">
             <section
-                className={`-mx-4 -mt-5 overflow-hidden rounded-b-3xl px-4 py-6 text-white sm:-mx-6 sm:-mt-6 sm:px-6 sm:py-4 ${
-                    isDark ? 'border-b border-[#2a2a2a]' : 'border-b border-blue-500/20'
+                className={`overflow-hidden rounded-xl px-4 py-6 sm:px-6 sm:py-4 ${
+                    isDark
+                        ? 'border border-[#2a2a2a] bg-[#1c1c1c] shadow-[0_18px_40px_rgba(0,0,0,0.24)]'
+                        : 'border border-[#e7e9ee] bg-white shadow-[0_14px_32px_rgba(15,23,42,0.07)] hover:border-[#d9dde5] hover:shadow-[0_18px_38px_rgba(15,23,42,0.1)]'
                 }`}
-                style={{ background: isDark ? '#1a1a1a' : '#1266ea' }}
             >
                 <div className="flex items-center gap-3 sm:gap-4">
-                    <Avatar className={`h-14 w-14 shrink-0 ring-2 sm:h-16 sm:w-16 ${isDark ? 'ring-white/10' : 'ring-white/15'}`}>
-                        <AvatarImage src={viewerProfile?.photo_url || undefined} alt={viewerProfile?.full_name || 'User profile'} />
-                        <AvatarFallback className={`${isDark ? 'bg-[#242424]' : 'bg-slate-900/45'} text-base font-semibold text-white sm:text-lg`}>
+                    <Avatar
+                        className={`h-14 w-14 shrink-0 ring-2 sm:h-16 sm:w-16 ${
+                            isDark ? 'ring-white/10' : 'ring-slate-200'
+                        }`}
+                    >
+                        <AvatarImage
+                            src={viewerProfile?.photo_url || undefined}
+                            alt={viewerProfile?.full_name || 'User profile'}
+                        />
+
+                        <AvatarFallback
+                            className={`text-base font-semibold sm:text-lg ${
+                                isDark
+                                    ? 'bg-[#242424] text-white'
+                                    : 'bg-slate-100 text-slate-700'
+                            }`}
+                        >
                             {viewerInitials}
                         </AvatarFallback>
                     </Avatar>
@@ -417,42 +436,88 @@ export default function AdminDashboard() {
                     <div className="min-w-0 flex-1">
                         {profileLoading ? (
                             <div className="mt-2 space-y-1.5">
-                                <div className="h-5 w-36 animate-pulse rounded-full bg-white/15" />
-                                <div className="h-4 w-20 animate-pulse rounded-full bg-white/10" />
-                                <div className="h-3.5 w-44 animate-pulse rounded-full bg-white/10" />
-                                <div className="h-3.5 w-28 animate-pulse rounded-full bg-white/10" />
+                                <div
+                                    className={`h-5 w-36 animate-pulse rounded-full ${
+                                        isDark ? 'bg-white/15' : 'bg-slate-200'
+                                    }`}
+                                />
+
+                                <div
+                                    className={`h-4 w-20 animate-pulse rounded-full ${
+                                        isDark ? 'bg-white/10' : 'bg-slate-200'
+                                    }`}
+                                />
+
+                                <div
+                                    className={`h-3.5 w-44 animate-pulse rounded-full ${
+                                        isDark ? 'bg-white/10' : 'bg-slate-200'
+                                    }`}
+                                />
+
+                                <div
+                                    className={`h-3.5 w-28 animate-pulse rounded-full ${
+                                        isDark ? 'bg-white/10' : 'bg-slate-200'
+                                    }`}
+                                />
                             </div>
                         ) : viewerProfile ? (
                             <div className="mt-1.5 min-w-0">
                                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                                    <h1 className="truncate text-[1.45rem] font-semibold leading-tight tracking-tight sm:text-[1.65rem]">
+                                    <h1
+                                        className={`truncate text-[1.45rem] font-semibold leading-tight tracking-tight sm:text-[1.65rem] ${
+                                            isDark ? 'text-white' : 'text-slate-900'
+                                        }`}
+                                    >
                                         {viewerProfile.full_name || 'Staff User'}
                                     </h1>
+
                                     {viewerProfile.role ? (
                                         <Badge
                                             variant="outline"
                                             className={`px-2 py-0.5 text-[10px] font-semibold capitalize ${
                                                 isDark
                                                     ? 'border-[#10b981]/30 bg-[#10b981]/10 text-[#8df0c9]'
-                                                    : 'border-white/15 bg-white/12 text-white'
+                                                    : 'border-slate-200 bg-slate-50 text-slate-600'
                                             }`}
                                         >
                                             {formatRoleLabel(viewerProfile.role)}
                                         </Badge>
                                     ) : null}
                                 </div>
-                                <p className={`mt-1 truncate text-[12px] leading-tight sm:text-[13px] ${isDark ? 'text-zinc-300' : 'text-blue-100/90'}`}>
+
+                                <p
+                                    className={`mt-1 truncate text-[12px] leading-tight sm:text-[13px] ${
+                                        isDark ? 'text-zinc-300' : 'text-slate-600'
+                                    }`}
+                                >
                                     {viewerProfile.email || 'No email available'}
                                 </p>
-                                <p className={`mt-0.5 text-[12px] leading-tight sm:text-[13px] ${isDark ? 'text-zinc-400' : 'text-blue-100/78'}`}>
+
+                                <p
+                                    className={`mt-0.5 text-[12px] leading-tight sm:text-[13px] ${
+                                        isDark ? 'text-zinc-400' : 'text-slate-500'
+                                    }`}
+                                >
                                     {viewerProfile.phone || 'Phone not added'}
                                 </p>
                             </div>
                         ) : (
                             <div className="mt-1.5">
-                                <h1 className="text-lg font-semibold tracking-tight">Profile unavailable</h1>
-                                <p className={`mt-1 max-w-md text-[12px] sm:text-[13px] ${isDark ? 'text-zinc-400' : 'text-blue-100/85'}`}>
-                                    We couldn&apos;t load your profile details right now. Please check that your `profiles` row exists.
+                                <h1
+                                    className={`text-lg font-semibold tracking-tight ${
+                                        isDark ? 'text-white' : 'text-slate-900'
+                                    }`}
+                                >
+                                    Profile unavailable
+                                </h1>
+
+                                <p
+                                    className={`mt-1 max-w-md text-[12px] sm:text-[13px] ${
+                                        isDark ? 'text-zinc-400' : 'text-slate-500'
+                                    }`}
+                                >
+                                    We couldn&apos;t load your profile details right now.
+                                    Please check that your profiles row exists.
                                 </p>
                             </div>
                         )}
@@ -460,7 +525,7 @@ export default function AdminDashboard() {
                 </div>
             </section>
 
-            <section className="grid grid-cols-2 gap-4">
+            <section className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <OverviewCard
                     title="Active Members"
                     value={data.activeMembers.toLocaleString()}
@@ -505,7 +570,7 @@ export default function AdminDashboard() {
                 />
             </section>
 
-            <div className="grid gap-5">
+            <div className="grid gap-5 lg:grid-cols-2">
                 <SectionShell
                     title="Revenue Overview"
                     subtitle={
@@ -516,6 +581,8 @@ export default function AdminDashboard() {
                                 : `Last ${chartRange} revenue trend`
                     }
                     mobileStackAction
+                    className="lg:h-125 lg:flex lg:flex-col"
+                    contentClassName="lg:flex lg:min-h-0 lg:flex-1 lg:flex-col"
                     action={
                         <div className="w-full sm:w-auto sm:min-w-[20rem] sm:max-w-[24rem]">
                             <div className={`flex w-full items-center gap-1 rounded-2xl p-1 sm:gap-1.5 sm:p-1.5 ${
@@ -544,7 +611,7 @@ export default function AdminDashboard() {
                         </div>
                     }
                 >
-                    <div className="h-64">
+                    <div className="h-64 lg:min-h-0 lg:flex-1">
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={chartData} margin={{ top: 10, right: 4, left: -18, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#2a2a2a' : '#e5edf8'} vertical={false} />
@@ -585,23 +652,24 @@ export default function AdminDashboard() {
                         </ResponsiveContainer>
                     </div>
                 </SectionShell>
-            </div>
 
-            <SectionShell
-                title="Renewals"
-                subtitle="Memberships that need attention"
-                action={
-                    <Link
-                        href={renewalTab === 'expires' ? '/admin/members?filter=expires' : '/admin/members?filter=overdue'}
-                        className={`flex items-center gap-1 text-[13px] font-medium transition-colors ${
-                            isDark ? 'text-zinc-300 hover:text-white' : 'text-blue-600 hover:text-blue-700'
-                        }`}
-                    >
-                        View all <ArrowRight className="h-3 w-3" />
-                    </Link>
-                }
-            >
-                <div className={`mb-4 rounded-2xl p-1 ${isDark ? 'border border-[#2a2a2a] bg-[#161616]' : 'bg-slate-100'}`}>
+                <SectionShell
+                    title="Renewals"
+                    subtitle="Memberships that need attention"
+                    className="lg:h-125 lg:flex lg:flex-col"
+                    contentClassName="lg:flex lg:min-h-0 lg:flex-1 lg:flex-col"
+                    action={
+                        <Link
+                            href={renewalTab === 'expires' ? '/admin/members?filter=expires' : '/admin/members?filter=overdue'}
+                            className={`flex items-center gap-1 text-[13px] font-medium transition-colors ${
+                                isDark ? 'text-zinc-300 hover:text-white' : 'text-blue-600 hover:text-blue-700'
+                            }`}
+                        >
+                            View all <ArrowRight className="h-3 w-3" />
+                        </Link>
+                    }
+                >
+                <div className={`mb-4 rounded-2xl p-1 lg:shrink-0 ${isDark ? 'border border-[#2a2a2a] bg-[#161616]' : 'bg-slate-100'}`}>
                     <div className="grid grid-cols-2 gap-1">
                         <button
                             onClick={() => setRenewalTab('expires')}
@@ -641,7 +709,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {visibleRenewals.length > 0 ? (
-                    <div className="space-y-4">
+                    <div className="space-y-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                         {visibleRenewals.map((member) => {
                             const initials = member.full_name
                                 .split(' ')
@@ -695,8 +763,9 @@ export default function AdminDashboard() {
                     </div>
                 )}
             </SectionShell>
+        </div>
 
-            <div className="fixed bottom-6 right-5 z-30 lg:hidden">
+        <div className="fixed bottom-6 right-5 z-30 lg:hidden">
                 <div className="mb-3 flex flex-col items-center gap-3">
                     {quickActionsOpen ? (
                         <>

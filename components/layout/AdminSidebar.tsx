@@ -305,25 +305,47 @@ function MobileSidebarContent({ onClose }: { onClose?: () => void }) {
         scrollbarWidth: 'none',
         background: isDark
           ? 'linear-gradient(180deg, #121212 0%, #171717 100%)'
-          : 'linear-gradient(180deg, #0f5be1 0%, #0c4ec6 100%)',
+          : 'linear-gradient(180deg, #fafafa 0%, #f4f6f8 100%)',
       }}
     >
       <div className="relative mt-4 flex shrink-0 flex-col px-4">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className={cn('flex h-11 w-11 items-center justify-center rounded-2xl shadow-lg', isDark ? 'bg-[#10b981]/15 shadow-[#10b981]/10' : 'bg-white/15 shadow-blue-900/20')}>
-              <Dumbbell className="h-5 w-5 text-white" />
+            <div
+              className={cn(
+                'flex h-11 w-11 items-center justify-center rounded-2xl shadow-lg',
+                isDark
+                  ? 'bg-[#10b981]/15 shadow-[#10b981]/10'
+                  : 'bg-black shadow-slate-200/60'
+              )}
+            >
+              <Dumbbell
+                className={cn(
+                  'h-5 w-5',
+                  isDark ? 'text-white' : 'text-white'
+                )}
+              />
             </div>
+
             <div className="min-w-0">
-              <span className="block text-base font-bold tracking-wide text-white">GMS Cloud</span>
-              <span className={cn('text-xs', isDark ? 'text-zinc-400' : 'text-blue-100/80')}>Management</span>
+              <span
+                className={cn(
+                  'block text-base font-bold tracking-wide',
+                  isDark ? 'text-white' : 'text-slate-900'
+                )}
+              >
+                GMS Cloud
+              </span>
             </div>
           </div>
 
           {onClose ? (
             <button
               onClick={onClose}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white lg:hidden"
+              className={cn(
+                'flex h-9 w-9 items-center justify-center rounded-full transition-colors lg:hidden',
+                isDark ? 'text-white/80' : 'text-slate-500'
+              )}
               aria-label="Close sidebar"
             >
               <X className="h-4 w-4" />
@@ -332,7 +354,12 @@ function MobileSidebarContent({ onClose }: { onClose?: () => void }) {
         </div>
       </div>
 
-      <div className={cn('mx-4 mb-4 mt-4 h-px', isDark ? 'bg-[#2a2a2a]' : 'bg-white/15')} />
+      <div
+        className={cn(
+          'mx-4 mb-4 mt-4 h-px',
+          isDark ? 'bg-[#2a2a2a]' : 'bg-slate-200'
+        )}
+      />
 
       <nav className="flex flex-1 flex-col px-4">
         <ul role="list" className="flex flex-1 flex-col gap-y-2">
@@ -341,13 +368,26 @@ function MobileSidebarContent({ onClose }: { onClose?: () => void }) {
               item.children?.some(
                 (child) => pathname === child.href || pathname?.startsWith(child.href + '/')
               ) ?? false
-            const isExpanded = item.children ? expandedSections[item.name] ?? hasActiveChild : false
+
+            const isExpanded = item.children
+              ? expandedSections[item.name] ?? hasActiveChild
+              : false
+
             const isActive =
-              pathname === item.href || pathname?.startsWith(item.href + '/') || hasActiveChild
+              pathname === item.href ||
+              pathname?.startsWith(item.href + '/') ||
+              hasActiveChild
 
             return (
               <li key={item.name}>
-                <div className={cn('rounded-2xl', item.children && isActive && (isDark ? 'bg-white/5' : 'bg-white/10'))}>
+                <div
+                  className={cn(
+                    'rounded-2xl',
+                    item.children &&
+                      isActive &&
+                      (isDark ? 'bg-white/5' : 'bg-slate-100')
+                  )}
+                >
                   {item.children ? (
                     <button
                       type="button"
@@ -357,10 +397,10 @@ function MobileSidebarContent({ onClose }: { onClose?: () => void }) {
                         isActive
                           ? isDark
                             ? 'bg-[#1f1f1f] text-white shadow-xl shadow-black/20'
-                            : 'bg-white text-blue-700 shadow-xl shadow-blue-900/20'
+                            : 'border border-[#e7e9ee] bg-white text-slate-900 shadow-[0_10px_30px_rgba(15,23,42,0.08)]'
                           : isDark
-                            ? 'text-zinc-300 hover:bg-[#1d1d1d] hover:text-white'
-                            : 'text-white/85 hover:bg-white/10 hover:text-white'
+                            ? 'text-zinc-300'
+                            : 'text-slate-600'
                       )}
                     >
                       <item.icon
@@ -369,15 +409,19 @@ function MobileSidebarContent({ onClose }: { onClose?: () => void }) {
                           isActive
                             ? isDark
                               ? 'text-[#10b981]'
-                              : 'text-blue-700'
+                              : 'text-slate-900'
                             : isDark
-                              ? 'text-zinc-400 group-hover:text-white'
-                              : 'text-white/75 group-hover:text-white'
+                              ? 'text-zinc-400'
+                              : 'text-slate-500'
                         )}
                         aria-hidden="true"
                       />
+
                       <div className="flex flex-1 items-center justify-between gap-1.5">
-                        <span className="leading-tight text-left">{item.name}</span>
+                        <span className="leading-tight text-left">
+                          {item.name}
+                        </span>
+
                         <ChevronDown
                           className={cn(
                             'h-4 w-4 shrink-0 transition-transform',
@@ -395,10 +439,10 @@ function MobileSidebarContent({ onClose }: { onClose?: () => void }) {
                         isActive
                           ? isDark
                             ? 'bg-[#1f1f1f] text-white shadow-xl shadow-black/20'
-                            : 'bg-white text-blue-700 shadow-xl shadow-blue-900/20'
+                            : 'border border-[#e7e9ee] bg-white text-slate-900 shadow-[0_10px_30px_rgba(15,23,42,0.08)]'
                           : isDark
-                            ? 'text-zinc-300 hover:bg-[#1d1d1d] hover:text-white'
-                            : 'text-white/85 hover:bg-white/10 hover:text-white'
+                            ? 'text-zinc-300'
+                            : 'text-slate-600'
                       )}
                     >
                       <item.icon
@@ -407,15 +451,18 @@ function MobileSidebarContent({ onClose }: { onClose?: () => void }) {
                           isActive
                             ? isDark
                               ? 'text-[#10b981]'
-                              : 'text-blue-700'
+                              : 'text-slate-900'
                             : isDark
-                              ? 'text-zinc-400 group-hover:text-white'
-                              : 'text-white/75 group-hover:text-white'
+                              ? 'text-zinc-400'
+                              : 'text-slate-500'
                         )}
                         aria-hidden="true"
                       />
+
                       <div className="flex flex-1 items-center justify-between gap-1.5">
-                        <span className="leading-tight text-left">{item.name}</span>
+                        <span className="leading-tight text-left">
+                          {item.name}
+                        </span>
                       </div>
                     </Link>
                   )}
@@ -425,7 +472,8 @@ function MobileSidebarContent({ onClose }: { onClose?: () => void }) {
                       <ul className="space-y-1">
                         {item.children.map((child) => {
                           const isChildActive =
-                            pathname === child.href || pathname?.startsWith(child.href + '/')
+                            pathname === child.href ||
+                            pathname?.startsWith(child.href + '/')
 
                           return (
                             <li key={child.href}>
@@ -437,10 +485,10 @@ function MobileSidebarContent({ onClose }: { onClose?: () => void }) {
                                   isChildActive
                                     ? isDark
                                       ? 'bg-[#1f1f1f] font-semibold text-[#10b981]'
-                                      : 'bg-white font-semibold text-blue-700'
+                                      : 'border border-[#e7e9ee] bg-white font-semibold text-slate-900'
                                     : isDark
-                                      ? 'text-zinc-400 hover:bg-[#1d1d1d] hover:text-white'
-                                      : 'text-white/80 hover:bg-white/10 hover:text-white'
+                                      ? 'text-zinc-400'
+                                      : 'text-slate-500'
                                 )}
                               >
                                 {child.name}
@@ -458,20 +506,43 @@ function MobileSidebarContent({ onClose }: { onClose?: () => void }) {
         </ul>
       </nav>
 
-      <div className={cn('mx-4 border-t px-2 pt-4', isDark ? 'border-[#2a2a2a]' : 'border-white/15')}>
+      <div
+        className={cn(
+          'mx-4 border-t px-2 pt-4',
+          isDark ? 'border-[#2a2a2a]' : 'border-slate-200'
+        )}
+      >
         <button
           type="button"
           onClick={() => void handleLogout()}
           className={cn(
-            'mb-4 flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-white transition-colors',
-            isDark ? 'border border-[#2a2a2a] bg-[#1c1c1c] hover:bg-[#222222]' : 'bg-white/10 hover:bg-white/15'
+            'mb-4 flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium transition-colors',
+            isDark
+              ? 'border border-[#2a2a2a] bg-[#1c1c1c] text-white'
+              : 'border border-[#e7e9ee] bg-white text-slate-900'
           )}
         >
           <LogOut className="h-4 w-4" />
           <span>Log out</span>
         </button>
-        <p className={cn('text-center text-[10px]', isDark ? 'text-zinc-400' : 'text-blue-100/80')}>&copy; 2026 GMS Cloud</p>
-        <p className={cn('text-center text-[10px]', isDark ? 'text-zinc-500' : 'text-blue-100/60')}>Version 1.0.0</p>
+
+        <p
+          className={cn(
+            'text-center text-[10px]',
+            isDark ? 'text-zinc-400' : 'text-slate-500'
+          )}
+        >
+          &copy; 2026 GMS Cloud
+        </p>
+
+        <p
+          className={cn(
+            'text-center text-[10px]',
+            isDark ? 'text-zinc-500' : 'text-slate-400'
+          )}
+        >
+          Version 1.0.0
+        </p>
       </div>
     </div>
   )

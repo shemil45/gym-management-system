@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { AnimatedThemeToggler } from '@/components/ui/animated-theme-toggler'
 import { useAdminTheme } from '@/components/layout/AdminThemeContext'
-import { Bell, LogOut, Menu, Settings } from 'lucide-react'
+import { Bell, LogOut, Menu } from 'lucide-react'
 import { useSidebar } from '@/components/layout/SidebarContext'
 
 interface AdminHeaderProps {
@@ -25,7 +25,7 @@ export default function AdminHeader({ user, desktopSidebarOpen = false }: AdminH
     const router = useRouter()
     const { toggle } = useSidebar()
     const { isDark, toggleTheme } = useAdminTheme()
-    const headerSurface = isDark ? '#171717' : '#1266ea'
+    const headerSurface = isDark ? '#171717' : '#f7f9fb'
 
     const handleLogout = async () => {
         const supabase = createClient()
@@ -35,17 +35,17 @@ export default function AdminHeader({ user, desktopSidebarOpen = false }: AdminH
     }
 
     return (
-        <header className={`fixed inset-x-0 top-0 z-40 lg:sticky lg:inset-x-auto ${isDark ? 'border-b border-[#2a2a2a]' : 'border-b border-blue-500/30'}`}>
+        <header className={`fixed inset-x-0 top-0 z-40 lg:sticky lg:inset-x-auto ${isDark ? 'border-b border-[#2a2a2a]' : 'border-b border-[#c6c6cd]'}`}>
             <div
-                className="relative flex h-16 items-center justify-between px-4 text-white lg:hidden"
+                className={`relative flex h-16 items-center justify-between px-4 lg:hidden ${isDark ? 'text-white' : 'text-[#191c1e]'}`}
                 style={{ background: headerSurface }}
             >
                 <button
                     onClick={toggle}
                     className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
                         isDark
-                            ? 'border border-[#2a2a2a] bg-[#1c1c1c] hover:bg-[#222222]'
-                            : 'bg-white/10 hover:bg-white/20'
+                            ? 'border border-[#2a2a2a] bg-[#1c1c1c]'
+                            : 'border border-[#e7e9ee] bg-white text-[#45464d]'
                     }`}
                     aria-label="Open navigation"
                 >
@@ -57,7 +57,13 @@ export default function AdminHeader({ user, desktopSidebarOpen = false }: AdminH
                     className="absolute left-1/2 max-w-[calc(100%-7rem)] -translate-x-1/2 px-3 text-center"
                     aria-label="Go to dashboard"
                 >
-                    <p className="truncate text-lg font-semibold tracking-tight">GMS Cloud</p>
+                    <p
+                        className={`truncate text-lg font-bold tracking-tight ${
+                            isDark ? 'text-white' : 'text-[#191c1e]'
+                        }`}
+                    >
+                        {user.gym_name || 'Gym Dashboard'}
+                    </p>
                 </Link>
 
                 <div className="flex items-center gap-2">
@@ -65,33 +71,31 @@ export default function AdminHeader({ user, desktopSidebarOpen = false }: AdminH
                         type="button"
                         isDark={isDark}
                         onClick={toggleTheme}
-                        className={`h-10 w-10 rounded-full text-white hover:text-white ${
+                        className={`h-10 w-10 rounded-full ${
                             isDark
-                                ? 'border border-[#2a2a2a] bg-[#1c1c1c] hover:bg-[#222222]'
-                                : 'bg-white/10 hover:bg-white/20'
+                                ? 'border border-[#2a2a2a] bg-[#1c1c1c] text-white'
+                                : 'border border-[#e7e9ee] bg-white text-[#45464d]'
                         } [&_svg]:h-5 [&_svg]:w-5`}
                         aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
                     />
 
                     <Button
-                        asChild
-                        variant="ghost"
-                        size="icon"
-                        className={`h-10 w-10 rounded-full text-white hover:text-white ${
+                        type="button"
+                        onClick={() => void handleLogout()}
+                        className={`h-10 w-10 rounded-full p-0 ${
                             isDark
-                                ? 'border border-[#2a2a2a] bg-[#1c1c1c] hover:bg-[#222222]'
-                                : 'bg-white/10 hover:bg-white/20'
+                                ? 'border border-[#2a2a2a] bg-[#1c1c1c] text-white'
+                                : 'border border-[#e7e9ee] bg-white text-[#45464d]'
                         }`}
+                        aria-label="Log out"
                     >
-                        <Link href="/admin/settings" aria-label="Open settings">
-                            <Settings className="h-5 w-5" />
-                        </Link>
+                        <LogOut className="h-5 w-5" />
                     </Button>
                 </div>
             </div>
 
             <div
-                className="hidden h-20 shrink-0 items-center gap-x-4 px-6 text-white lg:flex"
+                className={`hidden h-20 shrink-0 items-center gap-x-4 px-6 lg:flex ${isDark ? 'text-white' : 'text-[#191c1e]'}`}
                 style={{ background: headerSurface }}
             >
                 <div className="flex flex-1 items-center gap-4">
@@ -100,14 +104,15 @@ export default function AdminHeader({ user, desktopSidebarOpen = false }: AdminH
                             desktopSidebarOpen ? 'opacity-0' : 'opacity-100'
                         }`}
                     >
-                        <span className="block whitespace-nowrap text-xl font-semibold text-white/90">
-                            GMS Cloud
-                        </span>
-                        {user.gym_name ? (
-                            <span className="mt-0.5 block text-xs uppercase tracking-[0.2em] text-white/55">
-                                {user.gym_name}
+                        <div className="flex items-center">
+                            <span
+                                className={`block truncate text-2xl font-bold tracking-tight ${
+                                    isDark ? 'text-white' : 'text-[#191c1e]'
+                                }`}
+                            >
+                                {user.gym_name || 'Gym Dashboard'}
                             </span>
-                        ) : null}
+                        </div>
                     </div>
                 </div>
 
@@ -116,10 +121,10 @@ export default function AdminHeader({ user, desktopSidebarOpen = false }: AdminH
                         type="button"
                         isDark={isDark}
                         onClick={toggleTheme}
-                        className={`h-9 w-9 rounded-full text-white hover:text-white ${
+                        className={`h-9 w-9 rounded-full ${
                             isDark
-                                ? 'border border-[#2a2a2a] bg-[#1c1c1c] hover:bg-[#222222]'
-                                : 'bg-white/10 hover:bg-white/20'
+                                ? 'border border-[#2a2a2a] bg-[#1c1c1c] text-white hover:bg-[#222222] hover:text-white'
+                                : 'text-[#45464d] hover:bg-[#eef0f2] hover:text-[#191c1e]'
                         } [&_svg]:h-4 [&_svg]:w-4`}
                         aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
                     />
@@ -127,23 +132,23 @@ export default function AdminHeader({ user, desktopSidebarOpen = false }: AdminH
                     <Button
                         variant="ghost"
                         size="icon"
-                        className={`relative h-9 w-9 rounded-full text-white hover:text-white ${
+                        className={`relative h-9 w-9 rounded-full ${
                             isDark
-                                ? 'border border-[#2a2a2a] bg-[#1c1c1c] hover:bg-[#222222]'
-                                : 'bg-white/10 hover:bg-white/20'
+                                ? 'border border-[#2a2a2a] bg-[#1c1c1c] text-white hover:bg-[#222222] hover:text-white'
+                                : 'text-[#45464d] hover:bg-[#eef0f2] hover:text-[#191c1e]'
                         }`}
                     >
                         <Bell className="h-4 w-4" />
-                        <span className={`absolute right-2 top-2 h-2 w-2 rounded-full bg-[#10b981] ring-1 ${isDark ? 'ring-[#171717]' : 'ring-[#1266ea]'}`} />
+                        <span className={`absolute right-2 top-2 h-2 w-2 rounded-full bg-[#10b981] ring-1 ${isDark ? 'ring-[#171717]' : 'ring-[#f7f9fb]'}`} />
                     </Button>
 
                     <Button
                         type="button"
                         onClick={() => void handleLogout()}
-                        className={`h-9 rounded-xl px-4 text-sm font-medium text-white hover:text-white ${
+                        className={`h-9 rounded-lg px-4 text-sm font-bold ${
                             isDark
-                                ? 'border border-[#2a2a2a] bg-[#1c1c1c] hover:bg-[#222222]'
-                                : 'bg-white/10 hover:bg-white/20'
+                                ? 'border border-[#2a2a2a] bg-[#1c1c1c] text-white hover:bg-[#222222] hover:text-white'
+                                : 'bg-black text-white hover:bg-black/90'
                         }`}
                     >
                         <LogOut className="mr-2 h-4 w-4" />
