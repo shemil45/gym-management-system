@@ -477,7 +477,7 @@ export default function AdminDashboard() {
                                             className={`px-2 py-0.5 text-[10px] font-semibold capitalize ${
                                                 isDark
                                                     ? 'border-[#10b981]/30 bg-[#10b981]/10 text-[#8df0c9]'
-                                                    : 'border-slate-200 bg-slate-50 text-slate-600'
+                                                    : 'border-indigo-200 bg-indigo-50 text-indigo-700'
                                             }`}
                                         >
                                             {formatRoleLabel(viewerProfile.role)}
