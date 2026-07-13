@@ -75,11 +75,11 @@ const links = [
     href: '/admin/reports',
     icon: <BarChart2 className={iconClassName} />,
   },
-  {
-    label: 'Settings',
-    href: '/admin/settings',
-    icon: <Settings className={iconClassName} />,
-  },
+  // {
+  //   label: 'Settings',
+  //   href: '/admin/settings',
+  //   icon: <Settings className={iconClassName} />,
+  // },
 ]
 
 export default function AdminSidebar({ user, open, setOpen }: AdminSidebarProps) {
