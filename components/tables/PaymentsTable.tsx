@@ -514,7 +514,7 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal, initia
             )}
 
             {/* ── Header Card ── */}
-            <div className="rounded-[1.75rem] bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 sm:p-5">
+            <div className="rounded-xl bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 sm:p-5">
                 {/* Title + CTA */}
                 <div className="flex items-start justify-between gap-3">
                     <div>
@@ -525,7 +525,7 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal, initia
                         type="button"
                         onClick={handleOpenRecordPayment}
                         disabled={openingRecordPayment}
-                        className="h-14 w-14 shrink-0 rounded-full bg-emerald-600 p-0 text-white shadow-[0_16px_32px_rgba(5,150,105,0.25)] hover:bg-emerald-700 sm:h-14 sm:w-auto sm:rounded-2xl sm:px-4 gap-1.5"
+                        className="h-14 w-14 shrink-0 rounded-full bg-emerald-600 p-0 text-white shadow-[0_16px_32px_rgba(5,150,105,0.25)] hover:bg-emerald-700 sm:h-14 sm:w-auto sm:rounded-xl sm:px-4 gap-1.5"
                     >
                         {openingRecordPayment ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
                         <span className="ml-1 hidden sm:inline">{openingRecordPayment ? 'Opening...' : 'Record Payment'}</span>
@@ -558,7 +558,7 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal, initia
             </div>
 
             {/* ── Payment List / Table ── */}
-            <div className="overflow-hidden rounded-[1.75rem] bg-white shadow-[0_14px_32px_rgba(15,23,42,0.07)] ring-1 ring-slate-100">
+            <div className="overflow-hidden rounded-xl bg-white shadow-[0_14px_32px_rgba(15,23,42,0.07)] ring-1 ring-slate-100">
                 {/* Search + Filter Header */}
                 <div className="border-b border-slate-100 p-4 sm:p-5">
                     <div className="flex gap-2 sm:gap-3">
@@ -571,7 +571,7 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal, initia
                                     setSearchQuery(e.target.value)
                                     resetPage()
                                 }}
-                                className="h-12 w-full rounded-2xl border-slate-200 bg-slate-50 pl-10 text-sm focus:border-emerald-400 focus:ring-emerald-400"
+                                className="h-12 w-full rounded-xl border-slate-200 bg-slate-50 pl-10 text-sm focus:border-emerald-400 focus:ring-emerald-400"
                             />
                         </div>
 
@@ -579,7 +579,7 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal, initia
                             <button
                                 type="button"
                                 onClick={handleOpenFilterModal}
-                                className="flex h-12 flex-1 items-center justify-center gap-1.5 sm:gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-2 sm:px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 min-w-0"
+                                className="flex h-12 flex-1 items-center justify-center gap-1.5 sm:gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2 sm:px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 min-w-0"
                             >
                                 <SlidersHorizontal className="h-4 w-4 shrink-0 text-slate-500" />
                                 <span className="hidden xl:inline whitespace-nowrap">Filter</span>

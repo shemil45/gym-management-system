@@ -238,7 +238,7 @@ function StatCard({
     highlight?: 'green' | 'red'
 }) {
     return (
-        <div className="flex items-start gap-2 rounded-2xl border border-gray-100 bg-white px-3 py-3 shadow-[0_14px_32px_rgba(15,23,42,0.07)] sm:px-4">
+        <div className="flex items-start gap-2 rounded-xl border border-gray-100 bg-white px-3 py-3 shadow-[0_14px_32px_rgba(15,23,42,0.07)] sm:px-4">
             <div className={`mt-0.5 flex h-10 w-9 shrink-0 items-center justify-center rounded-sm sm:h-9 sm:w-9 ${iconBg}`}>
                 {icon}
             </div>
@@ -834,7 +834,7 @@ export default function ExpenseDashboard({ payments, expenses, initialFilters }:
                     </div>
                 )}
                 {/* ── Header ── */}
-                <div className="rounded-[1.75rem] bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 sm:p-5">
+                <div className="rounded-xl bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 sm:p-5">
                     <div className="flex items-start justify-between gap-3">
                         <div>
                             <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Expenses</h1>
@@ -842,7 +842,7 @@ export default function ExpenseDashboard({ payments, expenses, initialFilters }:
                         </div>
                         <Button
                             onClick={() => setShowModal(true)}
-                            className="h-14 w-14 shrink-0 rounded-full bg-rose-600 p-0 text-white shadow-[0_16px_32px_rgba(225,29,72,0.22)] hover:bg-rose-700 sm:h-14 sm:w-auto sm:rounded-2xl sm:px-4 sm:gap-1.5"
+                            className="h-14 w-14 shrink-0 rounded-full bg-rose-600 p-0 text-white shadow-[0_16px_32px_rgba(225,29,72,0.22)] hover:bg-rose-700 sm:h-14 sm:w-auto sm:rounded-xl sm:px-4 sm:gap-1.5"
                         >
                             <Plus className="h-5 w-5" />
                             <span className="ml-1 hidden sm:inline">Add Expense</span>
@@ -907,7 +907,7 @@ export default function ExpenseDashboard({ payments, expenses, initialFilters }:
                 {/* ── Chart + Breakdown ── */}
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
                     {/* Bar chart */}
-                    <div className="rounded-[1.75rem] border border-gray-100 bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.07)] sm:p-5 xl:col-span-2">
+                    <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.07)] sm:p-5 xl:col-span-2">
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <h2 className="text-sm font-semibold text-gray-900 sm:text-base">Revenue vs Expenses</h2>
@@ -962,7 +962,7 @@ export default function ExpenseDashboard({ payments, expenses, initialFilters }:
                     </div>
 
                     {/* Category breakdown */}
-                    <div className="rounded-[1.75rem] border border-gray-100 bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.07)] sm:p-5">
+                    <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.07)] sm:p-5">
                         <div className="flex items-start justify-between gap-3">
                             <div>
                                 <h2 className="text-sm font-semibold text-gray-900">Expense Breakdown</h2>
@@ -990,7 +990,7 @@ export default function ExpenseDashboard({ payments, expenses, initialFilters }:
                                     const pct = breakdownTotal > 0 ? Math.round((amt / breakdownTotal) * 100) : 0
                                     const cfg = getCategoryConfig(cat)
                                     return (
-                                        <div key={cat} className="space-y-1.5 rounded-2xl border border-slate-100 bg-slate-50/55 p-2.5">
+                                        <div key={cat} className="space-y-1.5 rounded-xl border border-slate-100 bg-slate-50/55 p-2.5">
                                             <div className="space-y-1.5">
                                                 <div className="flex min-w-0 items-center gap-2">
                                                     <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${cfg.bg} ${cfg.color}`}>
@@ -1028,7 +1028,7 @@ export default function ExpenseDashboard({ payments, expenses, initialFilters }:
                 {/* ── Expenses Table ── */}
                 <div
                     ref={expenseTableRef}
-                    className="overflow-hidden rounded-[1.75rem] border border-gray-100 bg-white shadow-[0_14px_32px_rgba(15,23,42,0.07)]"
+                    className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-[0_14px_32px_rgba(15,23,42,0.07)]"
                 >
                     <div className="border-b border-slate-100 p-4 sm:p-5">
                         <div className="mb-4">
@@ -1043,7 +1043,7 @@ export default function ExpenseDashboard({ payments, expenses, initialFilters }:
                                     placeholder="Search description..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="h-12 w-full rounded-2xl border-slate-200 bg-slate-50 pl-10 text-sm focus:border-rose-400 focus:ring-rose-400"
+                                    className="h-12 w-full rounded-xl border-slate-200 bg-slate-50 pl-10 text-sm focus:border-rose-400 focus:ring-rose-400"
                                 />
                             </div>
 
@@ -1051,7 +1051,7 @@ export default function ExpenseDashboard({ payments, expenses, initialFilters }:
                                 <button
                                     type="button"
                                     onClick={handleOpenFilterModal}
-                                    className="flex h-12 flex-1 items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 px-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 sm:gap-2 sm:px-3"
+                                    className="flex h-12 flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 sm:gap-2 sm:px-3"
                                 >
                                     <SlidersHorizontal className="h-4 w-4 shrink-0 text-slate-500" />
                                     <span className="hidden xl:inline whitespace-nowrap">Filter</span>
@@ -1066,7 +1066,7 @@ export default function ExpenseDashboard({ payments, expenses, initialFilters }:
                                     <button
                                         type="button"
                                         onClick={handleClearAllFilters}
-                                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-50 px-0 text-xs font-medium text-red-500 transition-colors hover:bg-red-100 hover:text-red-700 sm:w-auto sm:px-3"
+                                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-50 px-0 text-xs font-medium text-red-500 transition-colors hover:bg-red-100 hover:text-red-700 sm:w-auto sm:px-3"
                                         title="Clear filters"
                                     >
                                         <X className="h-4 w-4 shrink-0" />

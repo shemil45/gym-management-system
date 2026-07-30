@@ -54,7 +54,7 @@ export default function StaffDirectory({ staff }: { staff: StaffMember[] }) {
 
                 <Button
                     asChild
-                    className="h-12 w-12 shrink-0 rounded-full bg-blue-600 p-0 text-white shadow-[0_8px_16px_rgba(15,91,225,0.2)] hover:bg-blue-700 sm:h-12 sm:w-auto sm:rounded-2xl sm:px-4"
+                    className="h-12 w-12 shrink-0 rounded-full bg-blue-600 p-0 text-white shadow-[0_8px_16px_rgba(15,91,225,0.2)] hover:bg-blue-700 sm:h-12 sm:w-auto sm:rounded-xl sm:px-4"
                 >
                     <Link href="/admin/staff/add">
                         <Plus className="h-5 w-5" />
@@ -63,7 +63,7 @@ export default function StaffDirectory({ staff }: { staff: StaffMember[] }) {
                 </Button>
             </div>
 
-            <div className="overflow-hidden rounded-[1.75rem] bg-white shadow-[0_14px_32px_rgba(15,23,42,0.07)] ring-1 ring-slate-100">
+            <div className="overflow-hidden rounded-xl bg-white shadow-[0_14px_32px_rgba(15,23,42,0.07)] ring-1 ring-slate-100">
                 <div className="lg:hidden">
                     {staff.length === 0 ? (
                         <div className="px-4 py-16 text-center text-sm text-slate-400">No staff found</div>

@@ -565,7 +565,7 @@ export default function MembersTable({ members, plans, initialFilters }: Members
                 </div>
             )}
 
-            <div className="overflow-hidden rounded-[1.75rem] bg-white shadow-[0_14px_32px_rgba(15,23,42,0.07)] ring-1 ring-slate-100">
+            <div className="overflow-hidden rounded-lg bg-white shadow-[0_14px_32px_rgba(15,23,42,0.07)] ring-1 ring-slate-100">
                 {/* Header, Search + Filter */}
                 <div className="border-b border-slate-100 p-4 sm:p-5">
                     {/* Header Row */}
@@ -575,7 +575,7 @@ export default function MembersTable({ members, plans, initialFilters }: Members
                             type="button"
                             onClick={handleOpenAddMember}
                             disabled={openingAddMember}
-                            className="h-12 w-12 shrink-0 rounded-full bg-blue-600 p-0 text-white shadow-[0_8px_16px_rgba(15,91,225,0.2)] hover:bg-blue-700 sm:h-12 sm:w-auto sm:rounded-2xl sm:px-4"
+                            className="h-12 w-12 shrink-0 rounded-full bg-blue-600 p-0 text-white shadow-[0_8px_16px_rgba(15,91,225,0.2)] hover:bg-blue-700 sm:h-12 sm:w-auto sm:rounded-xl sm:px-4"
                         >
                             {openingAddMember ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-5 w-5" />}
                             <span className="ml-1 hidden sm:inline">{openingAddMember ? 'Opening...' : 'Add Member'}</span>
@@ -589,7 +589,7 @@ export default function MembersTable({ members, plans, initialFilters }: Members
                                 placeholder="Search by name or member ID..."
                                 value={searchQuery}
                                 onChange={(e) => handleSearch(e.target.value)}
-                                className="h-12 w-full rounded-2xl border-slate-200 bg-slate-50 pl-10 text-sm focus:border-blue-400 focus:ring-blue-400"
+                                className="h-12 w-full rounded-xl border-slate-200 bg-slate-50 pl-10 text-sm focus:border-blue-400 focus:ring-blue-400"
                             />
                         </div>
 
@@ -597,7 +597,7 @@ export default function MembersTable({ members, plans, initialFilters }: Members
                             <button
                                 type="button"
                                 onClick={handleOpenAdvancedSearch}
-                                className="flex h-12 flex-1 items-center justify-center gap-1.5 sm:gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-2 sm:px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 min-w-0"
+                                className="flex h-12 flex-1 items-center justify-center gap-1.5 sm:gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2 sm:px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 min-w-0"
                             >
                                 <SlidersHorizontal className="h-4 w-4 shrink-0 text-slate-500" />
                                 <span className="hidden xl:inline whitespace-nowrap">Filter</span>
