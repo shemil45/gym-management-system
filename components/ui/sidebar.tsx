@@ -141,25 +141,37 @@ export const MobileSidebar = ({
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ x: "-100%", opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: "-100%", opacity: 0 }}
-            transition={{
-              duration: 0.3,
-              ease: "easeInOut",
-            }}
-            className={cn(
-              "fixed inset-y-0 left-0 h-full w-3/4 bg-white dark:bg-neutral-900 px-4 py-8 z-100 flex flex-col justify-between md:hidden",
-              className
-            )}
+            className="fixed inset-0 z-50 md:hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
           >
             <div
-              className="absolute right-10 top-10 z-50 text-neutral-800 dark:text-neutral-200"
-              onClick={() => setOpen(!open)}
+              className="absolute inset-0 bg-black/30 z-[9990]"
+              onClick={() => setOpen(false)}
+            />
+            <motion.div
+              initial={{ x: "-100%", opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: "-100%", opacity: 0 }}
+              transition={{
+                duration: 0.3,
+                ease: "easeInOut",
+              }}
+              className={cn(
+                "absolute inset-y-0 left-0 h-full w-3/4 bg-white dark:bg-neutral-900 px-4 py-8 z-[9999] flex flex-col justify-between",
+                className
+              )}
             >
-              <IconX />
-            </div>
-            {children}
+              <div
+                className="absolute right-10 top-10 z-[9999] text-neutral-800 dark:text-neutral-200"
+                onClick={() => setOpen(false)}
+              >
+                <IconX />
+              </div>
+              {children}
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
