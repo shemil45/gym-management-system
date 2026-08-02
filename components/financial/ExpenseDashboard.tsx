@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo, useTransition, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
     BarChart,
     Bar,
@@ -77,11 +77,32 @@ interface PaymentRow {
 interface ExpenseDashboardProps {
     payments: PaymentRow[]
     expenses: ExpenseRow[]
+    summaryExpenses: ExpenseRow[]
+    currentPage: number
+    totalCount: number
     initialFilters?: {
+        q?: string
         category?: string
         date?: string
+        dateFrom?: string
+        dateTo?: string
         type?: string
     }
+}
+
+type RouteParamValue = string | number | null | undefined
+
+function routeWithParams(pathname: string, updates: Record<string, RouteParamValue>) {
+    const params = new URLSearchParams(window.location.search)
+    Object.entries(updates).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '' || value === 'all') {
+            params.delete(key)
+        } else {
+            params.set(key, String(value))
+        }
+    })
+    const query = params.toString()
+    return query ? `${pathname}?${query}` : pathname
 }
 
 type ChartRange = '1D' | '1W' | '1M' | '3M' | '6M' | '1Y' | 'MAX'
@@ -475,9 +496,17 @@ function CategoryBadge({ category }: { category: ExpenseCategory }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function ExpenseDashboard({ payments, expenses, initialFilters }: ExpenseDashboardProps) {
+export default function ExpenseDashboard({
+    payments,
+    expenses,
+    summaryExpenses,
+    currentPage,
+    totalCount,
+    initialFilters,
+}: ExpenseDashboardProps) {
     const { isDark } = useAdminTheme()
     const router = useRouter()
+    const pathname = usePathname()
     const { confirm, dialog } = useConfirmDialog()
     const expenseTableRef = useRef<HTMLDivElement | null>(null)
     const initialDateRange = getPresetDateRange(initialFilters?.date ?? null)
@@ -485,16 +514,15 @@ export default function ExpenseDashboard({ payments, expenses, initialFilters }:
     const [showFilterModal, setShowFilterModal] = useState(false)
     const [breakdownRange, setBreakdownRange] = useState<ChartRange>('MAX')
     const [categoryFilter, setCategoryFilter] = useState(initialFilters?.category || 'all')
-    const [dateFrom, setDateFrom] = useState(initialDateRange.from)
-    const [dateTo, setDateTo] = useState(initialDateRange.to)
+    const [dateFrom, setDateFrom] = useState(initialFilters?.dateFrom ?? initialDateRange.from)
+    const [dateTo, setDateTo] = useState(initialFilters?.dateTo ?? initialDateRange.to)
     const [draftCategory, setDraftCategory] = useState('all')
     const [draftDateFrom, setDraftDateFrom] = useState('')
     const [draftDateTo, setDraftDateTo] = useState('')
     const [dateError, setDateError] = useState('')
-    const [searchQuery, setSearchQuery] = useState('')
+    const [searchQuery, setSearchQuery] = useState(initialFilters?.q || '')
     const [deletingId, setDeletingId] = useState<string | null>(null)
     const [chartWindowIndex, setChartWindowIndex] = useState(0)
-    const [currentPage, setCurrentPage] = useState(1)
 
     useEffect(() => {
         if (showFilterModal || showModal) {
@@ -527,7 +555,7 @@ export default function ExpenseDashboard({ payments, expenses, initialFilters }:
         })
 
         const expensesByMonth: Record<string, number> = {}
-        expenses.forEach((e) => {
+        summaryExpenses.forEach((e) => {
             const key = e.expense_date.slice(0, 7)
             expensesByMonth[key] = (expensesByMonth[key] || 0) + Number(e.amount)
         })
@@ -557,7 +585,7 @@ export default function ExpenseDashboard({ payments, expenses, initialFilters }:
             Revenue: Math.round(revenueByMonth[m.key] || 0),
             Expenses: Math.round(expensesByMonth[m.key] || 0),
         }))
-    }, [payments, expenses])
+    }, [payments, summaryExpenses])
 
     const chartWindowCount = Math.max(1, Math.ceil(chartData.length / 6))
     const safeChartWindowIndex = Math.min(chartWindowIndex, chartWindowCount - 1)
@@ -579,14 +607,14 @@ export default function ExpenseDashboard({ payments, expenses, initialFilters }:
     const monthRevenue = payments
         .filter((p) => p.payment_date.startsWith(monthKey))
         .reduce((s, p) => s + Number(p.amount), 0)
-    const monthExpenses = expenses
+    const monthExpenses = summaryExpenses
         .filter((e) => e.expense_date.startsWith(monthKey))
         .reduce((s, e) => s + Number(e.amount), 0)
     const monthNet = monthRevenue - monthExpenses
 
     const breakdownExpenses = useMemo(() => {
         const rangeStart = getRangeStartDate(breakdownRange, now)
-        return expenses.filter((expense) => {
+        return summaryExpenses.filter((expense) => {
             if (expense.category === 'marketing') {
                 return false
             }
@@ -597,26 +625,16 @@ export default function ExpenseDashboard({ payments, expenses, initialFilters }:
 
             return new Date(expense.expense_date) >= rangeStart
         })
-    }, [expenses, breakdownRange, now])
+    }, [summaryExpenses, breakdownRange, now])
 
     // ── Filtered expenses table ──────────────────────────────────────────────
-    const filteredExpenses = useMemo(() => {
-        const q = searchQuery.toLowerCase()
-        return expenses.filter((e) => {
-            const matchCat = categoryFilter === 'all' || e.category === categoryFilter
-            const matchSearch = !q || e.description.toLowerCase().includes(q)
-            const matchDateFrom = !dateFrom || e.expense_date >= dateFrom
-            const matchDateTo = !dateTo || e.expense_date <= dateTo
-            return matchCat && matchSearch && matchDateFrom && matchDateTo
-        })
-    }, [expenses, searchQuery, categoryFilter, dateFrom, dateTo])
-
-    const totalExpensePages = Math.max(1, Math.ceil(filteredExpenses.length / ITEMS_PER_PAGE))
+    const totalExpensePages = Math.max(1, Math.ceil(totalCount / ITEMS_PER_PAGE))
     const safeExpensePage = Math.min(currentPage, totalExpensePages)
-    const paginatedExpenses = filteredExpenses.slice(
-        (safeExpensePage - 1) * ITEMS_PER_PAGE,
-        safeExpensePage * ITEMS_PER_PAGE
-    )
+    const paginatedExpenses = expenses
+
+    const replaceListRoute = (updates: Record<string, RouteParamValue>) => {
+        router.replace(routeWithParams(pathname, { ...updates, page: updates.page ?? undefined }), { scroll: false })
+    }
 
     const handleOpenFilterModal = () => {
         setDraftCategory(categoryFilter)
@@ -635,7 +653,13 @@ export default function ExpenseDashboard({ payments, expenses, initialFilters }:
         setCategoryFilter(draftCategory)
         setDateFrom(draftDateFrom)
         setDateTo(draftDateTo)
-        setCurrentPage(1)
+        replaceListRoute({
+            category: draftCategory,
+            dateFrom: draftDateFrom,
+            dateTo: draftDateTo,
+            date: undefined,
+            page: undefined,
+        })
         setDateError('')
         setShowFilterModal(false)
     }
@@ -651,7 +675,13 @@ export default function ExpenseDashboard({ payments, expenses, initialFilters }:
         setCategoryFilter('all')
         setDateFrom('')
         setDateTo('')
-        setCurrentPage(1)
+        replaceListRoute({
+            category: undefined,
+            dateFrom: undefined,
+            dateTo: undefined,
+            date: undefined,
+            page: undefined,
+        })
     }
 
     // ── Delete ───────────────────────────────────────────────────────────────
@@ -703,10 +733,6 @@ export default function ExpenseDashboard({ payments, expenses, initialFilters }:
 
         return `${formatDateKey(rangeStart)} to ${formatDateKey(now)}`
     }, [breakdownRange, now])
-
-    useEffect(() => {
-        setCurrentPage(1)
-    }, [searchQuery, categoryFilter, dateFrom, dateTo])
 
     return (
         <>
@@ -1042,7 +1068,10 @@ export default function ExpenseDashboard({ payments, expenses, initialFilters }:
                                 <Input
                                     placeholder="Search description..."
                                     value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onChange={(e) => {
+                                        setSearchQuery(e.target.value)
+                                        replaceListRoute({ q: e.target.value, page: undefined })
+                                    }}
                                     className="h-12 w-full rounded-xl border-slate-200 bg-slate-50 pl-10 text-sm focus:border-rose-400 focus:ring-rose-400"
                                 />
                             </div>
@@ -1184,10 +1213,10 @@ export default function ExpenseDashboard({ payments, expenses, initialFilters }:
                         <p>
                             Showing{' '}
                             <span className="font-semibold text-rose-600">
-                                {filteredExpenses.length === 0 ? 0 : (safeExpensePage - 1) * ITEMS_PER_PAGE + 1}-
-                                {Math.min(safeExpensePage * ITEMS_PER_PAGE, filteredExpenses.length)}
+                                {totalCount === 0 ? 0 : (safeExpensePage - 1) * ITEMS_PER_PAGE + 1}-
+                                {Math.min(safeExpensePage * ITEMS_PER_PAGE, totalCount)}
                             </span>{' '}
-                            of <span className="font-medium text-slate-700">{filteredExpenses.length}</span> expenses
+                            of <span className="font-medium text-slate-700">{totalCount}</span> expenses
                         </p>
                         {totalExpensePages > 1 ? (
                             <div className="self-end sm:ml-auto">
@@ -1195,7 +1224,9 @@ export default function ExpenseDashboard({ payments, expenses, initialFilters }:
                                     currentPage={safeExpensePage}
                                     totalPages={totalExpensePages}
                                     onPageChange={(page) => {
-                                        if (page >= 1 && page <= totalExpensePages) setCurrentPage(page)
+                                        if (page >= 1 && page <= totalExpensePages) {
+                                            replaceListRoute({ page: page === 1 ? undefined : page })
+                                        }
                                     }}
                                 />
                             </div>

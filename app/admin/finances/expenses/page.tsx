@@ -4,13 +4,13 @@ import ExpenseDashboard from '@/components/financial/ExpenseDashboard'
 
 const ITEMS_PER_PAGE = 20
 
-type PaymentAggregateRow = {
-    total: number | null
+type PaymentRow = {
+    amount: number | null
     payment_date: string
 }
 
-type ExpenseAggregateRow = {
-    total: number | null
+type ExpenseSummaryRow = {
+    amount: number | null
     expense_date: string
     category: 'utilities' | 'salary' | 'equipment' | 'maintenance' | 'marketing' | 'rent' | 'other'
 }
@@ -60,19 +60,19 @@ export default async function FinancesExpensesPage({ searchParams }: FinancesExp
     const dateFrom = params.dateFrom ?? presetDateRange.from
     const dateTo = params.dateTo ?? presetDateRange.to
 
-    const [paymentsAggregateResult, expensesAggregateResult] = await Promise.all([
+    const [paymentsResult, summaryExpensesResult] = await Promise.all([
         supabase
             .from('payments')
-            .select('total:amount.sum(), payment_date')
+            .select('amount, payment_date')
             .eq('payment_status', 'paid')
             .order('payment_date', { ascending: true }),
         supabase
             .from('expenses')
-            .select('total:amount.sum(), expense_date, category')
+            .select('amount, expense_date, category')
             .order('expense_date', { ascending: true }),
     ])
-    const { data: paymentAggregates } = paymentsAggregateResult as unknown as QueryResult<PaymentAggregateRow[] | null>
-    const { data: expenseAggregates } = expensesAggregateResult as unknown as QueryResult<ExpenseAggregateRow[] | null>
+    const { data: paymentRows } = paymentsResult as unknown as QueryResult<PaymentRow[] | null>
+    const { data: summaryExpenseRows } = summaryExpensesResult as unknown as QueryResult<ExpenseSummaryRow[] | null>
 
     let expensesQuery = supabase
         .from('expenses')
@@ -98,14 +98,14 @@ export default async function FinancesExpensesPage({ searchParams }: FinancesExp
         .order('expense_date', { ascending: false })
         .range(from, to)
 
-    const payments = (paymentAggregates ?? []).map((payment) => ({
-        amount: Number(payment.total ?? 0),
+    const payments = (paymentRows ?? []).map((payment) => ({
+        amount: Number(payment.amount ?? 0),
         payment_date: payment.payment_date,
     }))
-    const summaryExpenses = (expenseAggregates ?? []).map((expense) => ({
-        id: `${expense.category}:${expense.expense_date}`,
+    const summaryExpenses = (summaryExpenseRows ?? []).map((expense, index) => ({
+        id: `${expense.category}:${expense.expense_date}:${index}`,
         category: expense.category,
-        amount: Number(expense.total ?? 0),
+        amount: Number(expense.amount ?? 0),
         description: '',
         expense_date: expense.expense_date,
         created_at: expense.expense_date,
