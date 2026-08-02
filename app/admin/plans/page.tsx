@@ -6,7 +6,7 @@ export default async function PlansPage() {
 
     const { data: plans } = await supabase
         .from('membership_plans')
-        .select('*')
+        .select('id, name, price, duration_days, description, is_active')
         .order('price', { ascending: true })
 
     return <PlansManager plans={plans || []} />
