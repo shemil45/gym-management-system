@@ -75,11 +75,6 @@ const links = [
     href: '/admin/reports',
     icon: <BarChart2 className={iconClassName} />,
   },
-  {
-    label: 'Settings',
-    href: '/admin/settings',
-    icon: <Settings className={iconClassName} />,
-  },
 ]
 
 export default function AdminSidebar({ user, open, setOpen }: AdminSidebarProps) {
@@ -97,8 +92,6 @@ export default function AdminSidebar({ user, open, setOpen }: AdminSidebarProps)
     // layout's auth/platform-context queries) for a page we're leaving.
     router.push('/login')
   }
-
-  const profileLabel = user?.full_name || user?.email || 'Admin'
 
   return (
     <Sidebar open={open} setOpen={setOpen}>
@@ -134,7 +127,7 @@ export default function AdminSidebar({ user, open, setOpen }: AdminSidebarProps)
         <div className="flex flex-col gap-2">
           <SidebarLink
             link={{
-              label: profileLabel,
+              label: 'Settings',
               href: '/admin/settings',
               icon: user?.photo_url ? (
                 <Image
