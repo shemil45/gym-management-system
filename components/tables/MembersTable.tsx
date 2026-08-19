@@ -205,6 +205,11 @@ export default function MembersTable({ members, plans, currentPage, totalCount, 
     const [navigatingMemberId, setNavigatingMemberId] = useState<string | null>(null)
     const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
     const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    // Tracks the last value *this component* pushed to the `q` URL param, so
+    // the sync effect below can tell "the debounced search we just fired"
+    // (ignore — the search box already shows this value) apart from a `q`
+    // change that came from elsewhere, e.g. browser back/forward.
+    const lastPushedQueryRef = useRef(initialFilters?.q || '')
     // Mirrors of the server-provided list/count so a delete can update the
     // UI immediately without forcing a full route refresh (which would also
     // re-run the admin layout's unrelated auth/platform-context queries).
@@ -215,6 +220,18 @@ export default function MembersTable({ members, plans, currentPage, totalCount, 
         setLocalMembers(members)
         setLocalTotalCount(totalCount)
     }, [members, totalCount])
+
+    // The `q`/`page` params are intentionally excluded from this component's
+    // remount key (see MembersPage) so the search input never loses focus
+    // mid-type. If `q` ever changes for a reason other than our own debounced
+    // search (e.g. the user navigates back/forward), sync the search box to it.
+    useEffect(() => {
+        const incoming = initialFilters?.q || ''
+        if (incoming !== lastPushedQueryRef.current) {
+            lastPushedQueryRef.current = incoming
+            setSearchQuery(incoming)
+        }
+    }, [initialFilters?.q])
 
     // Draft state — only committed to real filters on "Apply Search"
     const [draftStatus, setDraftStatus] = useState('all')
@@ -269,6 +286,7 @@ export default function MembersTable({ members, plans, currentPage, totalCount, 
         setSearchQuery(value)
         if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
         searchDebounceRef.current = setTimeout(() => {
+            lastPushedQueryRef.current = value
             replaceListRoute({ q: value, page: undefined })
         }, SEARCH_DEBOUNCE_MS)
     }

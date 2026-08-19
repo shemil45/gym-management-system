@@ -117,7 +117,7 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
 
     return (
         <MembersTable
-            key={`${params.page || '1'}:${params.q || ''}:${params.status || 'all'}:${params.plan || 'all'}:${params.gender || 'all'}:${params.startFrom || ''}:${params.startTo || ''}:${endFrom}:${endTo}:${params.planExpiry || 'none'}:${params.filter || 'none'}`}
+            key={`${params.status || 'all'}:${params.plan || 'all'}:${params.gender || 'all'}:${params.startFrom || ''}:${params.startTo || ''}:${endFrom}:${endTo}:${params.planExpiry || 'none'}:${params.filter || 'none'}`}
             members={members || []}
             plans={plans || []}
             currentPage={page}
