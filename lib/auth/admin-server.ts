@@ -25,12 +25,24 @@ export const getCurrentAdminContext = cache(async () => {
 // acceptable fallback here (unlike gym-context.ts, where the data gates
 // access and isn't cached at all — see that file for why).
 //
-// Scope note: nothing calls these functions yet, and no mutation call site
-// calls invalidateGymAdminSummaries yet either. The member/payment/check-in
-// mutations that would need to trigger invalidation live in app/admin/*
-// action files, outside this phase's file scope. Wiring both the dashboard
-// (as a caller) and the mutations (as invalidation triggers) is a separate
-// future phase — this phase only adds the cache layer itself.
+// Wiring status: getGymMemberCountSummary is called by
+// lib/dashboard/getDashboardData.ts, and invalidateGymAdminSummaries is
+// called by app/admin/members/actions.ts (createMember, updateMember,
+// deleteMember) and app/admin/finances/payments/actions.ts (recordPayment)
+// right after each successful write.
+//
+// getGymPaymentTotalsSummary and getGymExpiringMembershipsSummary are NOT
+// called by the dashboard — its today/month revenue and expiring-today
+// count are already derived for free from the 365-day payments query and
+// the renewals list it fetches anyway (see getDashboardData.ts), so routing
+// them through this cache instead would add lookup overhead without
+// removing any DB round trip. They stay available here for other callers.
+//
+// getGymRecentActivitySummary (today's check-ins) is also not wired: the
+// check-in insert/checkout mutations write directly from the client
+// (CheckInsTable.tsx), not through a Server Action, so there's currently no
+// server-side place to call invalidateGymAdminSummaries after them. Caching
+// it without a covered invalidation path was deliberately deferred.
 
 const ADMIN_SUMMARY_TTL_SECONDS = 30
 

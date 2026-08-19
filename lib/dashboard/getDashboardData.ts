@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { getExpiringMembers, getOverdueMembers } from '@/lib/utils/renewals'
+import { getGymMemberCountSummary } from '@/lib/auth/admin-server'
 
 export interface DashboardData {
     totalMembers: number
@@ -38,6 +39,7 @@ interface ProfileRow {
     role: string | null
     phone: string | null
     photo_url: string | null
+    active_gym_id: string | null
 }
 
 function toSafeAmount(value: unknown) {
@@ -67,21 +69,16 @@ export async function getDashboardData(): Promise<{
     })
 
     const profilePromise = user
-        ? supabase.from('profiles').select('full_name, role, phone, photo_url').eq('id', user.id).maybeSingle()
+        ? supabase.from('profiles').select('full_name, role, phone, photo_url, active_gym_id').eq('id', user.id).maybeSingle()
         : Promise.resolve({ data: null as ProfileRow | null })
 
-    const [
-        profileResult,
-        { count: totalMembers },
-        { count: activeMembers },
-        { count: todayCheckIns },
-        { data: monthExpensesRows },
-        { data: renewalMembers },
-        { data: allPayments },
-    ] = await Promise.all([
-        profilePromise,
-        supabase.from('members').select('*', { count: 'exact', head: true }),
-        supabase.from('members').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+    // Everything except member counts can run fully in parallel. Member
+    // counts need active_gym_id off the profile first (to look up the
+    // gym-scoped cache), so that lookup is kicked off as soon as the
+    // profile resolves rather than waiting for the whole group below —
+    // on a cache hit it's essentially free either way, and on a cache miss
+    // it still overlaps with whatever's left of the other queries.
+    const restPromise = Promise.all([
         supabase
             .from('check_ins')
             .select('*', { count: 'exact', head: true })
@@ -112,6 +109,29 @@ export async function getDashboardData(): Promise<{
             .gte('payment_date', days[0])
             .lte('payment_date', today),
     ])
+
+    const profileResult = await profilePromise
+    const gymId = (profileResult.data as ProfileRow | null)?.active_gym_id ?? null
+
+    const memberCountsPromise = gymId
+        ? getGymMemberCountSummary(gymId)
+        : Promise.all([
+            supabase.from('members').select('*', { count: 'exact', head: true }),
+            supabase.from('members').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+        ]).then(([totalResult, activeResult]) => ({
+            totalMembers: totalResult.count ?? 0,
+            activeMembers: activeResult.count ?? 0,
+        }))
+
+    const [
+        [
+            { count: todayCheckIns },
+            { data: monthExpensesRows },
+            { data: renewalMembers },
+            { data: allPayments },
+        ],
+        { totalMembers, activeMembers },
+    ] = await Promise.all([restPromise, memberCountsPromise])
 
     let viewerProfile: ViewerProfile | null = null
     if (user) {
