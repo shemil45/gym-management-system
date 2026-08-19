@@ -30,8 +30,6 @@ export async function updateProfile(formData: FormData) {
 
     if (error) return { error: getErrorMessage(error, 'Failed to update profile') }
 
-    revalidatePath('/admin/settings')
+    revalidatePath('/admin/settings/account')
     return { success: true }
 }
-
-

@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { User, Lock, ShieldCheck, Loader2 } from 'lucide-react'
+import { ArrowLeft, User, Lock, ShieldCheck, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
-import { updateProfile } from '@/app/admin/settings/actions'
+import { updateProfile } from '@/app/admin/settings/account/actions'
 import { formatRoleLabel } from '@/lib/auth/roles'
+import { useAdminTheme } from '@/components/layout/AdminThemeContext'
+import LoadingLinkButton from '@/components/ui/loading-link-button'
 
 interface Profile {
     id: string
@@ -19,12 +21,13 @@ interface Profile {
     role: string
 }
 
-interface SettingsDashboardProps {
+interface AccountSettingsProps {
     profile: Profile
     email: string
 }
 
-export default function SettingsDashboard({ profile, email }: SettingsDashboardProps) {
+export default function AccountSettings({ profile, email }: AccountSettingsProps) {
+    const { isDark } = useAdminTheme()
     const router = useRouter()
     const [profilePending, startProfileTransition] = useTransition()
     const [passwordPending, startPasswordTransition] = useTransition()
@@ -126,26 +129,49 @@ export default function SettingsDashboard({ profile, email }: SettingsDashboardP
         <div className="space-y-6">
             {/* Header */}
             <div>
-                <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-                <p className="text-sm text-gray-500 mt-0.5">Manage your staff profile and password</p>
+                <LoadingLinkButton
+                    href="/admin/settings"
+                    loadingText="Going back..."
+                    variant="ghost"
+                    className={`mb-3 flex h-9 items-center gap-1.5 rounded-xl px-2 ${
+                        isDark ? 'text-zinc-300 hover:bg-[#242424] hover:text-white' : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    <span className="text-sm font-medium">Settings</span>
+                </LoadingLinkButton>
+                <h1 className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>My Account</h1>
+                <p className={`text-sm mt-0.5 ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>
+                    Manage your staff profile and password
+                </p>
             </div>
 
             <div className="grid w-full grid-cols-1 gap-5 xl:grid-cols-2">
                 {/* Profile info */}
-                <div className="flex h-full flex-col rounded-xl bg-white border border-gray-200 shadow-sm p-6">
+                <div
+                    className={`flex h-full flex-col rounded-xl p-6 ${
+                        isDark
+                            ? 'border border-[#2a2a2a] bg-[#1c1c1c] shadow-[0_18px_40px_rgba(0,0,0,0.24)]'
+                            : 'border border-gray-200 bg-white shadow-sm'
+                    }`}
+                >
                     <div className="mb-5 flex items-start justify-between gap-3">
                         <div className="flex items-center gap-2">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50">
-                                <User className="h-4 w-4 text-blue-600" />
+                            <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${isDark ? 'bg-[#10b981]/15' : 'bg-blue-50'}`}>
+                                <User className={`h-4 w-4 ${isDark ? 'text-[#10b981]' : 'text-blue-600'}`} />
                             </div>
                             <div>
-                                <h2 className="text-sm font-bold text-gray-900">Personal Info</h2>
+                                <h2 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Personal Info</h2>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2">
-                            <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
-                            <p className="text-xs text-emerald-700 font-medium">
+                        <div
+                            className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${
+                                isDark ? 'border-[#10b981]/20 bg-[#10b981]/10' : 'border-emerald-100 bg-emerald-50'
+                            }`}
+                        >
+                            <ShieldCheck className={`h-4 w-4 shrink-0 ${isDark ? 'text-[#10b981]' : 'text-emerald-600'}`} />
+                            <p className={`text-xs font-medium ${isDark ? 'text-[#8df0c9]' : 'text-emerald-700'}`}>
                                 {formatRoleLabel(profile.role)}
                             </p>
                         </div>
@@ -154,35 +180,37 @@ export default function SettingsDashboard({ profile, email }: SettingsDashboardP
                     <form onSubmit={handleProfileSubmit} className="flex flex-1 flex-col space-y-4">
                         {/* Email — read only */}
                         <div className="space-y-1.5">
-                            <Label className="text-xs font-medium text-gray-700">
-                                Email <span className="text-gray-400 font-normal">(cannot change)</span>
+                            <Label className={`text-xs font-medium ${isDark ? 'text-zinc-300' : 'text-gray-700'}`}>
+                                Email <span className={isDark ? 'text-zinc-500 font-normal' : 'text-gray-400 font-normal'}>(cannot change)</span>
                             </Label>
                             <Input
                                 value={email}
                                 disabled
-                                className="h-10 border-gray-200 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
+                                className={`h-10 text-sm cursor-not-allowed ${
+                                    isDark ? 'border-[#2a2a2a] bg-[#161616] text-zinc-500' : 'border-gray-200 bg-gray-50 text-gray-500'
+                                }`}
                             />
                         </div>
 
                         <div className="space-y-1.5">
-                            <Label className="text-xs font-medium text-gray-700">
+                            <Label className={`text-xs font-medium ${isDark ? 'text-zinc-300' : 'text-gray-700'}`}>
                                 Full Name <span className="text-red-500">*</span>
                             </Label>
                             <Input
                                 value={fullName}
                                 onChange={(e) => setFullName(e.target.value)}
                                 placeholder="Your full name"
-                                className="h-10 border-gray-300 text-sm"
+                                className={`h-10 text-sm ${isDark ? 'border-[#2a2a2a] bg-[#161616] text-white' : 'border-gray-300'}`}
                             />
                         </div>
 
                         <div className="space-y-1.5">
-                            <Label className="text-xs font-medium text-gray-700">Phone</Label>
+                            <Label className={`text-xs font-medium ${isDark ? 'text-zinc-300' : 'text-gray-700'}`}>Phone</Label>
                             <Input
                                 value={phone}
                                 onChange={(e) => setPhone(e.target.value)}
                                 placeholder="Phone number"
-                                className="h-10 border-gray-300 text-sm"
+                                className={`h-10 text-sm ${isDark ? 'border-[#2a2a2a] bg-[#161616] text-white' : 'border-gray-300'}`}
                             />
                         </div>
 
@@ -190,7 +218,9 @@ export default function SettingsDashboard({ profile, email }: SettingsDashboardP
                             <Button
                                 type="submit"
                                 disabled={profilePending}
-                                className="h-10 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm"
+                                className={`h-10 w-full font-semibold shadow-sm ${
+                                    isDark ? 'bg-[#10b981] hover:bg-[#0ea271] text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'
+                                }`}
                             >
                                 {profilePending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 Save Profile
@@ -200,27 +230,37 @@ export default function SettingsDashboard({ profile, email }: SettingsDashboardP
                 </div>
 
                 {/* Change password */}
-                <div className="flex h-full flex-col rounded-xl bg-white border border-gray-200 shadow-sm p-6">
+                <div
+                    className={`flex h-full flex-col rounded-xl p-6 ${
+                        isDark
+                            ? 'border border-[#2a2a2a] bg-[#1c1c1c] shadow-[0_18px_40px_rgba(0,0,0,0.24)]'
+                            : 'border border-gray-200 bg-white shadow-sm'
+                    }`}
+                >
                     <div className="flex items-center gap-2 mb-5">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50">
-                            <Lock className="h-4 w-4 text-amber-600" />
+                        <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${isDark ? 'bg-amber-500/15' : 'bg-amber-50'}`}>
+                            <Lock className={`h-4 w-4 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
                         </div>
                         <div>
-                            <h2 className="text-sm font-bold text-gray-900">Change Password</h2>
-                            <p className="text-xs text-gray-400">Minimum 6 characters</p>
+                            <h2 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Change Password</h2>
+                            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-gray-400'}`}>Minimum 6 characters</p>
                         </div>
                     </div>
 
                     <form onSubmit={handlePasswordSubmit} className="flex flex-1 flex-col space-y-4">
                         {/* Current / old password */}
                         <div className="space-y-1.5">
-                            <Label className="text-xs font-medium text-gray-700">Current Password</Label>
+                            <Label className={`text-xs font-medium ${isDark ? 'text-zinc-300' : 'text-gray-700'}`}>Current Password</Label>
                             <Input
                                 type="password"
                                 value={oldPassword}
                                 onChange={(e) => { setOldPassword(e.target.value); setOldPasswordTouched(true) }}
                                 placeholder="Enter your current password"
-                                className={`h-10 text-sm ${oldPasswordError ? 'border-red-400 focus:ring-red-400' : 'border-gray-300'}`}
+                                className={`h-10 text-sm ${
+                                    oldPasswordError
+                                        ? 'border-red-400 focus:ring-red-400'
+                                        : isDark ? 'border-[#2a2a2a] bg-[#161616] text-white' : 'border-gray-300'
+                                }`}
                             />
                             {oldPasswordError && (
                                 <p className="text-[11px] text-red-500 flex items-center gap-1">
@@ -229,16 +269,20 @@ export default function SettingsDashboard({ profile, email }: SettingsDashboardP
                             )}
                         </div>
 
-                        <div className="h-px bg-gray-100" />
+                        <div className={`h-px ${isDark ? 'bg-[#2a2a2a]' : 'bg-gray-100'}`} />
 
                         <div className="space-y-1.5">
-                            <Label className="text-xs font-medium text-gray-700">New Password</Label>
+                            <Label className={`text-xs font-medium ${isDark ? 'text-zinc-300' : 'text-gray-700'}`}>New Password</Label>
                             <Input
                                 type="password"
                                 value={password}
                                 onChange={(e) => { setPassword(e.target.value); setPasswordTouched(true) }}
                                 placeholder="••••••••"
-                                className={`h-10 text-sm ${passwordError ? 'border-red-400 focus:ring-red-400' : 'border-gray-300'}`}
+                                className={`h-10 text-sm ${
+                                    passwordError
+                                        ? 'border-red-400 focus:ring-red-400'
+                                        : isDark ? 'border-[#2a2a2a] bg-[#161616] text-white' : 'border-gray-300'
+                                }`}
                             />
 
                             {/* Strength bar — appears once user starts typing */}
@@ -248,15 +292,16 @@ export default function SettingsDashboard({ profile, email }: SettingsDashboardP
                                         {[1, 2, 3, 4].map((seg) => (
                                             <div
                                                 key={seg}
-                                                className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${strength >= seg ? strengthColor : 'bg-gray-200'
-                                                    }`}
+                                                className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
+                                                    strength >= seg ? strengthColor : isDark ? 'bg-[#2a2a2a]' : 'bg-gray-200'
+                                                }`}
                                             />
                                         ))}
                                     </div>
                                     <p className={`text-[11px] font-medium ${strength === 1 ? 'text-red-500' :
                                         strength === 2 ? 'text-amber-500' :
                                             strength === 3 ? 'text-blue-500' :
-                                                'text-emerald-600'
+                                                'text-emerald-500'
                                         }`}>
                                         {strengthLabel}
                                         {strength === 1 && ' — try adding uppercase letters, numbers or symbols'}
@@ -274,13 +319,17 @@ export default function SettingsDashboard({ profile, email }: SettingsDashboardP
                         </div>
 
                         <div className="space-y-1.5">
-                            <Label className="text-xs font-medium text-gray-700">Confirm Password</Label>
+                            <Label className={`text-xs font-medium ${isDark ? 'text-zinc-300' : 'text-gray-700'}`}>Confirm Password</Label>
                             <Input
                                 type="password"
                                 value={confirmPassword}
                                 onChange={(e) => { setConfirmPassword(e.target.value); setConfirmTouched(true) }}
                                 placeholder="••••••••"
-                                className={`h-10 text-sm ${confirmError ? 'border-red-400 focus:ring-red-400' : 'border-gray-300'}`}
+                                className={`h-10 text-sm ${
+                                    confirmError
+                                        ? 'border-red-400 focus:ring-red-400'
+                                        : isDark ? 'border-[#2a2a2a] bg-[#161616] text-white' : 'border-gray-300'
+                                }`}
                             />
                             {confirmError && (
                                 <p className="text-[11px] text-red-500 flex items-center gap-1">
@@ -294,7 +343,11 @@ export default function SettingsDashboard({ profile, email }: SettingsDashboardP
                                 type="submit"
                                 disabled={passwordPending}
                                 variant="outline"
-                                className="h-10 w-full border-amber-200 text-amber-700 hover:bg-amber-50 font-semibold"
+                                className={`h-10 w-full font-semibold ${
+                                    isDark
+                                        ? 'border-amber-500/30 text-amber-400 hover:bg-amber-500/10'
+                                        : 'border-amber-200 text-amber-700 hover:bg-amber-50'
+                                }`}
                             >
                                 {passwordPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 Update Password
