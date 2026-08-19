@@ -2,6 +2,13 @@ import 'server-only'
 
 import { unstable_cache, revalidateTag } from 'next/cache'
 
+// "Durable" here means cross-request/cross-invocation (Next.js's Data
+// Cache), not permanent or guaranteed storage — in production this is
+// Vercel's Data Cache, which can be evicted, and in dev it's a local
+// filesystem cache. It is not a database and is never the source of truth;
+// the database is always authoritative, and every value here is either
+// short-TTL or explicitly invalidated after the write that changed it.
+
 const GYM_CACHE_KEY_PREFIX = 'gym-cache'
 
 function gymCacheTag(gymId: string, scope: string) {
