@@ -174,7 +174,7 @@ export default async function FinancesPaymentsPage({ searchParams }: FinancesPay
 
     return (
         <PaymentsTable
-            key={`${params.page || '1'}:${params.q || ''}:${params.status || 'all'}:${params.date || 'none'}:${params.method || 'all'}:${dateFrom}:${dateTo}:${params.type || 'none'}`}
+            key={`${params.status || 'all'}:${params.date || 'none'}:${params.method || 'all'}:${dateFrom}:${dateTo}:${params.type || 'none'}`}
             payments={payments || []}
             todayTotal={todayTotal}
             monthTotal={monthTotal}

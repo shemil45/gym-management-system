@@ -224,14 +224,19 @@ export default function MembersTable({ members, plans, currentPage, totalCount, 
     // The `q`/`page` params are intentionally excluded from this component's
     // remount key (see MembersPage) so the search input never loses focus
     // mid-type. If `q` ever changes for a reason other than our own debounced
-    // search (e.g. the user navigates back/forward), sync the search box to it.
-    useEffect(() => {
-        const incoming = initialFilters?.q || ''
-        if (incoming !== lastPushedQueryRef.current) {
-            lastPushedQueryRef.current = incoming
-            setSearchQuery(incoming)
+    // search (e.g. the user navigates back/forward), sync the search box to
+    // it — done during render (React's recommended pattern for adjusting
+    // state from a prop change) rather than in an effect, so it takes effect
+    // in the same render instead of triggering an extra one.
+    const incomingQuery = initialFilters?.q || ''
+    const [prevIncomingQuery, setPrevIncomingQuery] = useState(incomingQuery)
+    if (incomingQuery !== prevIncomingQuery) {
+        setPrevIncomingQuery(incomingQuery)
+        if (incomingQuery !== lastPushedQueryRef.current) {
+            lastPushedQueryRef.current = incomingQuery
+            setSearchQuery(incomingQuery)
         }
-    }, [initialFilters?.q])
+    }
 
     // Draft state — only committed to real filters on "Apply Search"
     const [draftStatus, setDraftStatus] = useState('all')

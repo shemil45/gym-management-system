@@ -119,7 +119,7 @@ export default async function CheckInsPage({ searchParams }: CheckInsPageProps) 
 
     return (
         <CheckInsTable
-            key={`${params.page || '1'}:${params.q || ''}:${params.date || 'today'}:${params.method || 'all'}`}
+            key={`${params.date || 'today'}:${params.method || 'all'}`}
             checkIns={checkIns || []}
             activeMembers={activeMembers || []}
             currentPage={page}

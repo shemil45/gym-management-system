@@ -446,6 +446,11 @@ export default function CheckInsTable({
     const [checkingOutId, setCheckingOutId] = useState<string | null>(null)
     const [showModal, setShowModal] = useState(false)
     const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    // Tracks the last value *this component* pushed to the `q` URL param, so
+    // the sync effect below can tell "the debounced search we just fired"
+    // (ignore — the search box already shows this value) apart from a `q`
+    // change that came from elsewhere, e.g. browser back/forward.
+    const lastPushedQueryRef = useRef(initialFilters?.q || '')
     // Mirrors of the server-provided rows/stats so a check-out can update the
     // UI immediately without forcing a full route refresh (which would also
     // re-run the admin layout's unrelated auth/platform-context queries).
@@ -475,10 +480,28 @@ export default function CheckInsTable({
         }
     }, [])
 
+    // `q`/`page` are intentionally excluded from this component's remount key
+    // (see CheckInsPage) so the search input never loses focus mid-type. If
+    // `q` ever changes for a reason other than our own debounced search (e.g.
+    // the user navigates back/forward), sync the search box to it — done
+    // during render (React's recommended pattern for adjusting state from a
+    // prop change) rather than in an effect, so it takes effect in the same
+    // render instead of triggering an extra one.
+    const incomingQuery = initialFilters?.q || ''
+    const [prevIncomingQuery, setPrevIncomingQuery] = useState(incomingQuery)
+    if (incomingQuery !== prevIncomingQuery) {
+        setPrevIncomingQuery(incomingQuery)
+        if (incomingQuery !== lastPushedQueryRef.current) {
+            lastPushedQueryRef.current = incomingQuery
+            setSearchQuery(incomingQuery)
+        }
+    }
+
     const handleSearch = (value: string) => {
         setSearchQuery(value)
         if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
         searchDebounceRef.current = setTimeout(() => {
+            lastPushedQueryRef.current = value
             replaceListRoute({ q: value, page: undefined })
         }, SEARCH_DEBOUNCE_MS)
     }
