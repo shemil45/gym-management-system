@@ -1,14 +1,33 @@
-'use client'
+import { redirect } from 'next/navigation'
+import MembershipFeesSettings from '@/components/settings/MembershipFeesSettings'
+import { getCurrentAdminContext } from '@/lib/auth/admin-server'
+import { isStaffRole } from '@/lib/auth/roles'
+import { createClient } from '@/lib/supabase/server'
+import type { QueryResult, Tables } from '@/lib/types'
 
-import { Tag } from 'lucide-react'
-import SettingsPlaceholderPage from '@/components/settings/SettingsPlaceholderPage'
+type GymFeeSettings = Pick<Tables<'gyms'>, 'default_admission_fee' | 'allow_admission_fee_waiver' | 'allow_custom_membership_start_date'>
 
-export default function MembershipFeesSettingsPage() {
+export default async function MembershipFeesSettingsPage() {
+    const { user, profile, gym } = await getCurrentAdminContext()
+
+    if (!user) redirect('/login')
+    if (!profile || !isStaffRole(profile.role) || !gym) redirect('/member/dashboard')
+
+    const supabase = await createClient()
+    const gymResult = await supabase
+        .from('gyms')
+        .select('default_admission_fee, allow_admission_fee_waiver, allow_custom_membership_start_date')
+        .eq('id', gym.id)
+        .single()
+    const { data: gymSettings } = gymResult as unknown as QueryResult<GymFeeSettings | null>
+
     return (
-        <SettingsPlaceholderPage
-            title="Membership & Fees"
-            description="Admission fees and default membership terms."
-            icon={<Tag className="h-5 w-5" />}
+        <MembershipFeesSettings
+            gym={{
+                default_admission_fee: gymSettings?.default_admission_fee ?? 0,
+                allow_admission_fee_waiver: gymSettings?.allow_admission_fee_waiver ?? true,
+                allow_custom_membership_start_date: gymSettings?.allow_custom_membership_start_date ?? false,
+            }}
         />
     )
 }
