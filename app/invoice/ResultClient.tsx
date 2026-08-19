@@ -17,6 +17,8 @@ type PaymentResult = {
     amount: number
     coinsUsed: number
     invoiceNumber: string
+    receiptNumber: string | null
+    admissionFeeAmount: number | null
     membershipEndDate: string | null
     membershipStartDate: string | null
     originalPrice: number
@@ -26,6 +28,27 @@ type PaymentResult = {
     planName: string
     razorpayOrderId: string | null
     razorpayPaymentId: string | null
+    memberDisplayId: string
+    memberFullName: string
+    gym: {
+        name: string
+        logoUrl: string | null
+        address: string | null
+        city: string | null
+        state: string | null
+        postalCode: string | null
+        country: string | null
+        contactPhone: string | null
+        contactEmail: string | null
+        gstin: string | null
+        showLogo: boolean
+        showAddress: boolean
+        showPhone: boolean
+        showEmail: boolean
+        showGstin: boolean
+        footerMessage: string | null
+        additionalNotes: string | null
+    }
 }
 
 type ResultClientProps = {
@@ -80,6 +103,15 @@ function statusLabel(status: PaymentResult['paymentStatus']) {
     return status.charAt(0).toUpperCase() + status.slice(1)
 }
 
+function displayReceiptNumber(payment: PaymentResult) {
+    return payment.receiptNumber || payment.invoiceNumber
+}
+
+function formatGymAddressLine(gym: PaymentResult['gym']) {
+    const parts = [gym.address, gym.city, gym.state, gym.postalCode, gym.country].filter(Boolean)
+    return parts.join(', ')
+}
+
 export default function ResultClient({ invoiceNumber, payment, portal, reason, status }: ResultClientProps) {
     const router = useRouter()
     const [downloading, setDownloading] = useState(false)
@@ -115,15 +147,15 @@ export default function ResultClient({ invoiceNumber, payment, portal, reason, s
     const statusCopy = {
         paid: {
             title: 'Payment successful',
-            message: 'Your invoice is ready. Download or view it below.',
+            message: 'Your receipt is ready. Download or view it below.',
         },
         pending: {
             title: 'Payment pending',
-            message: 'This payment is still being processed. You can still open the invoice details below.',
+            message: 'This payment is still being processed. You can still open the receipt details below.',
         },
         refunded: {
             title: 'Payment refunded',
-            message: 'This payment has been refunded. You can still view or download the invoice below.',
+            message: 'This payment has been refunded. You can still view or download the receipt below.',
         },
         failed: {
             title: 'Payment not completed',
@@ -201,28 +233,64 @@ export default function ResultClient({ invoiceNumber, payment, portal, reason, s
             pdf.setFillColor(15, 23, 42)            // #0f172a  slate-900
             pdf.rect(0, 0, pageW, 48, 'F')
 
+            let logoDrawn = false
+            if (payment.gym.showLogo && payment.gym.logoUrl) {
+                try {
+                    const response = await fetch(payment.gym.logoUrl)
+                    const blob = await response.blob()
+                    const dataUrl: string = await new Promise((resolve, reject) => {
+                        const reader = new FileReader()
+                        reader.onloadend = () => resolve(reader.result as string)
+                        reader.onerror = reject
+                        reader.readAsDataURL(blob)
+                    })
+                    pdf.addImage(dataUrl, mL, 10, 14, 14)
+                    logoDrawn = true
+                } catch {
+                    logoDrawn = false
+                }
+            }
+            const brandTextX = logoDrawn ? mL + 18 : mL
+
             // Left column – branding
             pdf.setTextColor(255, 255, 255)
             pdf.setFontSize(14)
             pdf.setFont('helvetica', 'bold')
-            pdf.text('GYM PRO FITNESS', mL, 18)
+            pdf.text(payment.gym.name || 'Gym', brandTextX, 18)
 
             pdf.setFontSize(8.5)
             pdf.setFont('helvetica', 'normal')
             pdf.setTextColor(148, 163, 184)         // slate-400
-            pdf.text('support@gympro.com', mL, 27)
-            pdf.text('+91 98765 43210', mL, 34)
+            let brandY = 27
+            if (payment.gym.showAddress) {
+                const addressLine = formatGymAddressLine(payment.gym)
+                if (addressLine) {
+                    pdf.text(addressLine, brandTextX, brandY, { maxWidth: 110 })
+                    brandY += 7
+                }
+            }
+            if (payment.gym.showEmail && payment.gym.contactEmail) {
+                pdf.text(payment.gym.contactEmail, brandTextX, brandY)
+                brandY += 7
+            }
+            if (payment.gym.showPhone && payment.gym.contactPhone) {
+                pdf.text(payment.gym.contactPhone, brandTextX, brandY)
+                brandY += 7
+            }
+            if (payment.gym.showGstin && payment.gym.gstin) {
+                pdf.text(`GSTIN: ${payment.gym.gstin}`, brandTextX, brandY)
+            }
 
-            // Right column – invoice meta
+            // Right column – receipt meta
             pdf.setTextColor(255, 255, 255)
             pdf.setFontSize(16)
             pdf.setFont('helvetica', 'bold')
-            pdf.text('INVOICE', pageW - mR, 18, { align: 'right' })
+            pdf.text('RECEIPT', pageW - mR, 18, { align: 'right' })
 
             pdf.setFontSize(8.5)
             pdf.setFont('helvetica', 'normal')
             pdf.setTextColor(16, 185, 129)          // emerald-500
-            pdf.text(payment.invoiceNumber, pageW - mR, 27, { align: 'right' })
+            pdf.text(displayReceiptNumber(payment), pageW - mR, 27, { align: 'right' })
             pdf.setTextColor(148, 163, 184)
             pdf.text(formatDate(payment.paymentDate), pageW - mR, 34, { align: 'right' })
 
@@ -281,10 +349,27 @@ export default function ResultClient({ invoiceNumber, payment, portal, reason, s
             pdf.setFont('helvetica', 'bold')
             pdf.setTextColor(15, 23, 42)
             pdf.text(formatPdfCurrency(payment.originalPrice), pageW - mR - 4, y + 9, { align: 'right' })
+            y += 14
+
+            // Admission fee row (only if present and > 0)
+            const hasAdmissionFee = Boolean(payment.admissionFeeAmount && payment.admissionFeeAmount > 0)
+            if (hasAdmissionFee) {
+                pdf.setFillColor(255, 255, 255)
+                pdf.setDrawColor(226, 232, 240)
+                pdf.rect(mL, y, bodyW, 12, 'F')
+                pdf.rect(mL, y, bodyW, 12)
+                pdf.setFontSize(8.5)
+                pdf.setFont('helvetica', 'normal')
+                pdf.setTextColor(71, 85, 105)
+                pdf.text('Admission Fee', mL + 4, y + 8)
+                pdf.setFont('helvetica', 'bold')
+                pdf.setTextColor(15, 23, 42)
+                pdf.text(formatPdfCurrency(payment.admissionFeeAmount as number), pageW - mR - 4, y + 8, { align: 'right' })
+                y += 12
+            }
 
             // Coins discount row (only if discount was applied)
             if (payment.coinsUsed > 0) {
-                y += 14
                 pdf.setFillColor(240, 253, 244)     // emerald-50
                 pdf.setDrawColor(167, 243, 208)
                 pdf.rect(mL, y, bodyW, 13, 'F')
@@ -296,8 +381,6 @@ export default function ResultClient({ invoiceNumber, payment, portal, reason, s
                 pdf.setFont('helvetica', 'bold')
                 pdf.text(`- ${formatPdfCurrency(payment.coinsUsed)}`, pageW - mR - 4, y + 8.5, { align: 'right' })
                 y += 13
-            } else {
-                y += 14
             }
 
             /* ── TOTAL BOX (right-aligned) ─────────────────────────── */
@@ -365,14 +448,17 @@ export default function ResultClient({ invoiceNumber, payment, portal, reason, s
             pdf.setFontSize(9)
             pdf.setFont('helvetica', 'bold')
             pdf.setTextColor(15, 23, 42)
-            pdf.text('Thank you for training with Gym Pro Fitness!', pageW / 2, y, { align: 'center' })
+            pdf.text(payment.gym.footerMessage || `Thank you for training with ${payment.gym.name || 'us'}!`, pageW / 2, y, { align: 'center' })
 
             pdf.setFontSize(8)
             pdf.setFont('helvetica', 'normal')
             pdf.setTextColor(100, 116, 139)
-            pdf.text('This is a system generated invoice and does not require a physical signature.', pageW / 2, y + 7, { align: 'center' })
+            pdf.text(
+                payment.gym.additionalNotes || 'This is a system generated receipt and does not require a physical signature.',
+                pageW / 2, y + 7, { align: 'center', maxWidth: bodyW }
+            )
 
-            pdf.save(`${payment.invoiceNumber}.pdf`)
+            pdf.save(`${displayReceiptNumber(payment)}.pdf`)
         } finally {
             setDownloading(false)
         }
@@ -389,7 +475,7 @@ export default function ResultClient({ invoiceNumber, payment, portal, reason, s
                         <div className="space-y-2">
                             <h2 className="text-lg font-bold text-slate-950">Confirming your payment</h2>
                             <p className="text-sm text-slate-500">
-                                Your payment was received by Razorpay. We&apos;re generating the invoice and updating your membership now.
+                                Your payment was received by Razorpay. We&apos;re generating the receipt and updating your membership now.
                             </p>
                             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                                 Please do not refresh, close this page, or go back until the payment confirmation is complete.
@@ -400,7 +486,7 @@ export default function ResultClient({ invoiceNumber, payment, portal, reason, s
                                 </div>
                             ) : (
                                 <p className="text-xs text-slate-400">
-                                    Invoice: {processingInvoiceNumber}
+                                    Receipt: {processingInvoiceNumber}
                                 </p>
                             )}
                         </div>
@@ -452,7 +538,7 @@ export default function ResultClient({ invoiceNumber, payment, portal, reason, s
                 </div>
             </div>
 
-            {/* ── Invoice Card ── */}
+            {/* ── Receipt Card ── */}
             {payment && (
                 <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
@@ -461,15 +547,35 @@ export default function ResultClient({ invoiceNumber, payment, portal, reason, s
                         {/* Mobile: stacked. Desktop: side-by-side */}
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             {/* Branding */}
-                            <div>
-                                <p className="text-base font-bold text-white">GYM PRO FITNESS</p>
-                                <p className="mt-1 text-xs text-slate-400">support@gympro.com</p>
-                                <p className="text-xs text-slate-400">+91 98765 43210</p>
+                            <div className="flex items-start gap-3">
+                                {payment.gym.showLogo && payment.gym.logoUrl && (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                        src={payment.gym.logoUrl}
+                                        alt={payment.gym.name}
+                                        className="h-10 w-10 shrink-0 rounded-lg object-cover"
+                                    />
+                                )}
+                                <div>
+                                    <p className="text-base font-bold text-white">{payment.gym.name || 'Gym'}</p>
+                                    {payment.gym.showAddress && formatGymAddressLine(payment.gym) && (
+                                        <p className="mt-1 text-xs text-slate-400">{formatGymAddressLine(payment.gym)}</p>
+                                    )}
+                                    {payment.gym.showEmail && payment.gym.contactEmail && (
+                                        <p className="text-xs text-slate-400">{payment.gym.contactEmail}</p>
+                                    )}
+                                    {payment.gym.showPhone && payment.gym.contactPhone && (
+                                        <p className="text-xs text-slate-400">{payment.gym.contactPhone}</p>
+                                    )}
+                                    {payment.gym.showGstin && payment.gym.gstin && (
+                                        <p className="text-xs text-slate-400">GSTIN: {payment.gym.gstin}</p>
+                                    )}
+                                </div>
                             </div>
-                            {/* Invoice meta — left on mobile, right on desktop */}
+                            {/* Receipt meta — left on mobile, right on desktop */}
                             <div className="sm:text-right">
-                                <p className="text-base font-bold text-white">INVOICE</p>
-                                <p className="mt-0.5 font-mono text-xs text-emerald-400">{payment.invoiceNumber}</p>
+                                <p className="text-base font-bold text-white">RECEIPT</p>
+                                <p className="mt-0.5 font-mono text-xs text-emerald-400">{displayReceiptNumber(payment)}</p>
                                 <p className="text-xs text-slate-400">{formatDate(payment.paymentDate)}</p>
                             </div>
                         </div>
@@ -498,6 +604,18 @@ export default function ResultClient({ invoiceNumber, payment, portal, reason, s
                             </div>
                         </div>
 
+                        {/* ── Member information ────────────────────── */}
+                        <div className="flex flex-col gap-3 sm:flex-row sm:gap-10">
+                            <div>
+                                <p className="text-xs text-slate-500">Member</p>
+                                <p className="mt-0.5 font-semibold text-slate-900">{payment.memberFullName}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-slate-500">Member ID</p>
+                                <p className="mt-0.5 font-semibold text-slate-900">{payment.memberDisplayId}</p>
+                            </div>
+                        </div>
+
                         {/* ── Line-items table ─────────────────────── */}
                         <div className="overflow-hidden rounded-lg border border-slate-200">
                             <div className="sm:hidden">
@@ -517,6 +635,14 @@ export default function ResultClient({ invoiceNumber, payment, portal, reason, s
                                         {formatCurrency(payment.originalPrice)}
                                     </div>
                                 </div>
+                                {payment.admissionFeeAmount !== null && payment.admissionFeeAmount > 0 && (
+                                    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-slate-100 px-4 py-3">
+                                        <span className="text-sm text-slate-700">Admission Fee</span>
+                                        <span className="justify-self-end whitespace-nowrap text-right text-sm font-semibold text-slate-900">
+                                            {formatCurrency(payment.admissionFeeAmount)}
+                                        </span>
+                                    </div>
+                                )}
                                 {hasDiscount && (
                                     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-emerald-100 bg-emerald-50/60 px-4 py-3">
                                         <div className="min-w-0 text-emerald-700">
@@ -563,6 +689,15 @@ export default function ResultClient({ invoiceNumber, payment, portal, reason, s
                                             {formatCurrency(payment.originalPrice)}
                                         </td>
                                     </tr>
+                                    {/* ── Admission fee row ── */}
+                                    {payment.admissionFeeAmount !== null && payment.admissionFeeAmount > 0 && (
+                                        <tr>
+                                            <td className="px-4 py-3 text-sm text-slate-700" colSpan={2}>Admission Fee</td>
+                                            <td className="w-24 pl-4 pr-5 py-3 text-right text-sm font-semibold text-slate-900 sm:w-auto">
+                                                {formatCurrency(payment.admissionFeeAmount)}
+                                            </td>
+                                        </tr>
+                                    )}
                                     {/* ── Coins discount row ── */}
                                     {hasDiscount && (
                                         <tr className="bg-emerald-50/60">
@@ -611,8 +746,12 @@ export default function ResultClient({ invoiceNumber, payment, portal, reason, s
 
                         {/* ── Footer note ──────────────────────────── */}
                         <div className="border-t border-slate-100 pt-4 text-center">
-                            <p className="text-sm font-semibold text-slate-800">Thank you for training with Gym Pro Fitness!</p>
-                            <p className="mt-1 text-xs text-slate-500">This is a system generated invoice and does not require a physical signature.</p>
+                            <p className="text-sm font-semibold text-slate-800">
+                                {payment.gym.footerMessage || `Thank you for training with ${payment.gym.name || 'us'}!`}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                                {payment.gym.additionalNotes || 'This is a system generated receipt and does not require a physical signature.'}
+                            </p>
                         </div>
 
                     </div>

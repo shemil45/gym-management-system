@@ -16,6 +16,7 @@ type PaymentTableRow = {
     payment_status: 'paid' | 'pending' | 'failed' | 'refunded'
     payment_date: string
     invoice_number: string | null
+    receipt_number: string | null
     notes: string | null
     created_at: string
     member: {
@@ -118,6 +119,7 @@ export default async function FinancesPaymentsPage({ searchParams }: FinancesPay
             payment_status,
             payment_date,
             invoice_number,
+            receipt_number,
             notes,
             created_at,
             member:members(

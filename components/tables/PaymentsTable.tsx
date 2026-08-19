@@ -56,6 +56,7 @@ interface PaymentRow {
     payment_status: 'paid' | 'pending' | 'failed' | 'refunded'
     payment_date: string
     invoice_number: string | null
+    receipt_number: string | null
     notes: string | null
     created_at: string
     member: MemberSnippet | null
@@ -733,10 +734,10 @@ export default function PaymentsTable({
                                                 </p>
                                             </div>
 
-                                            {/* Row 3: Invoice */}
-                                            {payment.invoice_number && (
+                                            {/* Row 3: Receipt */}
+                                            {(payment.receipt_number || payment.invoice_number) && (
                                                 <p className="mt-1 font-mono text-[11px] text-slate-400">
-                                                    {payment.invoice_number}
+                                                    {payment.receipt_number || payment.invoice_number}
                                                 </p>
                                             )}
 
@@ -765,7 +766,7 @@ export default function PaymentsTable({
                                     Name
                                 </th>
                                 <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-                                    Invoice
+                                    Receipt
                                 </th>
                                 <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                                     Date
@@ -824,7 +825,7 @@ export default function PaymentsTable({
                                             </td>
                                             <td className="px-3 py-3">
                                                 <span className="font-mono text-xs text-gray-500">
-                                                    {payment.invoice_number ?? '—'}
+                                                    {payment.receipt_number ?? payment.invoice_number ?? '—'}
                                                 </span>
                                             </td>
                                             <td className="px-3 py-3">

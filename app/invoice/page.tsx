@@ -37,7 +37,7 @@ export default async function PaymentResultPage({
         <div className="space-y-6 px-4 pt-4 sm:px-6 sm:pt-6">
             <div>
                 <h1 className="text-2xl font-bold text-gray-900">Payment status</h1>
-                <p className="mt-1 text-sm text-gray-500">Review your latest membership payment outcome and download your invoice.</p>
+                <p className="mt-1 text-sm text-gray-500">Review your latest membership payment outcome and download your receipt.</p>
             </div>
 
             <ResultClient
