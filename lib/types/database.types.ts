@@ -1068,6 +1068,12 @@ export interface Database {
                 Args: never
                 Returns: string
             }
+            generate_receipt_number: {
+                Args: {
+                    p_gym_id: string
+                }
+                Returns: string
+            }
             is_platform_admin: {
                 Args: never
                 Returns: boolean
@@ -1109,6 +1115,9 @@ export interface Database {
             support_ticket_priority: SupportTicketPriority
             support_ticket_status: SupportTicketStatus
             system_event_severity: SystemEventSeverity
+        }
+        CompositeTypes: {
+            [_ in never]: never
         }
     }
 }
