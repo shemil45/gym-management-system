@@ -28,7 +28,7 @@ export async function updateMembershipFeeSettings(formData: FormData) {
     const allowCustomStartDate = formData.get('allow_custom_membership_start_date') === 'true'
 
     const supabase = await createClient()
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
         .from('gyms')
         .update(({
             default_admission_fee: fee,
@@ -36,8 +36,11 @@ export async function updateMembershipFeeSettings(formData: FormData) {
             allow_custom_membership_start_date: allowCustomStartDate,
         } satisfies UpdateTables<'gyms'>) as never)
         .eq('id', viewer.gym.id)
+        .select('id')
+        .maybeSingle()
 
     if (error) return { error: getErrorMessage(error, 'Failed to update membership & fee settings') }
+    if (!updated) return { error: 'Settings could not be saved — please refresh and try again.' }
 
     revalidatePath('/admin/settings/membership-fees')
     revalidatePath('/admin/members/add')

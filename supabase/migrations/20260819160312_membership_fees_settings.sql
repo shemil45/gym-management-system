@@ -20,7 +20,13 @@ CREATE POLICY "Staff can update current gym"
     USING (is_staff_user() AND id = current_gym_id())
     WITH CHECK (is_staff_user() AND id = current_gym_id());
 
+-- Column-scoped grant added retroactively; see 20260819160500_gyms_column_scoped_grant.sql for already-applied environments.
+REVOKE UPDATE ON public.gyms FROM authenticated, anon;
+GRANT UPDATE (default_admission_fee, allow_admission_fee_waiver, allow_custom_membership_start_date)
+    ON public.gyms TO authenticated;
+
 -- DOWN / rollback
+-- GRANT UPDATE ON public.gyms TO authenticated; -- restores pre-migration broad grant if truly rolling back
 -- DROP POLICY IF EXISTS "Staff can update current gym" ON public.gyms;
 -- ALTER TABLE public.payments DROP CONSTRAINT IF EXISTS payments_admission_fee_amount_non_negative;
 -- ALTER TABLE public.payments DROP COLUMN IF EXISTS admission_fee_amount;
