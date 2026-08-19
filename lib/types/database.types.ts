@@ -59,6 +59,10 @@ export interface Database {
                     default_admission_fee: number
                     allow_admission_fee_waiver: boolean
                     allow_custom_membership_start_date: boolean
+                    website: string | null
+                    address: string | null
+                    postal_code: string | null
+                    gstin: string | null
                     created_at: string
                     updated_at: string
                 }
@@ -81,6 +85,10 @@ export interface Database {
                     default_admission_fee?: number
                     allow_admission_fee_waiver?: boolean
                     allow_custom_membership_start_date?: boolean
+                    website?: string | null
+                    address?: string | null
+                    postal_code?: string | null
+                    gstin?: string | null
                     created_at?: string
                     updated_at?: string
                 }
@@ -103,6 +111,10 @@ export interface Database {
                     default_admission_fee?: number
                     allow_admission_fee_waiver?: boolean
                     allow_custom_membership_start_date?: boolean
+                    website?: string | null
+                    address?: string | null
+                    postal_code?: string | null
+                    gstin?: string | null
                     created_at?: string
                     updated_at?: string
                 }
