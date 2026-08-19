@@ -77,6 +77,15 @@ function generateInvoiceNumber(date = new Date()) {
     return `INV-${dateStr}-${rand}`
 }
 
+async function generateReceiptNumber(gymId: string): Promise<string | null> {
+    const supabaseAdmin = getSupabaseAdmin()
+    const { data, error } = await supabaseAdmin.rpc('generate_receipt_number', { p_gym_id: gymId } as never)
+    if (error) {
+        throw new Error(error.message)
+    }
+    return (data as unknown as string) ?? null
+}
+
 async function getPurchaseContext(planId: string, useReferralCoins: boolean): Promise<PurchaseContext> {
     const viewer = await getCurrentGymContext()
     const supabaseAdmin = getSupabaseAdmin()
@@ -142,6 +151,7 @@ async function getPurchaseContext(planId: string, useReferralCoins: boolean): Pr
 
 async function applyMembershipAfterPayment(context: PurchaseContext, razorpayOrderId: string | null, razorpayPaymentId: string | null) {
     const supabaseAdmin = getSupabaseAdmin()
+    const receiptNumber = await generateReceiptNumber(context.gymId)
 
     const { error: paymentError } = await supabaseAdmin
         .from('payments')
@@ -153,6 +163,7 @@ async function applyMembershipAfterPayment(context: PurchaseContext, razorpayOrd
             payment_status: 'paid',
             payment_date: context.paymentDate,
             invoice_number: context.invoiceNumber,
+            receipt_number: receiptNumber,
             razorpay_order_id: razorpayOrderId,
             razorpay_payment_id: razorpayPaymentId,
             membership_start_date: context.startDate,
@@ -270,6 +281,8 @@ export async function createRazorpayOrder(planId: string, useReferralCoins = tru
             return { error: payload.error?.description || 'Unable to create Razorpay order' }
         }
 
+        const receiptNumber = await generateReceiptNumber(context.gymId)
+
         const { error: pendingPaymentError } = await supabaseAdmin
             .from('payments')
             .insert({
@@ -280,6 +293,7 @@ export async function createRazorpayOrder(planId: string, useReferralCoins = tru
                 payment_status: 'pending',
                 payment_date: context.paymentDate,
                 invoice_number: context.invoiceNumber,
+                receipt_number: receiptNumber,
                 razorpay_order_id: payload.id,
                 membership_start_date: context.startDate,
                 membership_end_date: context.expiryDate,
