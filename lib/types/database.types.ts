@@ -56,6 +56,9 @@ export interface Database {
                     suspended_at: string | null
                     suspension_reason: string | null
                     platform_notes: string | null
+                    default_admission_fee: number
+                    allow_admission_fee_waiver: boolean
+                    allow_custom_membership_start_date: boolean
                     created_at: string
                     updated_at: string
                 }
@@ -75,6 +78,9 @@ export interface Database {
                     suspended_at?: string | null
                     suspension_reason?: string | null
                     platform_notes?: string | null
+                    default_admission_fee?: number
+                    allow_admission_fee_waiver?: boolean
+                    allow_custom_membership_start_date?: boolean
                     created_at?: string
                     updated_at?: string
                 }
@@ -94,6 +100,9 @@ export interface Database {
                     suspended_at?: string | null
                     suspension_reason?: string | null
                     platform_notes?: string | null
+                    default_admission_fee?: number
+                    allow_admission_fee_waiver?: boolean
+                    allow_custom_membership_start_date?: boolean
                     created_at?: string
                     updated_at?: string
                 }
@@ -319,6 +328,7 @@ export interface Database {
                     membership_end_date: string | null
                     notes: string | null
                     processed_by: string | null
+                    admission_fee_amount: number | null
                     created_at: string
                     updated_at: string
                 }
@@ -337,6 +347,7 @@ export interface Database {
                     membership_end_date?: string | null
                     notes?: string | null
                     processed_by?: string | null
+                    admission_fee_amount?: number | null
                     created_at?: string
                     updated_at?: string
                 }
@@ -355,6 +366,7 @@ export interface Database {
                     membership_end_date?: string | null
                     notes?: string | null
                     processed_by?: string | null
+                    admission_fee_amount?: number | null
                     created_at?: string
                     updated_at?: string
                 }
