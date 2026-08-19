@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import type { InsertTables, QueryResult, UpdateTables } from '@/lib/types'
+import type { InsertTables, QueryResult, Tables, UpdateTables } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
 import { getAvatarStoragePath } from '@/lib/utils/storage'
@@ -87,6 +87,11 @@ export async function createMember(formData: FormData) {
         const planId = (formData.get('membership_plan_id') as string | null)?.trim()
         const paymentAmountValue = (formData.get('payment_amount') as string | null)?.trim()
         const paymentMethod = (formData.get('payment_method') as string | null)?.trim() as InsertTables<'payments'>['payment_method'] | null
+        const admissionFeeValue = (formData.get('admission_fee') as string | null)?.trim()
+        const admissionFee = admissionFeeValue && Number.isFinite(Number(admissionFeeValue)) && Number(admissionFeeValue) >= 0
+            ? Number(admissionFeeValue)
+            : 0
+        const requestedStartDate = (formData.get('membership_start_date') as string | null)?.trim() || null
 
         if (!fullName || !email || !phone || !dateOfBirth || !planId || !paymentAmountValue || !paymentMethod) {
             return { error: 'Name, email, phone, date of birth, plan, and payment details are required.' }
@@ -124,8 +129,19 @@ export async function createMember(formData: FormData) {
             return { error: 'Invalid membership plan' }
         }
 
-        // Start date is set automatically to the creation date.
-        const startDate = new Date()
+        const gymSettingsResult = await supabase
+            .from('gyms')
+            .select('allow_custom_membership_start_date')
+            .eq('id', viewer.gym.id)
+            .single()
+        const { data: gymSettingsRow } = gymSettingsResult as unknown as QueryResult<Pick<Tables<'gyms'>, 'allow_custom_membership_start_date'> | null>
+        const allowCustomStartDate = gymSettingsRow?.allow_custom_membership_start_date ?? false
+
+        // Start date defaults to today unless the gym allows staff to override it.
+        const startDate = allowCustomStartDate && requestedStartDate ? new Date(requestedStartDate) : new Date()
+        if (Number.isNaN(startDate.getTime())) {
+            return { error: 'Membership start date is invalid.' }
+        }
         const expiryDate = new Date(startDate)
         expiryDate.setDate(expiryDate.getDate() + plan.duration_days)
 
@@ -279,10 +295,14 @@ export async function createMember(formData: FormData) {
         createdMemberId = member.id
 
         // Create initial payment record
+        const planAmount = Number(paymentAmountValue)
+        const totalAmount = planAmount + admissionFee
+
         const paymentPayload: InsertTables<'payments'> = {
             gym_id: viewer.gym.id,
             member_id: member.id,
-            amount: Number(paymentAmountValue),
+            amount: totalAmount,
+            admission_fee_amount: admissionFee,
             payment_method: paymentMethod,
             payment_date: new Date().toISOString().split('T')[0],
             notes: 'Initial membership fee',

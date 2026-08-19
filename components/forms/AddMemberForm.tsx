@@ -23,9 +23,14 @@ import { createImagePreviewUrl, removeUploadedAvatar, uploadCompressedAvatar } f
 
 interface AddMemberFormProps {
     plans: { id: string; name: string; duration_days: number; price: number }[]
+    gymSettings: {
+        defaultAdmissionFee: number
+        allowAdmissionFeeWaiver: boolean
+        allowCustomStartDate: boolean
+    }
 }
 
-export default function AddMemberForm({ plans }: AddMemberFormProps) {
+export default function AddMemberForm({ plans, gymSettings }: AddMemberFormProps) {
     const router = useRouter()
     const { isDark } = useAdminTheme()
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -39,6 +44,9 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
     const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
     const [paymentAmount, setPaymentAmount] = useState('')
+    const [admissionFee, setAdmissionFee] = useState(String(gymSettings.defaultAdmissionFee))
+    const [admissionFeeWaived, setAdmissionFeeWaived] = useState(false)
+    const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0])
     const [photoError, setPhotoError] = useState<string | null>(null)
     const [loadingMessage, setLoadingMessage] = useState('')
 
@@ -80,6 +88,10 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
         setPhone(`+91${localNumber.slice(0, 10)}`)
     }
 
+    const planAmountNumber = Number(paymentAmount) || 0
+    const admissionFeeNumber = admissionFeeWaived ? 0 : (Number(admissionFee) || 0)
+    const totalAmount = planAmountNumber + admissionFeeNumber
+
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         if (!selectedPlan) { toast.error('Please select a membership plan'); return }
@@ -95,6 +107,10 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
             formData.append('membership_plan_id', selectedPlan)
             formData.append('payment_method', paymentMethod)
             formData.append('gender', gender)
+            formData.set('admission_fee', String(admissionFeeNumber))
+            if (gymSettings.allowCustomStartDate) {
+                formData.set('membership_start_date', startDate)
+            }
 
             if (selectedPhoto) {
                 const uploadedPhoto = await uploadCompressedAvatar(selectedPhoto, 'member', {
@@ -380,9 +396,9 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
                     <div className="border-t border-gray-200 pt-5 space-y-4">
                         <h2 className="text-base font-bold text-gray-900">Payment Information</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                            {/* Amount */}
+                            {/* Plan Amount */}
                             <div className="space-y-1.5">
-                                <Label htmlFor="payment_amount" className="text-sm font-medium text-gray-700">Amount</Label>
+                                <Label htmlFor="payment_amount" className="text-sm font-medium text-gray-700">Plan Amount</Label>
                                 <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium">₹</span>
                                     <Input
@@ -417,6 +433,74 @@ export default function AddMemberForm({ plans }: AddMemberFormProps) {
                                     </SelectContent>
                                 </Select>
                             </div>
+
+                            {/* Admission Fee */}
+                            <div className="space-y-1.5">
+                                <Label htmlFor="admission_fee" className="text-sm font-medium text-gray-700">
+                                    Admission Fee <span className="text-gray-400 font-normal">(one-time)</span>
+                                </Label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium">₹</span>
+                                    <Input
+                                        id="admission_fee"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={admissionFeeWaived ? '0' : admissionFee}
+                                        onChange={(e) => setAdmissionFee(e.target.value)}
+                                        readOnly={!gymSettings.allowAdmissionFeeWaiver || admissionFeeWaived}
+                                        disabled={loading || !gymSettings.allowAdmissionFeeWaiver}
+                                        className="h-10 pl-7 border-gray-300 text-sm"
+                                    />
+                                </div>
+                                {gymSettings.allowAdmissionFeeWaiver ? (
+                                    <label className="flex items-center gap-2 pt-1 text-xs text-gray-600 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={admissionFeeWaived}
+                                            onChange={(e) => setAdmissionFeeWaived(e.target.checked)}
+                                            disabled={loading}
+                                            className="h-3.5 w-3.5 accent-blue-600"
+                                        />
+                                        Waive admission fee for this member
+                                    </label>
+                                ) : (
+                                    <p className="text-xs text-gray-400">Set by your gym&apos;s Membership &amp; Fees settings.</p>
+                                )}
+                            </div>
+
+                            {/* Total */}
+                            <div className="space-y-1.5">
+                                <Label className="text-sm font-medium text-gray-700">Total Due</Label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium">₹</span>
+                                    <Input
+                                        type="number"
+                                        readOnly
+                                        disabled
+                                        value={totalAmount.toFixed(2)}
+                                        className="h-10 pl-7 border-gray-300 text-sm font-semibold text-gray-900 bg-gray-50"
+                                    />
+                                </div>
+                                <p className="text-xs text-gray-400">Plan amount + admission fee</p>
+                            </div>
+
+                            {gymSettings.allowCustomStartDate ? (
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="membership_start_date_input" className="text-sm font-medium text-gray-700">
+                                        Membership Start Date
+                                    </Label>
+                                    <Input
+                                        id="membership_start_date_input"
+                                        type="date"
+                                        value={startDate}
+                                        onChange={(e) => setStartDate(e.target.value)}
+                                        disabled={loading}
+                                        className="h-10 border-gray-300 text-sm text-gray-500"
+                                    />
+                                    <p className="text-xs text-gray-400">Defaults to today. Change only if this membership should start on a different date.</p>
+                                </div>
+                            ) : null}
                         </div>
                     </div>
 
