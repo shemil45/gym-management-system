@@ -92,8 +92,10 @@ export default function AdminSidebar({ user, open, setOpen }: AdminSidebarProps)
     const supabase = createClient()
     await supabase.auth.signOut()
     setOpen(false)
+    // Navigating away already unmounts the admin route tree, so there's no
+    // need to also force a full refresh (which would re-run the admin
+    // layout's auth/platform-context queries) for a page we're leaving.
     router.push('/login')
-    router.refresh()
   }
 
   const profileLabel = user?.full_name || user?.email || 'Admin'

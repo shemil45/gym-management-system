@@ -34,6 +34,7 @@ import {
 import { toast } from 'sonner'
 
 const ITEMS_PER_PAGE = 20
+const SEARCH_DEBOUNCE_MS = 350
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -444,16 +445,42 @@ export default function CheckInsTable({
     const [methodFilter, setMethodFilter] = useState(initialFilters?.method || 'all')
     const [checkingOutId, setCheckingOutId] = useState<string | null>(null)
     const [showModal, setShowModal] = useState(false)
+    const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    // Mirrors of the server-provided rows/stats so a check-out can update the
+    // UI immediately without forcing a full route refresh (which would also
+    // re-run the admin layout's unrelated auth/platform-context queries).
+    const [localCheckIns, setLocalCheckIns] = useState(checkIns)
+    const [localStats, setLocalStats] = useState(stats)
+
+    useEffect(() => {
+        setLocalCheckIns(checkIns)
+        setLocalStats(stats)
+    }, [checkIns, stats])
 
     // ── Stats ────────────────────────────────────────────────
     // ── Filtered rows ────────────────────────────────────────
     // ── Pagination ───────────────────────────────────────────
     const totalPages = Math.max(1, Math.ceil(totalCount / ITEMS_PER_PAGE))
     const safePage = Math.min(currentPage, totalPages)
-    const paginated = checkIns
+    const paginated = localCheckIns
 
     const replaceListRoute = (updates: Record<string, RouteParamValue>) => {
         router.replace(routeWithParams(pathname, { ...updates, page: updates.page ?? undefined }), { scroll: false })
+    }
+
+    // Debounce the search query so each keystroke doesn't trigger its own server round-trip
+    useEffect(() => {
+        return () => {
+            if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+        }
+    }, [])
+
+    const handleSearch = (value: string) => {
+        setSearchQuery(value)
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+        searchDebounceRef.current = setTimeout(() => {
+            replaceListRoute({ q: value, page: undefined })
+        }, SEARCH_DEBOUNCE_MS)
     }
 
     // ── Check-out ────────────────────────────────────────────
@@ -469,7 +496,14 @@ export default function CheckInsTable({
                 .eq('id', id)
             if (error) throw error
             toast.success(`${memberName} checked out`)
-            router.refresh()
+            // Update the visible row/stats directly instead of a full route
+            // refresh, which would also re-run the admin layout's unrelated
+            // auth/platform-context queries.
+            const checkOutTime = new Date().toISOString()
+            setLocalCheckIns((prev) =>
+                prev.map((row) => (row.id === id ? { ...row, check_out_time: checkOutTime } : row))
+            )
+            setLocalStats((prev) => ({ ...prev, currentlyIn: Math.max(0, prev.currentlyIn - 1) }))
         } catch (error) {
             toast.error(getErrorMessage(error, 'Failed to record check-out'))
         } finally {
@@ -500,19 +534,19 @@ export default function CheckInsTable({
                     icon={<CalendarDays className="h-5 w-5 text-blue-600" />}
                     iconBg="bg-blue-50"
                     label="Today's Check-ins"
-                    value={stats.todayCount}
+                    value={localStats.todayCount}
                 />
                 <StatCard
                     icon={<UserCheck className="h-5 w-5 text-violet-600" />}
                     iconBg="bg-violet-50"
                     label="Currently in Gym"
-                    value={stats.currentlyIn}
+                    value={localStats.currentlyIn}
                 />
                 <StatCard
                     icon={<Clock className="h-5 w-5 text-emerald-600" />}
                     iconBg="bg-emerald-50"
                     label="This Week's Visits"
-                    value={stats.weekCount}
+                    value={localStats.weekCount}
                 />
             </div>
 
@@ -524,10 +558,7 @@ export default function CheckInsTable({
                     <Input
                         placeholder="Search by member name or ID..."
                         value={searchQuery}
-                        onChange={(e) => {
-                            setSearchQuery(e.target.value)
-                            replaceListRoute({ q: e.target.value, page: undefined })
-                        }}
+                        onChange={(e) => handleSearch(e.target.value)}
                         className="pl-9 bg-white border-gray-200 text-sm h-10 focus:border-violet-400 focus:ring-violet-400"
                     />
                 </div>

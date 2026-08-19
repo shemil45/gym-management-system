@@ -1,6 +1,6 @@
 'use client'
 
-import { startTransition, useEffect, useState } from 'react'
+import { startTransition, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { deleteMember } from '@/app/admin/members/actions'
@@ -32,6 +32,7 @@ import { formatDate } from '@/lib/utils/date'
 import { toast } from 'sonner'
 
 const ITEMS_PER_PAGE = 20
+const SEARCH_DEBOUNCE_MS = 350
 
 interface Member {
     id: string
@@ -203,6 +204,17 @@ export default function MembersTable({ members, plans, currentPage, totalCount, 
     const [openingAddMember, setOpeningAddMember] = useState(false)
     const [navigatingMemberId, setNavigatingMemberId] = useState<string | null>(null)
     const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
+    const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    // Mirrors of the server-provided list/count so a delete can update the
+    // UI immediately without forcing a full route refresh (which would also
+    // re-run the admin layout's unrelated auth/platform-context queries).
+    const [localMembers, setLocalMembers] = useState(members)
+    const [localTotalCount, setLocalTotalCount] = useState(totalCount)
+
+    useEffect(() => {
+        setLocalMembers(members)
+        setLocalTotalCount(totalCount)
+    }, [members, totalCount])
 
     // Draft state — only committed to real filters on "Apply Search"
     const [draftStatus, setDraftStatus] = useState('all')
@@ -218,6 +230,13 @@ export default function MembersTable({ members, plans, currentPage, totalCount, 
         router.prefetch('/admin/members/add')
     }, [router])
 
+    // Debounce the search query so each keystroke doesn't trigger its own server round-trip
+    useEffect(() => {
+        return () => {
+            if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+        }
+    }, [])
+
     // Lock body scroll when modal is open so nothing bleeds through
     useEffect(() => {
         if (showAdvancedSearch) {
@@ -230,9 +249,9 @@ export default function MembersTable({ members, plans, currentPage, totalCount, 
         }
     }, [showAdvancedSearch])
 
-    const totalPages = Math.max(1, Math.ceil(totalCount / ITEMS_PER_PAGE))
+    const totalPages = Math.max(1, Math.ceil(localTotalCount / ITEMS_PER_PAGE))
     const safePage = Math.min(currentPage, totalPages)
-    const paginated = members
+    const paginated = localMembers
 
     const replaceListRoute = (updates: Record<string, RouteParamValue>) => {
         startTransition(() => {
@@ -248,7 +267,10 @@ export default function MembersTable({ members, plans, currentPage, totalCount, 
 
     const handleSearch = (value: string) => {
         setSearchQuery(value)
-        replaceListRoute({ q: value, page: undefined })
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+        searchDebounceRef.current = setTimeout(() => {
+            replaceListRoute({ q: value, page: undefined })
+        }, SEARCH_DEBOUNCE_MS)
     }
     // Open modal seeded from currently-applied values
     const handleOpenAdvancedSearch = () => {
@@ -358,7 +380,11 @@ export default function MembersTable({ members, plans, currentPage, totalCount, 
             const result = await deleteMember(id)
             if (result.error) throw new Error(result.error)
             toast.success(`${name} deleted`)
-            router.refresh()
+            // Update the visible list/count directly instead of a full route
+            // refresh, which would also re-run the admin layout's unrelated
+            // auth/platform-context queries.
+            setLocalMembers((prev) => prev.filter((member) => member.id !== id))
+            setLocalTotalCount((prev) => Math.max(0, prev - 1))
         } catch {
             toast.error('Failed to delete member')
         } finally {
@@ -829,10 +855,10 @@ export default function MembersTable({ members, plans, currentPage, totalCount, 
                     <p className="text-xs text-gray-500">
                         Showing{' '}
                         <span className="font-semibold text-blue-600">
-                            {totalCount === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1}-
-                            {Math.min(safePage * ITEMS_PER_PAGE, totalCount)}
+                            {localTotalCount === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1}-
+                            {Math.min(safePage * ITEMS_PER_PAGE, localTotalCount)}
                         </span>{' '}
-                        of <span className="font-medium text-gray-700">{totalCount}</span> members
+                        of <span className="font-medium text-gray-700">{localTotalCount}</span> members
                     </p>
                     {totalPages > 1 ? (
                         <div className="self-end sm:ml-auto">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, startTransition } from 'react'
+import { useState, useEffect, useRef, startTransition } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { Input } from '@/components/ui/input'
@@ -34,6 +34,7 @@ import { formatCurrency } from '@/lib/utils/currency'
 import { formatDate } from '@/lib/utils/date'
 
 const ITEMS_PER_PAGE = 20
+const SEARCH_DEBOUNCE_MS = 350
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -265,6 +266,7 @@ export default function PaymentsTable({
     const [dateFrom, setDateFrom] = useState(initialFilters?.dateFrom ?? initialDateRange.from)
     const [dateTo, setDateTo] = useState(initialFilters?.dateTo ?? initialDateRange.to)
     const [showFilterModal, setShowFilterModal] = useState(false)
+    const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     // Draft state for modal
     const [draftStatus, setDraftStatus] = useState('all')
@@ -272,6 +274,21 @@ export default function PaymentsTable({
     const [draftDateFrom, setDraftDateFrom] = useState('')
     const [draftDateTo, setDraftDateTo] = useState('')
     const [dateError, setDateError] = useState('')
+
+    // Debounce the search query so each keystroke doesn't trigger its own server round-trip
+    useEffect(() => {
+        return () => {
+            if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+        }
+    }, [])
+
+    const handleSearch = (value: string) => {
+        setSearchQuery(value)
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+        searchDebounceRef.current = setTimeout(() => {
+            replaceListRoute({ q: value, page: undefined })
+        }, SEARCH_DEBOUNCE_MS)
+    }
 
     // Lock body scroll when modal is open
     useEffect(() => {
@@ -570,10 +587,7 @@ export default function PaymentsTable({
                             <Input
                                 placeholder="Search by name, ID or invoice..."
                                 value={searchQuery}
-                                onChange={(e) => {
-                                    setSearchQuery(e.target.value)
-                                    replaceListRoute({ q: e.target.value, page: undefined })
-                                }}
+                                onChange={(e) => handleSearch(e.target.value)}
                                 className="h-12 w-full rounded-xl border-slate-200 bg-slate-50 pl-10 text-sm focus:border-emerald-400 focus:ring-emerald-400"
                             />
                         </div>

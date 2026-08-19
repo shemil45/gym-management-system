@@ -27,8 +27,10 @@ export default function AdminHeader({ user, onMenuClick }: AdminHeaderProps) {
     const handleLogout = async () => {
         const supabase = createClient()
         await supabase.auth.signOut()
+        // Navigating away already unmounts the admin route tree, so there's no
+        // need to also force a full refresh (which would re-run the admin
+        // layout's auth/platform-context queries) for a page we're leaving.
         router.push('/login')
-        router.refresh()
     }
 
     return (
