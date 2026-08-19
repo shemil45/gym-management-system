@@ -120,6 +120,12 @@ export default function ResultClient({ invoiceNumber, payment, portal, reason, s
     const historyHref = portal === 'admin' ? '/admin/finances/payments' : '/member/payments'
     const fallbackHref = portal === 'admin' ? '/admin/finances/payments' : '/member/plans'
     const hasDiscount = payment && payment.coinsUsed > 0
+    // admission_fee_amount, when present, is already folded into originalPrice/amount
+    // (see app/admin/members/actions.ts: totalAmount = planAmount + admissionFee) —
+    // so the plan-only line must subtract it back out to avoid double-counting.
+    const planOnlyAmount = payment
+        ? payment.originalPrice - (payment.admissionFeeAmount ?? 0)
+        : 0
     const resolvedStatus = payment?.paymentStatus ?? (status === 'failure' ? 'failed' : 'paid')
     const bannerTone =
         resolvedStatus === 'paid'
@@ -317,8 +323,20 @@ export default function ResultClient({ invoiceNumber, payment, portal, reason, s
             pdf.text(formatDate(payment.paymentDate), mL, y + 7)
             pdf.text(formatPaymentMethod(payment.paymentMethod), 100, y + 7)
 
+            pdf.setFontSize(7.5)
+            pdf.setFont('helvetica', 'normal')
+            pdf.setTextColor(100, 116, 139)
+            pdf.text('Member', mL, y + 16)
+            pdf.text('Member ID', 100, y + 16)
+
+            pdf.setFontSize(10)
+            pdf.setFont('helvetica', 'bold')
+            pdf.setTextColor(15, 23, 42)
+            pdf.text(payment.memberFullName, mL, y + 23)
+            pdf.text(payment.memberDisplayId, 100, y + 23)
+
             /* ── TABLE ─────────────────────────────────────────────── */
-            y += 20
+            y += 34
             // Header row
             pdf.setFillColor(15, 23, 42)
             pdf.rect(mL, y, bodyW, 10, 'F')
@@ -348,7 +366,7 @@ export default function ResultClient({ invoiceNumber, payment, portal, reason, s
             )
             pdf.setFont('helvetica', 'bold')
             pdf.setTextColor(15, 23, 42)
-            pdf.text(formatPdfCurrency(payment.originalPrice), pageW - mR - 4, y + 9, { align: 'right' })
+            pdf.text(formatPdfCurrency(planOnlyAmount), pageW - mR - 4, y + 9, { align: 'right' })
             y += 14
 
             // Admission fee row (only if present and > 0)
@@ -632,7 +650,7 @@ export default function ResultClient({ invoiceNumber, payment, portal, reason, s
                                         </p>
                                     </div>
                                     <div className="justify-self-end whitespace-nowrap text-right font-semibold text-slate-900">
-                                        {formatCurrency(payment.originalPrice)}
+                                        {formatCurrency(planOnlyAmount)}
                                     </div>
                                 </div>
                                 {payment.admissionFeeAmount !== null && payment.admissionFeeAmount > 0 && (
@@ -686,7 +704,7 @@ export default function ResultClient({ invoiceNumber, payment, portal, reason, s
                                             {formatDate(payment.membershipStartDate)} to {formatDate(payment.membershipEndDate)}
                                         </td>
                                         <td className="w-24 pl-4 pr-5 py-3.5 text-right align-top font-semibold text-slate-900 sm:w-auto">
-                                            {formatCurrency(payment.originalPrice)}
+                                            {formatCurrency(planOnlyAmount)}
                                         </td>
                                     </tr>
                                     {/* ── Admission fee row ── */}
