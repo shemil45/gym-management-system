@@ -131,11 +131,13 @@ export async function createMember(formData: FormData) {
 
         const gymSettingsResult = await supabase
             .from('gyms')
-            .select('allow_custom_membership_start_date')
+            .select('allow_custom_membership_start_date, allow_admission_fee_waiver, default_admission_fee')
             .eq('id', viewer.gym.id)
             .single()
-        const { data: gymSettingsRow } = gymSettingsResult as unknown as QueryResult<Pick<Tables<'gyms'>, 'allow_custom_membership_start_date'> | null>
+        const { data: gymSettingsRow } = gymSettingsResult as unknown as QueryResult<Pick<Tables<'gyms'>, 'allow_custom_membership_start_date' | 'allow_admission_fee_waiver' | 'default_admission_fee'> | null>
         const allowCustomStartDate = gymSettingsRow?.allow_custom_membership_start_date ?? false
+        const allowAdmissionFeeWaiver = gymSettingsRow?.allow_admission_fee_waiver ?? true
+        const effectiveAdmissionFee = allowAdmissionFeeWaiver ? admissionFee : (gymSettingsRow?.default_admission_fee ?? 0)
 
         // Start date defaults to today unless the gym allows staff to override it.
         const startDate = allowCustomStartDate && requestedStartDate ? new Date(requestedStartDate) : new Date()
@@ -296,13 +298,13 @@ export async function createMember(formData: FormData) {
 
         // Create initial payment record
         const planAmount = Number(paymentAmountValue)
-        const totalAmount = planAmount + admissionFee
+        const totalAmount = planAmount + effectiveAdmissionFee
 
         const paymentPayload: InsertTables<'payments'> = {
             gym_id: viewer.gym.id,
             member_id: member.id,
             amount: totalAmount,
-            admission_fee_amount: admissionFee,
+            admission_fee_amount: effectiveAdmissionFee,
             payment_method: paymentMethod,
             payment_date: new Date().toISOString().split('T')[0],
             notes: 'Initial membership fee',
