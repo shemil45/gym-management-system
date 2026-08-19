@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import type { InsertTables, QueryResult, UpdateTables } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
+import { invalidateGymAdminSummaries } from '@/lib/auth/admin-server'
 
 function getErrorMessage(error: unknown, fallback: string) {
     return error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
@@ -78,9 +79,12 @@ export async function recordPayment(formData: FormData) {
             membership_end_date: membershipEndDate,
         }
 
-        const { error: paymentError } = await supabase
+        const paymentInsertResult = await supabase
             .from('payments')
             .insert(paymentPayload as never)
+            .select('gym_id')
+            .single()
+        const { data: insertedPayment, error: paymentError } = paymentInsertResult as unknown as QueryResult<{ gym_id: string } | null>
 
         if (paymentError) return { error: getErrorMessage(paymentError, 'Failed to record payment') }
 
@@ -98,6 +102,9 @@ export async function recordPayment(formData: FormData) {
             if (updateMemberError) return { error: getErrorMessage(updateMemberError, 'Failed to update member membership') }
         }
 
+        if (insertedPayment?.gym_id) {
+            invalidateGymAdminSummaries(insertedPayment.gym_id)
+        }
         revalidatePath('/admin/finances/payments')
         revalidatePath('/admin/members')
         return { success: true, invoiceNumber }

@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
 import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/utils/currency'
 import { getExpiringMembers, getOverdueMembers } from '@/lib/utils/renewals'
+import { getDashboardData, type DashboardData, type ViewerProfile } from '@/lib/dashboard/getDashboardData'
 import LoadingLinkButton from '@/components/ui/loading-link-button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { formatRoleLabel } from '@/lib/auth/roles'
@@ -30,43 +30,6 @@ import {
     YAxis,
 } from 'recharts'
 
-interface DashboardData {
-    totalMembers: number
-    activeMembers: number
-    pendingCollection: number
-    todayRevenue: number
-    monthRevenue: number
-    monthExpenses: number
-    todayPaymentsCount: number
-    todayCheckIns: number
-    expiringCount: number
-    revenueChart: { date: string; revenue: number }[]
-    renewals: {
-        id: string
-        full_name: string
-        member_id: string
-        photo_url: string | null
-        status: string
-        membership_expiry_date: string | null
-        membership_plan?: { name: string; price: number } | null
-    }[]
-}
-
-interface ViewerProfile {
-    email: string | null
-    full_name: string | null
-    phone: string | null
-    photo_url: string | null
-    role: string | null
-}
-
-interface ProfileRow {
-    full_name: string | null
-    role: string | null
-    phone: string | null
-    photo_url: string | null
-}
-
 type RangeLabel = '1D' | '5D' | '1M' | '1Y' | '5Y' | 'Max'
 
 const RANGES: { label: RangeLabel; days: number }[] = [
@@ -77,15 +40,6 @@ const RANGES: { label: RangeLabel; days: number }[] = [
     { label: '5Y', days: 365 * 5 },
     { label: 'Max', days: Infinity },
 ]
-
-function toSafeAmount(value: unknown) {
-    const parsed = typeof value === 'number' ? value : Number.parseFloat(String(value ?? '0'))
-    return Number.isFinite(parsed) ? parsed : 0
-}
-
-function sumAmounts(rows: Array<{ amount: unknown }> | null | undefined) {
-    return (rows || []).reduce((sum, row) => sum + toSafeAmount(row.amount), 0)
-}
 
 function formatExpiryDate(value: string | null) {
     if (!value) return '-'
@@ -240,137 +194,22 @@ export default function AdminDashboard() {
     const [quickActionsOpen, setQuickActionsOpen] = useState(false)
 
     useEffect(() => {
+        let cancelled = false
+
         async function fetchData() {
-            const supabase = createClient()
-            const {
-                data: { user },
-            } = await supabase.auth.getUser()
+            const { viewerProfile: fetchedProfile, data: fetchedData } = await getDashboardData()
+            if (cancelled) return
 
-            if (user) {
-                const profileResult = await supabase
-                    .from('profiles')
-                    .select('full_name, role, phone, photo_url')
-                    .eq('id', user.id)
-                    .maybeSingle()
-                const profile = profileResult.data as ProfileRow | null
-
-                setViewerProfile({
-                    email: user.email ?? null,
-                    full_name: profile?.full_name ?? user.email?.split('@')[0] ?? null,
-                    phone: profile?.phone ?? null,
-                    photo_url: profile?.photo_url ?? null,
-                    role: profile?.role ?? null,
-                })
-            } else {
-                setViewerProfile(null)
-            }
+            setViewerProfile(fetchedProfile)
             setProfileLoading(false)
-
-            const today = new Date().toISOString().split('T')[0]
-            const days = Array.from({ length: 365 }, (_, i) => {
-                const d = new Date()
-                d.setDate(d.getDate() - (364 - i))
-                return d.toISOString().split('T')[0]
-            })
-
-            const [
-                { count: totalMembers },
-                { count: activeMembers },
-                { count: todayCheckIns },
-                { data: todayPayments },
-                { data: monthPayments },
-                { data: monthExpensesRows },
-                { count: expiringCount },
-                { data: renewalMembers },
-                { data: allPayments },
-            ] = await Promise.all([
-                supabase.from('members').select('*', { count: 'exact', head: true }),
-                supabase.from('members').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-                supabase
-                    .from('check_ins')
-                    .select('*', { count: 'exact', head: true })
-                    .gte('check_in_time', `${today}T00:00:00`)
-                    .lt('check_in_time', `${today}T23:59:59`),
-                supabase
-                    .from('payments')
-                    .select('amount')
-                    .eq('payment_date', today)
-                    .eq('payment_status', 'paid'),
-                supabase
-                    .from('payments')
-                    .select('amount')
-                    .eq('payment_status', 'paid')
-                    .gte('payment_date', `${today.slice(0, 7)}-01`)
-                    .lte('payment_date', today),
-                supabase
-                    .from('expenses')
-                    .select('amount')
-                    .gte('expense_date', `${today.slice(0, 7)}-01`)
-                    .lte('expense_date', today),
-                supabase
-                    .from('members')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('status', 'active')
-                    .eq('membership_expiry_date', today),
-                supabase
-                    .from('members')
-                    .select(`
-                        id,
-                        full_name,
-                        member_id,
-                        photo_url,
-                        status,
-                        membership_expiry_date,
-                        membership_plan:membership_plans(name, price)
-                    `)
-                    .not('membership_expiry_date', 'is', null)
-                    .order('membership_expiry_date', { ascending: true })
-                    ,
-                supabase
-                    .from('payments')
-                    .select('amount, payment_date')
-                    .eq('payment_status', 'paid')
-                    .gte('payment_date', days[0])
-                    .lte('payment_date', today),
-            ])
-
-            const revenueByDate: Record<string, number> = {}
-            ;(allPayments as { payment_date: string; amount: number }[] | null)?.forEach((payment) => {
-                revenueByDate[payment.payment_date] = (revenueByDate[payment.payment_date] || 0) + toSafeAmount(payment.amount)
-            })
-
-            const revenueChart = days.map((day) => ({
-                date: new Date(`${day}T00:00:00`).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }),
-                revenue: revenueByDate[day] || 0,
-            }))
-
-            const normalizedRenewalMembers = (renewalMembers || []) as DashboardData['renewals']
-            const expiringRenewals = getExpiringMembers(normalizedRenewalMembers)
-            const overdueRenewals = getOverdueMembers(normalizedRenewalMembers)
-            const combinedRenewals = [...expiringRenewals, ...overdueRenewals]
-            const uniqueRenewals = Array.from(new Map(combinedRenewals.map((member) => [member.id, member])).values())
-            const pendingCollection = uniqueRenewals.reduce(
-                (sum, member) => sum + Number(member.membership_plan?.price || 0),
-                0
-            )
-
-            setData({
-                totalMembers: totalMembers || 0,
-                activeMembers: activeMembers || 0,
-                pendingCollection,
-                todayRevenue: sumAmounts(todayPayments as Array<{ amount: unknown }> | null),
-                monthRevenue: sumAmounts(monthPayments as Array<{ amount: unknown }> | null),
-                monthExpenses: sumAmounts(monthExpensesRows as Array<{ amount: unknown }> | null),
-                todayPaymentsCount: todayPayments?.length || 0,
-                todayCheckIns: todayCheckIns || 0,
-                expiringCount: expiringCount || 0,
-                revenueChart,
-                renewals: normalizedRenewalMembers,
-            })
+            setData(fetchedData)
             setLoading(false)
         }
 
         fetchData()
+        return () => {
+            cancelled = true
+        }
     }, [])
 
     if (loading) {

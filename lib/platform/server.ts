@@ -4,9 +4,9 @@ import { cache } from 'react'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import type { User } from '@supabase/supabase-js'
-import { createClient } from '@/lib/supabase/server'
+import { getCurrentAuthResolution } from '@/lib/auth/gym-context'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
-import type { QueryResult, Tables } from '@/lib/types'
+import type { Tables } from '@/lib/types'
 import {
     type GymDailyStat,
     type GymFeatureFlag,
@@ -43,8 +43,23 @@ type SubscriptionWithPlan = SaaSSubscription & {
     plan?: SaaSPlan | null
 }
 
+export const getCurrentPlatformContext = cache(async (): Promise<PlatformContext> => {
+    const { user, profile, platformAdmin, activeImpersonation } = await getCurrentAuthResolution()
+
+    if (!user) {
+        return { user: null, profile: null, platformAdmin: null, activeImpersonation: null }
+    }
+
+    return {
+        user,
+        profile,
+        platformAdmin: platformAdmin as PlatformAdmin | null,
+        activeImpersonation: activeImpersonation as PlatformContext['activeImpersonation'],
+    }
+})
+
 function adminClient() {
-    return getSupabaseAdmin() as any
+    return getSupabaseAdmin()
 }
 
 function isUuid(value: string | null | undefined) {
@@ -67,50 +82,6 @@ function isWithinDays(value: string | null | undefined, days: number) {
 function withPlanAmount(subscription: SubscriptionWithPlan | null | undefined) {
     return getSubscriptionAmount(subscription, subscription?.plan ?? null)
 }
-
-async function getPlatformAdminForUser(userId: string) {
-    const admin = adminClient()
-    const [platformAdminResult, profileResult, impersonationResult] = await Promise.all([
-        admin
-            .from('platform_admins')
-            .select('*')
-            .eq('user_id', userId)
-            .eq('is_active', true)
-            .maybeSingle(),
-        admin
-            .from('profiles')
-            .select('*')
-            .eq('id', userId)
-            .maybeSingle(),
-        admin
-            .from('impersonation_sessions')
-            .select('*, gym:gyms(id, name, subdomain), platform_admin:platform_admins!inner(user_id)')
-            .eq('platform_admin.user_id', userId)
-            .is('ended_at', null)
-            .order('started_at', { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-    ])
-
-    const { data: platformAdmin } = platformAdminResult as QueryResult<PlatformAdmin | null>
-    const { data: profile } = profileResult as QueryResult<ProfileRecord | null>
-    const { data: activeImpersonation } = impersonationResult as QueryResult<PlatformContext['activeImpersonation']>
-
-    return { profile, platformAdmin, activeImpersonation }
-}
-
-export const getCurrentPlatformContext = cache(async (): Promise<PlatformContext> => {
-    const supabase = await createClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-        return { user: null, profile: null, platformAdmin: null, activeImpersonation: null }
-    }
-
-    return { user, ...(await getPlatformAdminForUser(user.id)) }
-})
 
 export async function requirePlatformContext(): Promise<AuthenticatedPlatformContext> {
     const context = await getCurrentPlatformContext()

@@ -8,6 +8,7 @@ import { getAvatarStoragePath } from '@/lib/utils/storage'
 import { sendMemberWhatsAppNotification } from '@/lib/notifications/service'
 import { getCurrentGymContext } from '@/lib/auth/gym-context'
 import { findAuthUserByEmail, getSupabaseAdmin } from '@/lib/supabase/admin'
+import { invalidateGymAdminSummaries } from '@/lib/auth/admin-server'
 
 type MemberIdRow = Pick<InsertTables<'members'>, 'member_id'>
 type PlanLookup = Pick<InsertTables<'membership_plans'>, 'duration_days' | 'price'>
@@ -334,6 +335,7 @@ export async function createMember(formData: FormData) {
             })
         }
 
+        invalidateGymAdminSummaries(viewer.gym.id)
         revalidatePath('/admin/members')
         return {
             success: true,
@@ -436,10 +438,13 @@ export async function updateMember(formData: FormData) {
             photo_url: photoUrl,
         }
 
-        const { error } = await supabase
+        const updateResult = await supabase
             .from('members')
             .update(updatePayload as never)
             .eq('id', memberId)
+            .select('gym_id')
+            .single()
+        const { data: updatedMember, error } = updateResult as unknown as QueryResult<{ gym_id: string } | null>
 
         if (error) {
             if (finalUploadedPhotoPath) {
@@ -453,6 +458,9 @@ export async function updateMember(formData: FormData) {
             await supabaseAdmin.storage.from('avatars').remove([oldPhotoPath])
         }
 
+        if (updatedMember?.gym_id) {
+            invalidateGymAdminSummaries(updatedMember.gym_id)
+        }
         revalidatePath('/admin/members')
         revalidatePath(`/admin/members/${memberId}`)
         revalidatePath(`/admin/members/${memberId}/edit`)
@@ -474,11 +482,11 @@ export async function deleteMember(memberId: string) {
 
         const memberResult = await supabase
             .from('members')
-            .select('id, photo_url')
+            .select('id, photo_url, gym_id')
             .eq('id', memberId)
             .single()
 
-        const { data: member, error: fetchError } = memberResult as unknown as QueryResult<Pick<InsertTables<'members'>, 'id' | 'photo_url'> | null>
+        const { data: member, error: fetchError } = memberResult as unknown as QueryResult<Pick<InsertTables<'members'>, 'id' | 'photo_url' | 'gym_id'> | null>
 
         if (fetchError || !member) {
             return { error: getErrorMessage(fetchError, 'Member not found') }
@@ -499,6 +507,9 @@ export async function deleteMember(memberId: string) {
             await supabaseAdmin.storage.from('avatars').remove([photoPath])
         }
 
+        if (member.gym_id) {
+            invalidateGymAdminSummaries(member.gym_id)
+        }
         revalidatePath('/admin/members')
         revalidatePath(`/admin/members/${memberId}`)
         revalidatePath(`/admin/members/${memberId}/edit`)

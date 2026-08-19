@@ -1,8 +1,8 @@
 'use client'
 
-import { startTransition, useEffect, useMemo, useState } from 'react'
+import { startTransition, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { deleteMember } from '@/app/admin/members/actions'
 import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { Input } from '@/components/ui/input'
@@ -29,10 +29,10 @@ import {
     X,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/date'
-import { getExpiringMembers, getOverdueMembers } from '@/lib/utils/renewals'
 import { toast } from 'sonner'
 
 const ITEMS_PER_PAGE = 20
+const SEARCH_DEBOUNCE_MS = 350
 
 interface Member {
     id: string
@@ -52,11 +52,35 @@ interface Member {
 interface MembersTableProps {
     members: Member[]
     plans: { id: string; name: string }[]
+    currentPage: number
+    totalCount: number
     initialFilters?: {
+        q?: string
         status?: string
+        plan?: string
+        gender?: string
+        startFrom?: string
+        startTo?: string
+        endFrom?: string
+        endTo?: string
         planExpiry?: string
         filter?: string
     }
+}
+
+type RouteParamValue = string | number | null | undefined
+
+function routeWithParams(pathname: string, updates: Record<string, RouteParamValue>) {
+    const params = new URLSearchParams(window.location.search)
+    Object.entries(updates).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '' || value === 'all') {
+            params.delete(key)
+        } else {
+            params.set(key, String(value))
+        }
+    })
+    const query = params.toString()
+    return query ? `${pathname}?${query}` : pathname
 }
 
 function getPlanColor(name: string): string {
@@ -158,28 +182,61 @@ function PaginationBar({
     )
 }
 
-export default function MembersTable({ members, plans, initialFilters }: MembersTableProps) {
+export default function MembersTable({ members, plans, currentPage, totalCount, initialFilters }: MembersTableProps) {
     const router = useRouter()
+    const pathname = usePathname()
     const { isDark } = useAdminTheme()
     const { confirm, dialog } = useConfirmDialog()
     const todayValue = new Date().toISOString().split('T')[0]
     const initialRenewalFilter = initialFilters?.filter === 'expires' || initialFilters?.filter === 'overdue' || initialFilters?.filter === 'renewals'
         ? initialFilters.filter
         : 'all'
-    const [searchQuery, setSearchQuery] = useState('')
+    const [searchQuery, setSearchQuery] = useState(initialFilters?.q || '')
     const [statusFilter, setStatusFilter] = useState(initialFilters?.status || 'all')
-    const [planFilter, setPlanFilter] = useState('all')
-    const [genderFilter, setGenderFilter] = useState('all')
-    const [startFrom, setStartFrom] = useState('')
-    const [startTo, setStartTo] = useState('')
-    const [endFrom, setEndFrom] = useState(initialFilters?.planExpiry === 'today' ? todayValue : '')
-    const [endTo, setEndTo] = useState(initialFilters?.planExpiry === 'today' ? todayValue : '')
+    const [planFilter, setPlanFilter] = useState(initialFilters?.plan || 'all')
+    const [genderFilter, setGenderFilter] = useState(initialFilters?.gender || 'all')
+    const [startFrom, setStartFrom] = useState(initialFilters?.startFrom || '')
+    const [startTo, setStartTo] = useState(initialFilters?.startTo || '')
+    const [endFrom, setEndFrom] = useState(initialFilters?.endFrom || (initialFilters?.planExpiry === 'today' ? todayValue : ''))
+    const [endTo, setEndTo] = useState(initialFilters?.endTo || (initialFilters?.planExpiry === 'today' ? todayValue : ''))
     const [renewalFilter, setRenewalFilter] = useState<'all' | 'expires' | 'overdue' | 'renewals'>(initialRenewalFilter)
-    const [currentPage, setCurrentPage] = useState(1)
     const [deletingId, setDeletingId] = useState<string | null>(null)
     const [openingAddMember, setOpeningAddMember] = useState(false)
     const [navigatingMemberId, setNavigatingMemberId] = useState<string | null>(null)
     const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
+    const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    // Tracks the last value *this component* pushed to the `q` URL param, so
+    // the sync effect below can tell "the debounced search we just fired"
+    // (ignore — the search box already shows this value) apart from a `q`
+    // change that came from elsewhere, e.g. browser back/forward.
+    const lastPushedQueryRef = useRef(initialFilters?.q || '')
+    // Mirrors of the server-provided list/count so a delete can update the
+    // UI immediately without forcing a full route refresh (which would also
+    // re-run the admin layout's unrelated auth/platform-context queries).
+    const [localMembers, setLocalMembers] = useState(members)
+    const [localTotalCount, setLocalTotalCount] = useState(totalCount)
+
+    useEffect(() => {
+        setLocalMembers(members)
+        setLocalTotalCount(totalCount)
+    }, [members, totalCount])
+
+    // The `q`/`page` params are intentionally excluded from this component's
+    // remount key (see MembersPage) so the search input never loses focus
+    // mid-type. If `q` ever changes for a reason other than our own debounced
+    // search (e.g. the user navigates back/forward), sync the search box to
+    // it — done during render (React's recommended pattern for adjusting
+    // state from a prop change) rather than in an effect, so it takes effect
+    // in the same render instead of triggering an extra one.
+    const incomingQuery = initialFilters?.q || ''
+    const [prevIncomingQuery, setPrevIncomingQuery] = useState(incomingQuery)
+    if (incomingQuery !== prevIncomingQuery) {
+        setPrevIncomingQuery(incomingQuery)
+        if (incomingQuery !== lastPushedQueryRef.current) {
+            lastPushedQueryRef.current = incomingQuery
+            setSearchQuery(incomingQuery)
+        }
+    }
 
     // Draft state — only committed to real filters on "Apply Search"
     const [draftStatus, setDraftStatus] = useState('all')
@@ -195,6 +252,13 @@ export default function MembersTable({ members, plans, initialFilters }: Members
         router.prefetch('/admin/members/add')
     }, [router])
 
+    // Debounce the search query so each keystroke doesn't trigger its own server round-trip
+    useEffect(() => {
+        return () => {
+            if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+        }
+    }, [])
+
     // Lock body scroll when modal is open so nothing bleeds through
     useEffect(() => {
         if (showAdvancedSearch) {
@@ -207,77 +271,29 @@ export default function MembersTable({ members, plans, initialFilters }: Members
         }
     }, [showAdvancedSearch])
 
-    const renewalMemberIds = useMemo(() => {
-        if (renewalFilter === 'all') {
-            return null
-        }
-
-        if (renewalFilter === 'expires') {
-            return new Set(getExpiringMembers(members).map((member) => member.id))
-        }
-
-        if (renewalFilter === 'overdue') {
-            return new Set(getOverdueMembers(members).map((member) => member.id))
-        }
-
-        return new Set([...getExpiringMembers(members), ...getOverdueMembers(members)].map((member) => member.id))
-    }, [members, renewalFilter])
-
-    const filtered = useMemo(() => {
-        return members.filter((member) => {
-            const q = searchQuery.toLowerCase()
-            const matchesSearch =
-                member.full_name.toLowerCase().includes(q) ||
-                member.member_id.toLowerCase().includes(q) ||
-                member.phone.includes(q) ||
-                (member.email?.toLowerCase().includes(q) ?? false)
-            const matchesStatus = statusFilter === 'all' || member.status === statusFilter
-            const matchesPlan = planFilter === 'all' || member.membership_plan_id === planFilter
-            const matchesGender = genderFilter === 'all' || (member.gender || '').toLowerCase() === genderFilter
-            const startDate = member.membership_start_date || ''
-            const endDate = member.membership_expiry_date || ''
-            const matchesStartFrom = !startFrom || (startDate && startDate >= startFrom)
-            const matchesStartTo = !startTo || (startDate && startDate <= startTo)
-            const matchesEndFrom = !endFrom || (endDate && endDate >= endFrom)
-            const matchesEndTo = !endTo || (endDate && endDate <= endTo)
-            const matchesRenewalFilter = renewalMemberIds ? renewalMemberIds.has(member.id) : true
-            return (
-                matchesSearch &&
-                matchesStatus &&
-                matchesPlan &&
-                matchesGender &&
-                matchesStartFrom &&
-                matchesStartTo &&
-                matchesEndFrom &&
-                matchesEndTo &&
-                matchesRenewalFilter
-            )
-        })
-    }, [members, searchQuery, statusFilter, planFilter, genderFilter, startFrom, startTo, endFrom, endTo, renewalMemberIds])
-
-    const sortedMembers = useMemo(() => {
-        if (renewalFilter === 'all') {
-            return filtered
-        }
-
-        return [...filtered].sort((a, b) => {
-            const aTime = new Date(`${a.membership_expiry_date || '9999-12-31'}T00:00:00`).getTime()
-            const bTime = new Date(`${b.membership_expiry_date || '9999-12-31'}T00:00:00`).getTime()
-            return aTime - bTime
-        })
-    }, [filtered, renewalFilter])
-
-    const totalPages = Math.max(1, Math.ceil(sortedMembers.length / ITEMS_PER_PAGE))
+    const totalPages = Math.max(1, Math.ceil(localTotalCount / ITEMS_PER_PAGE))
     const safePage = Math.min(currentPage, totalPages)
-    const paginated = sortedMembers.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE)
+    const paginated = localMembers
+
+    const replaceListRoute = (updates: Record<string, RouteParamValue>) => {
+        startTransition(() => {
+            router.replace(routeWithParams(pathname, { ...updates, page: updates.page ?? undefined }), { scroll: false })
+        })
+    }
 
     const handlePageChange = (page: number) => {
-        if (page >= 1 && page <= totalPages) setCurrentPage(page)
+        if (page >= 1 && page <= totalPages) {
+            replaceListRoute({ page: page === 1 ? undefined : page })
+        }
     }
 
     const handleSearch = (value: string) => {
         setSearchQuery(value)
-        setCurrentPage(1)
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+        searchDebounceRef.current = setTimeout(() => {
+            lastPushedQueryRef.current = value
+            replaceListRoute({ q: value, page: undefined })
+        }, SEARCH_DEBOUNCE_MS)
     }
     // Open modal seeded from currently-applied values
     const handleOpenAdvancedSearch = () => {
@@ -309,7 +325,17 @@ export default function MembersTable({ members, plans, initialFilters }: Members
         setStartTo(draftStartTo)
         setEndFrom(draftEndFrom)
         setEndTo(draftEndTo)
-        setCurrentPage(1)
+        replaceListRoute({
+            status: draftStatus,
+            plan: draftPlan,
+            gender: draftGender,
+            startFrom: draftStartFrom,
+            startTo: draftStartTo,
+            endFrom: draftEndFrom,
+            endTo: draftEndTo,
+            planExpiry: undefined,
+            page: undefined,
+        })
         setDateError('')
         setShowAdvancedSearch(false)
     }
@@ -349,7 +375,18 @@ export default function MembersTable({ members, plans, initialFilters }: Members
         setEndFrom('')
         setEndTo('')
         setRenewalFilter('all')
-        setCurrentPage(1)
+        replaceListRoute({
+            status: undefined,
+            plan: undefined,
+            gender: undefined,
+            startFrom: undefined,
+            startTo: undefined,
+            endFrom: undefined,
+            endTo: undefined,
+            filter: undefined,
+            planExpiry: undefined,
+            page: undefined,
+        })
     }
 
     const handleDelete = async (id: string, name: string) => {
@@ -366,7 +403,11 @@ export default function MembersTable({ members, plans, initialFilters }: Members
             const result = await deleteMember(id)
             if (result.error) throw new Error(result.error)
             toast.success(`${name} deleted`)
-            router.refresh()
+            // Update the visible list/count directly instead of a full route
+            // refresh, which would also re-run the admin layout's unrelated
+            // auth/platform-context queries.
+            setLocalMembers((prev) => prev.filter((member) => member.id !== id))
+            setLocalTotalCount((prev) => Math.max(0, prev - 1))
         } catch {
             toast.error('Failed to delete member')
         } finally {
@@ -837,10 +878,10 @@ export default function MembersTable({ members, plans, initialFilters }: Members
                     <p className="text-xs text-gray-500">
                         Showing{' '}
                         <span className="font-semibold text-blue-600">
-                            {sortedMembers.length === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1}-
-                            {Math.min(safePage * ITEMS_PER_PAGE, sortedMembers.length)}
+                            {localTotalCount === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1}-
+                            {Math.min(safePage * ITEMS_PER_PAGE, localTotalCount)}
                         </span>{' '}
-                        of <span className="font-medium text-gray-700">{sortedMembers.length}</span> members
+                        of <span className="font-medium text-gray-700">{localTotalCount}</span> members
                     </p>
                     {totalPages > 1 ? (
                         <div className="self-end sm:ml-auto">

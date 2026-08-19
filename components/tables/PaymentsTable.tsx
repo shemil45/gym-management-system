@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useMemo, useEffect, startTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useRef, startTransition } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -34,6 +34,7 @@ import { formatCurrency } from '@/lib/utils/currency'
 import { formatDate } from '@/lib/utils/date'
 
 const ITEMS_PER_PAGE = 20
+const SEARCH_DEBOUNCE_MS = 350
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -64,11 +65,33 @@ interface PaymentsTableProps {
     payments: PaymentRow[]
     todayTotal: number
     monthTotal: number
+    totalRevenue: number
+    currentPage: number
+    totalCount: number
     initialFilters?: {
+        q?: string
         status?: string
         date?: string
+        method?: string
+        dateFrom?: string
+        dateTo?: string
         type?: string
     }
+}
+
+type RouteParamValue = string | number | null | undefined
+
+function routeWithParams(pathname: string, updates: Record<string, RouteParamValue>) {
+    const params = new URLSearchParams(window.location.search)
+    Object.entries(updates).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '' || value === 'all') {
+            params.delete(key)
+        } else {
+            params.set(key, String(value))
+        }
+    })
+    const query = params.toString()
+    return query ? `${pathname}?${query}` : pathname
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -80,12 +103,6 @@ function getInitials(name: string) {
         .join('')
         .toUpperCase()
         .slice(0, 2)
-}
-
-function isThisMonth(dateStr: string) {
-    const d = new Date(dateStr)
-    const now = new Date()
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
 }
 
 function formatTime(dateStr: string) {
@@ -228,19 +245,33 @@ function PaginationBar({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function PaymentsTable({ payments, todayTotal, monthTotal, initialFilters }: PaymentsTableProps) {
+export default function PaymentsTable({
+    payments,
+    todayTotal,
+    monthTotal,
+    totalRevenue,
+    currentPage,
+    totalCount,
+    initialFilters,
+}: PaymentsTableProps) {
     const router = useRouter()
+    const pathname = usePathname()
     const { isDark } = useAdminTheme()
     const initialDateRange = getPresetDateRange(initialFilters?.date ?? null)
     const [openingRecordPayment, setOpeningRecordPayment] = useState(false)
-    const [searchQuery, setSearchQuery] = useState('')
+    const [searchQuery, setSearchQuery] = useState(initialFilters?.q || '')
     const [navigatingInvoiceId, setNavigatingInvoiceId] = useState<string | null>(null)
     const [statusFilter, setStatusFilter] = useState(initialFilters?.status || 'all')
-    const [methodFilter, setMethodFilter] = useState('all')
-    const [dateFrom, setDateFrom] = useState(initialDateRange.from)
-    const [dateTo, setDateTo] = useState(initialDateRange.to)
-    const [currentPage, setCurrentPage] = useState(1)
+    const [methodFilter, setMethodFilter] = useState(initialFilters?.method || 'all')
+    const [dateFrom, setDateFrom] = useState(initialFilters?.dateFrom ?? initialDateRange.from)
+    const [dateTo, setDateTo] = useState(initialFilters?.dateTo ?? initialDateRange.to)
     const [showFilterModal, setShowFilterModal] = useState(false)
+    const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    // Tracks the last value *this component* pushed to the `q` URL param, so
+    // the sync effect below can tell "the debounced search we just fired"
+    // (ignore — the search box already shows this value) apart from a `q`
+    // change that came from elsewhere, e.g. browser back/forward.
+    const lastPushedQueryRef = useRef(initialFilters?.q || '')
 
     // Draft state for modal
     const [draftStatus, setDraftStatus] = useState('all')
@@ -248,6 +279,39 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal, initia
     const [draftDateFrom, setDraftDateFrom] = useState('')
     const [draftDateTo, setDraftDateTo] = useState('')
     const [dateError, setDateError] = useState('')
+
+    // Debounce the search query so each keystroke doesn't trigger its own server round-trip
+    useEffect(() => {
+        return () => {
+            if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+        }
+    }, [])
+
+    // `q`/`page` are intentionally excluded from this component's remount key
+    // (see FinancesPaymentsPage) so the search input never loses focus
+    // mid-type. If `q` ever changes for a reason other than our own debounced
+    // search (e.g. the user navigates back/forward), sync the search box to
+    // it — done during render (React's recommended pattern for adjusting
+    // state from a prop change) rather than in an effect, so it takes effect
+    // in the same render instead of triggering an extra one.
+    const incomingQuery = initialFilters?.q || ''
+    const [prevIncomingQuery, setPrevIncomingQuery] = useState(incomingQuery)
+    if (incomingQuery !== prevIncomingQuery) {
+        setPrevIncomingQuery(incomingQuery)
+        if (incomingQuery !== lastPushedQueryRef.current) {
+            lastPushedQueryRef.current = incomingQuery
+            setSearchQuery(incomingQuery)
+        }
+    }
+
+    const handleSearch = (value: string) => {
+        setSearchQuery(value)
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+        searchDebounceRef.current = setTimeout(() => {
+            lastPushedQueryRef.current = value
+            replaceListRoute({ q: value, page: undefined })
+        }, SEARCH_DEBOUNCE_MS)
+    }
 
     // Lock body scroll when modal is open
     useEffect(() => {
@@ -261,50 +325,15 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal, initia
         }
     }, [showFilterModal])
 
-    // Stats
-    const totalRevenue = useMemo(
-        () => payments.filter((p) => p.payment_status === 'paid').reduce((s, p) => s + Number(p.amount), 0),
-        [payments]
-    )
-    const monthRevenue = useMemo(
-        () =>
-            payments
-                .filter((p) => p.payment_status === 'paid' && isThisMonth(p.payment_date))
-                .reduce((s, p) => s + Number(p.amount), 0),
-        [payments]
-    )
-
-    // Filter
-    const filtered = useMemo(() => {
-        const q = searchQuery.toLowerCase()
-        return payments.filter((p) => {
-            const m = p.member
-            const matchSearch =
-                !q ||
-                m?.full_name.toLowerCase().includes(q) ||
-                m?.member_id.toLowerCase().includes(q) ||
-                (p.invoice_number?.toLowerCase().includes(q) ?? false)
-            const matchStatus = statusFilter === 'all' || p.payment_status === statusFilter
-            const matchMethod = methodFilter === 'all' || p.payment_method === methodFilter
-            const matchDateFrom = !dateFrom || p.payment_date >= dateFrom
-            const matchDateTo = !dateTo || p.payment_date <= dateTo
-            return matchSearch && matchStatus && matchMethod && matchDateFrom && matchDateTo
-        })
-    }, [payments, searchQuery, statusFilter, methodFilter, dateFrom, dateTo])
-
-    const sortedFiltered = useMemo(() => {
-        return [...filtered].sort((a, b) => {
-            const aTs = new Date(a.created_at || a.payment_date).getTime()
-            const bTs = new Date(b.created_at || b.payment_date).getTime()
-            return bTs - aTs
-        })
-    }, [filtered])
-
-    const totalPages = Math.max(1, Math.ceil(sortedFiltered.length / ITEMS_PER_PAGE))
+    const totalPages = Math.max(1, Math.ceil(totalCount / ITEMS_PER_PAGE))
     const safePage = Math.min(currentPage, totalPages)
-    const paginated = sortedFiltered.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE)
+    const paginated = payments
 
-    const resetPage = () => setCurrentPage(1)
+    const replaceListRoute = (updates: Record<string, RouteParamValue>) => {
+        startTransition(() => {
+            router.replace(routeWithParams(pathname, { ...updates, page: updates.page ?? undefined }), { scroll: false })
+        })
+    }
 
     const handleRowClick = (paymentId: string, invoiceNumber: string | null, status: string) => {
         if (!invoiceNumber || navigatingInvoiceId) return
@@ -347,7 +376,14 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal, initia
         setMethodFilter(draftMethod)
         setDateFrom(draftDateFrom)
         setDateTo(draftDateTo)
-        resetPage()
+        replaceListRoute({
+            status: draftStatus,
+            method: draftMethod,
+            dateFrom: draftDateFrom,
+            dateTo: draftDateTo,
+            date: undefined,
+            page: undefined,
+        })
         setDateError('')
         setShowFilterModal(false)
     }
@@ -365,7 +401,14 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal, initia
         setMethodFilter('all')
         setDateFrom('')
         setDateTo('')
-        resetPage()
+        replaceListRoute({
+            status: undefined,
+            method: undefined,
+            dateFrom: undefined,
+            dateTo: undefined,
+            date: undefined,
+            page: undefined,
+        })
     }
 
     return (
@@ -545,7 +588,7 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal, initia
                             icon={<TrendingUp className="h-4.5 w-4.5 text-blue-600" />}
                             iconBg="bg-blue-50"
                             label="This Month"
-                            value={formatCurrency(monthRevenue || monthTotal)}
+                            value={formatCurrency(monthTotal)}
                         />
                     </div>
                     <StatCard
@@ -567,10 +610,7 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal, initia
                             <Input
                                 placeholder="Search by name, ID or invoice..."
                                 value={searchQuery}
-                                onChange={(e) => {
-                                    setSearchQuery(e.target.value)
-                                    resetPage()
-                                }}
+                                onChange={(e) => handleSearch(e.target.value)}
                                 className="h-12 w-full rounded-xl border-slate-200 bg-slate-50 pl-10 text-sm focus:border-emerald-400 focus:ring-emerald-400"
                             />
                         </div>
@@ -835,10 +875,10 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal, initia
                     <p className="text-xs text-gray-500">
                         Showing{' '}
                         <span className="font-semibold text-emerald-600">
-                            {sortedFiltered.length === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1}–
-                            {Math.min(safePage * ITEMS_PER_PAGE, sortedFiltered.length)}
+                            {totalCount === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1}–
+                            {Math.min(safePage * ITEMS_PER_PAGE, totalCount)}
                         </span>{' '}
-                        of <span className="font-medium text-gray-700">{sortedFiltered.length}</span> payments
+                        of <span className="font-medium text-gray-700">{totalCount}</span> payments
                     </p>
                     {totalPages > 1 && (
                         <div className="sm:ml-auto">
@@ -846,7 +886,9 @@ export default function PaymentsTable({ payments, todayTotal, monthTotal, initia
                                 currentPage={safePage}
                                 totalPages={totalPages}
                                 onPageChange={(p) => {
-                                    if (p >= 1 && p <= totalPages) setCurrentPage(p)
+                                    if (p >= 1 && p <= totalPages) {
+                                        replaceListRoute({ page: p === 1 ? undefined : p })
+                                    }
                                 }}
                             />
                         </div>

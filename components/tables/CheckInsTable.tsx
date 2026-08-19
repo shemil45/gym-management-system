@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import type { InsertTables, UpdateTables } from '@/lib/types'
@@ -34,6 +34,7 @@ import {
 import { toast } from 'sonner'
 
 const ITEMS_PER_PAGE = 20
+const SEARCH_DEBOUNCE_MS = 350
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -65,6 +66,33 @@ interface CheckInsTableProps {
         photo_url?: string | null
         status: string
     }[]
+    currentPage: number
+    totalCount: number
+    stats: {
+        todayCount: number
+        currentlyIn: number
+        weekCount: number
+    }
+    initialFilters?: {
+        q?: string
+        date?: string
+        method?: string
+    }
+}
+
+type RouteParamValue = string | number | null | undefined
+
+function routeWithParams(pathname: string, updates: Record<string, RouteParamValue>) {
+    const params = new URLSearchParams(window.location.search)
+    Object.entries(updates).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '' || value === 'all') {
+            params.delete(key)
+        } else {
+            params.set(key, String(value))
+        }
+    })
+    const query = params.toString()
+    return query ? `${pathname}?${query}` : pathname
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -96,17 +124,6 @@ function calcDuration(checkIn: string, checkOut: string | null) {
     const h = Math.floor(mins / 60)
     const m = mins % 60
     return m > 0 ? `${h}h ${m}m` : `${h}h`
-}
-
-function isToday(iso: string) {
-    const d = new Date(iso).toDateString()
-    return d === new Date().toDateString()
-}
-
-function isThisWeek(iso: string) {
-    const now = new Date()
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-    return new Date(iso) >= weekAgo
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -410,50 +427,84 @@ function CheckInModal({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function CheckInsTable({ checkIns, activeMembers }: CheckInsTableProps) {
+export default function CheckInsTable({
+    checkIns,
+    activeMembers,
+    currentPage,
+    totalCount,
+    stats,
+    initialFilters,
+}: CheckInsTableProps) {
     const router = useRouter()
+    const pathname = usePathname()
     const { isDark } = useAdminTheme()
-    const [searchQuery, setSearchQuery] = useState('')
-    const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'all'>('today')
-    const [methodFilter, setMethodFilter] = useState('all')
-    const [currentPage, setCurrentPage] = useState(1)
+    const [searchQuery, setSearchQuery] = useState(initialFilters?.q || '')
+    const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'all'>(
+        initialFilters?.date === 'week' || initialFilters?.date === 'all' ? initialFilters.date : 'today'
+    )
+    const [methodFilter, setMethodFilter] = useState(initialFilters?.method || 'all')
     const [checkingOutId, setCheckingOutId] = useState<string | null>(null)
     const [showModal, setShowModal] = useState(false)
+    const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    // Tracks the last value *this component* pushed to the `q` URL param, so
+    // the sync effect below can tell "the debounced search we just fired"
+    // (ignore — the search box already shows this value) apart from a `q`
+    // change that came from elsewhere, e.g. browser back/forward.
+    const lastPushedQueryRef = useRef(initialFilters?.q || '')
+    // Mirrors of the server-provided rows/stats so a check-out can update the
+    // UI immediately without forcing a full route refresh (which would also
+    // re-run the admin layout's unrelated auth/platform-context queries).
+    const [localCheckIns, setLocalCheckIns] = useState(checkIns)
+    const [localStats, setLocalStats] = useState(stats)
+
+    useEffect(() => {
+        setLocalCheckIns(checkIns)
+        setLocalStats(stats)
+    }, [checkIns, stats])
 
     // ── Stats ────────────────────────────────────────────────
-    const todayCount = useMemo(() => checkIns.filter((c) => isToday(c.check_in_time)).length, [checkIns])
-    const currentlyIn = useMemo(
-        () => checkIns.filter((c) => isToday(c.check_in_time) && !c.check_out_time).length,
-        [checkIns]
-    )
-    const weekCount = useMemo(() => checkIns.filter((c) => isThisWeek(c.check_in_time)).length, [checkIns])
-
     // ── Filtered rows ────────────────────────────────────────
-    const filtered = useMemo(() => {
-        const q = searchQuery.toLowerCase()
-        return checkIns.filter((c) => {
-            const member = c.member
-            const matchSearch =
-                !q ||
-                member?.full_name.toLowerCase().includes(q) ||
-                member?.member_id.toLowerCase().includes(q)
-            const matchDate =
-                dateFilter === 'all'
-                    ? true
-                    : dateFilter === 'today'
-                        ? isToday(c.check_in_time)
-                        : isThisWeek(c.check_in_time)
-            const matchMethod = methodFilter === 'all' || c.entry_method === methodFilter
-            return matchSearch && matchDate && matchMethod
-        })
-    }, [checkIns, searchQuery, dateFilter, methodFilter])
-
     // ── Pagination ───────────────────────────────────────────
-    const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE))
+    const totalPages = Math.max(1, Math.ceil(totalCount / ITEMS_PER_PAGE))
     const safePage = Math.min(currentPage, totalPages)
-    const paginated = filtered.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE)
+    const paginated = localCheckIns
 
-    const resetPage = () => setCurrentPage(1)
+    const replaceListRoute = (updates: Record<string, RouteParamValue>) => {
+        router.replace(routeWithParams(pathname, { ...updates, page: updates.page ?? undefined }), { scroll: false })
+    }
+
+    // Debounce the search query so each keystroke doesn't trigger its own server round-trip
+    useEffect(() => {
+        return () => {
+            if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+        }
+    }, [])
+
+    // `q`/`page` are intentionally excluded from this component's remount key
+    // (see CheckInsPage) so the search input never loses focus mid-type. If
+    // `q` ever changes for a reason other than our own debounced search (e.g.
+    // the user navigates back/forward), sync the search box to it — done
+    // during render (React's recommended pattern for adjusting state from a
+    // prop change) rather than in an effect, so it takes effect in the same
+    // render instead of triggering an extra one.
+    const incomingQuery = initialFilters?.q || ''
+    const [prevIncomingQuery, setPrevIncomingQuery] = useState(incomingQuery)
+    if (incomingQuery !== prevIncomingQuery) {
+        setPrevIncomingQuery(incomingQuery)
+        if (incomingQuery !== lastPushedQueryRef.current) {
+            lastPushedQueryRef.current = incomingQuery
+            setSearchQuery(incomingQuery)
+        }
+    }
+
+    const handleSearch = (value: string) => {
+        setSearchQuery(value)
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+        searchDebounceRef.current = setTimeout(() => {
+            lastPushedQueryRef.current = value
+            replaceListRoute({ q: value, page: undefined })
+        }, SEARCH_DEBOUNCE_MS)
+    }
 
     // ── Check-out ────────────────────────────────────────────
     const handleCheckOut = async (id: string, memberName: string) => {
@@ -468,7 +519,14 @@ export default function CheckInsTable({ checkIns, activeMembers }: CheckInsTable
                 .eq('id', id)
             if (error) throw error
             toast.success(`${memberName} checked out`)
-            router.refresh()
+            // Update the visible row/stats directly instead of a full route
+            // refresh, which would also re-run the admin layout's unrelated
+            // auth/platform-context queries.
+            const checkOutTime = new Date().toISOString()
+            setLocalCheckIns((prev) =>
+                prev.map((row) => (row.id === id ? { ...row, check_out_time: checkOutTime } : row))
+            )
+            setLocalStats((prev) => ({ ...prev, currentlyIn: Math.max(0, prev.currentlyIn - 1) }))
         } catch (error) {
             toast.error(getErrorMessage(error, 'Failed to record check-out'))
         } finally {
@@ -499,19 +557,19 @@ export default function CheckInsTable({ checkIns, activeMembers }: CheckInsTable
                     icon={<CalendarDays className="h-5 w-5 text-blue-600" />}
                     iconBg="bg-blue-50"
                     label="Today's Check-ins"
-                    value={todayCount}
+                    value={localStats.todayCount}
                 />
                 <StatCard
                     icon={<UserCheck className="h-5 w-5 text-violet-600" />}
                     iconBg="bg-violet-50"
                     label="Currently in Gym"
-                    value={currentlyIn}
+                    value={localStats.currentlyIn}
                 />
                 <StatCard
                     icon={<Clock className="h-5 w-5 text-emerald-600" />}
                     iconBg="bg-emerald-50"
                     label="This Week's Visits"
-                    value={weekCount}
+                    value={localStats.weekCount}
                 />
             </div>
 
@@ -523,7 +581,7 @@ export default function CheckInsTable({ checkIns, activeMembers }: CheckInsTable
                     <Input
                         placeholder="Search by member name or ID..."
                         value={searchQuery}
-                        onChange={(e) => { setSearchQuery(e.target.value); resetPage() }}
+                        onChange={(e) => handleSearch(e.target.value)}
                         className="pl-9 bg-white border-gray-200 text-sm h-10 focus:border-violet-400 focus:ring-violet-400"
                     />
                 </div>
@@ -533,7 +591,10 @@ export default function CheckInsTable({ checkIns, activeMembers }: CheckInsTable
                     {(['today', 'week', 'all'] as const).map((f) => (
                         <button
                             key={f}
-                            onClick={() => { setDateFilter(f); resetPage() }}
+                            onClick={() => {
+                                setDateFilter(f)
+                                replaceListRoute({ date: f, page: undefined })
+                            }}
                             className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all ${dateFilter === f
                                 ? 'bg-white text-gray-900 shadow-sm font-semibold'
                                 : 'text-gray-500 hover:text-gray-700'
@@ -545,7 +606,10 @@ export default function CheckInsTable({ checkIns, activeMembers }: CheckInsTable
                 </div>
 
                 {/* Entry method filter */}
-                <Select value={methodFilter} onValueChange={(v) => { setMethodFilter(v); resetPage() }}>
+                <Select value={methodFilter} onValueChange={(v) => {
+                    setMethodFilter(v)
+                    replaceListRoute({ method: v, page: undefined })
+                }}>
                     <SelectTrigger className="w-full sm:w-40 h-10 bg-white border-gray-200 text-sm">
                         <SelectValue placeholder="All Methods" />
                     </SelectTrigger>
@@ -721,17 +785,21 @@ export default function CheckInsTable({ checkIns, activeMembers }: CheckInsTable
                     <p className="text-xs text-gray-500">
                         Showing{' '}
                         <span className="font-semibold text-violet-600">
-                            {filtered.length === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1}–
-                            {Math.min(safePage * ITEMS_PER_PAGE, filtered.length)}
+                            {totalCount === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1}–
+                            {Math.min(safePage * ITEMS_PER_PAGE, totalCount)}
                         </span>{' '}
                         of{' '}
-                        <span className="font-medium text-gray-700">{filtered.length}</span> check-ins
+                        <span className="font-medium text-gray-700">{totalCount}</span> check-ins
                     </p>
                     {totalPages > 1 && (
                         <PaginationBar
                             currentPage={safePage}
                             totalPages={totalPages}
-                            onPageChange={(p) => { if (p >= 1 && p <= totalPages) setCurrentPage(p) }}
+                            onPageChange={(p) => {
+                                if (p >= 1 && p <= totalPages) {
+                                    replaceListRoute({ page: p === 1 ? undefined : p })
+                                }
+                            }}
                         />
                     )}
                 </div>

@@ -5,11 +5,14 @@ import type { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import type { QueryResult, Tables, UpdateTables } from '@/lib/types'
+import type { ImpersonationSession } from '@/lib/platform/types'
 import type { ProfileRole } from '@/lib/auth/roles'
 import { isStaffRole } from '@/lib/auth/roles'
 
+type ProfileRecord = Tables<'profiles'>
+
 type ViewerProfile = Pick<
-    Tables<'profiles'>,
+    ProfileRecord,
     'id' | 'role' | 'full_name' | 'phone' | 'photo_url' | 'active_gym_id'
 >
 
@@ -17,6 +20,19 @@ type GymSummary = Pick<Tables<'gyms'>, 'id' | 'name' | 'subdomain'>
 
 type AdminAccessRecord = Pick<Tables<'admins'>, 'id' | 'user_id' | 'gym_id' | 'role'> & {
     gym: GymSummary | null
+}
+
+type LooseSupabaseQueryBuilder = {
+    select(columns: string): LooseSupabaseQueryBuilder
+    eq(column: string, value: unknown): LooseSupabaseQueryBuilder
+    is(column: string, value: unknown): LooseSupabaseQueryBuilder
+    order(column: string, options: { ascending: boolean }): LooseSupabaseQueryBuilder
+    limit(count: number): LooseSupabaseQueryBuilder
+    maybeSingle(): Promise<unknown>
+}
+
+type LooseSupabaseClient = {
+    from(table: string): LooseSupabaseQueryBuilder
 }
 
 type MemberAccessRecord = Pick<
@@ -33,13 +49,11 @@ type MemberAccessRecord = Pick<
     gym: GymSummary | null
 }
 
-type PlatformImpersonationRecord = {
-    id: string
-    gym_id: string
-    started_at: string
-    ended_at: string | null
+export type ActivePlatformImpersonationRecord = ImpersonationSession & {
     gym: GymSummary | null
 }
+
+export type PlatformAdminRecord = Tables<'platform_admins'>
 
 export type GymAccessOption = {
     gym: GymSummary
@@ -58,20 +72,29 @@ export type CurrentGymContext = {
     accessibleGyms: GymAccessOption[]
 }
 
+export type CurrentAuthResolution = {
+    user: User | null
+    profile: ProfileRecord | null
+    platformAdmin: PlatformAdminRecord | null
+    activeImpersonation: ActivePlatformImpersonationRecord | null
+    gymContext: CurrentGymContext
+}
+
 async function getViewerProfile(userId: string) {
     const supabase = await createClient()
     const profileResult = await supabase
         .from('profiles')
-        .select('id, role, full_name, phone, photo_url, active_gym_id')
+        .select('*')
         .eq('id', userId)
         .maybeSingle()
 
-    const { data: profile } = profileResult as unknown as QueryResult<ViewerProfile | null>
+    const { data: profile } = profileResult as unknown as QueryResult<ProfileRecord | null>
     return profile
 }
 
 async function getAccessibleGymsForUser(userId: string) {
     const admin = getSupabaseAdmin()
+    const platformAdmin = admin as unknown as LooseSupabaseClient
 
     const [adminResult, memberResult, impersonationResult] = await Promise.all([
         admin
@@ -82,18 +105,19 @@ async function getAccessibleGymsForUser(userId: string) {
             .from('members')
             .select('id, user_id, gym_id, member_id, membership_plan_id, membership_expiry_date, status, referral_coins_balance, gym:gyms(id, name, subdomain)')
             .eq('user_id', userId),
-        (admin as any)
+        platformAdmin
             .from('impersonation_sessions')
-            .select('id, gym_id, started_at, ended_at, gym:gyms(id, name, subdomain), platform_admin:platform_admins!inner(user_id)')
+            .select('*, gym:gyms(id, name, subdomain), platform_admin:platform_admins!inner(user_id)')
             .eq('platform_admin.user_id', userId)
             .is('ended_at', null)
             .order('started_at', { ascending: false })
-            .limit(1),
+            .limit(1)
+            .maybeSingle(),
     ])
 
     const { data: adminRows } = adminResult as unknown as QueryResult<AdminAccessRecord[] | null>
     const { data: memberRows } = memberResult as unknown as QueryResult<MemberAccessRecord[] | null>
-    const { data: impersonationRows } = impersonationResult as unknown as QueryResult<PlatformImpersonationRecord[] | null>
+    const { data: activeImpersonation } = impersonationResult as unknown as QueryResult<ActivePlatformImpersonationRecord | null>
 
     const accessMap = new Map<string, GymAccessOption>()
 
@@ -117,7 +141,7 @@ async function getAccessibleGymsForUser(userId: string) {
         })
     }
 
-    for (const session of impersonationRows ?? []) {
+    for (const session of activeImpersonation ? [activeImpersonation] : []) {
         if (!session.gym || accessMap.has(session.gym_id)) continue
 
         accessMap.set(session.gym_id, {
@@ -133,7 +157,21 @@ async function getAccessibleGymsForUser(userId: string) {
         accessibleGyms,
         admins: adminRows ?? [],
         members: memberRows ?? [],
+        activeImpersonation,
     }
+}
+
+async function getPlatformAdminForUser(userId: string) {
+    const admin = getSupabaseAdmin()
+    const platformAdminResult = await admin
+        .from('platform_admins')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .maybeSingle()
+
+    const { data: platformAdmin } = platformAdminResult as unknown as QueryResult<PlatformAdminRecord | null>
+    return platformAdmin
 }
 
 async function syncActiveGym(profileId: string, gymId: string, role: ProfileRole) {
@@ -149,14 +187,14 @@ async function syncActiveGym(profileId: string, gymId: string, role: ProfileRole
         .eq('id', profileId)
 }
 
-export const getCurrentGymContext = cache(async (): Promise<CurrentGymContext> => {
+export const getCurrentAuthResolution = cache(async (): Promise<CurrentAuthResolution> => {
     const supabase = await createClient()
     const {
         data: { user },
     } = await supabase.auth.getUser()
 
     if (!user) {
-        return {
+        const gymContext: CurrentGymContext = {
             user: null,
             profile: null,
             gym: null,
@@ -166,11 +204,20 @@ export const getCurrentGymContext = cache(async (): Promise<CurrentGymContext> =
             member: null,
             accessibleGyms: [],
         }
+
+        return {
+            user: null,
+            profile: null,
+            platformAdmin: null,
+            activeImpersonation: null,
+            gymContext,
+        }
     }
 
-    const [profile, access] = await Promise.all([
+    const [profile, access, platformAdmin] = await Promise.all([
         getViewerProfile(user.id),
         getAccessibleGymsForUser(user.id),
+        getPlatformAdminForUser(user.id),
     ])
 
     const activeAccess =
@@ -192,7 +239,7 @@ export const getCurrentGymContext = cache(async (): Promise<CurrentGymContext> =
     }
 
     if (!resolvedAccess) {
-        return {
+        const gymContext: CurrentGymContext = {
             user,
             profile: resolvedProfile,
             gym: null,
@@ -201,6 +248,14 @@ export const getCurrentGymContext = cache(async (): Promise<CurrentGymContext> =
             admin: null,
             member: null,
             accessibleGyms: access.accessibleGyms,
+        }
+
+        return {
+            user,
+            profile: resolvedProfile,
+            platformAdmin,
+            activeImpersonation: access.activeImpersonation,
+            gymContext,
         }
     }
 
@@ -216,7 +271,7 @@ export const getCurrentGymContext = cache(async (): Promise<CurrentGymContext> =
     const adminMembership = access.admins.find((entry) => entry.gym_id === resolvedAccess?.gym.id) ?? null
     const memberMembership = access.members.find((entry) => entry.gym_id === resolvedAccess?.gym.id) ?? null
 
-    return {
+    const gymContext: CurrentGymContext = {
         user,
         profile: resolvedProfile,
         gym: resolvedAccess.gym,
@@ -226,13 +281,23 @@ export const getCurrentGymContext = cache(async (): Promise<CurrentGymContext> =
         member: memberMembership,
         accessibleGyms: access.accessibleGyms,
     }
+
+    return {
+        user,
+        profile: resolvedProfile,
+        platformAdmin,
+        activeImpersonation: access.activeImpersonation,
+        gymContext,
+    }
+})
+
+export const getCurrentGymContext = cache(async (): Promise<CurrentGymContext> => {
+    const resolution = await getCurrentAuthResolution()
+    return resolution.gymContext
 })
 
 export const getAccessibleGyms = cache(async () => {
-    const supabase = await createClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
+    const { user, profile, gymContext } = await getCurrentAuthResolution()
 
     if (!user) {
         return {
@@ -242,15 +307,10 @@ export const getAccessibleGyms = cache(async () => {
         }
     }
 
-    const [profile, access] = await Promise.all([
-        getViewerProfile(user.id),
-        getAccessibleGymsForUser(user.id),
-    ])
-
     return {
         user,
         profile,
-        accessibleGyms: access.accessibleGyms,
+        accessibleGyms: gymContext.accessibleGyms,
     }
 })
 
