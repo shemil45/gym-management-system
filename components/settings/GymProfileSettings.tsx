@@ -36,6 +36,7 @@ export default function GymProfileSettings({ gym }: GymProfileSettingsProps) {
     const fileInputRef = useRef<HTMLInputElement>(null)
     const cameraInputRef = useRef<HTMLInputElement>(null)
     const [pending, startTransition] = useTransition()
+    const [saving, setSaving] = useState(false)
 
     const [name, setName] = useState(gym.name)
     const [nameTouched, setNameTouched] = useState(false)
@@ -95,6 +96,8 @@ export default function GymProfileSettings({ gym }: GymProfileSettingsProps) {
         setNameTouched(true)
         if (name.trim() === '') return
         if (logoError) { toast.error(logoError); return }
+        if (saving) return
+        setSaving(true)
 
         setLoadingMessage('Saving...')
         let uploadedLogoPath: string | null = null
@@ -133,14 +136,17 @@ export default function GymProfileSettings({ gym }: GymProfileSettingsProps) {
                     toast.error(result.error)
                 } else {
                     toast.success('Gym profile saved')
+                    setSelectedLogo(null)
                     router.refresh()
                 }
                 setLoadingMessage('')
+                setSaving(false)
             })
         } catch (error) {
             if (uploadedLogoPath) await removeUploadedAvatar(uploadedLogoPath)
             toast.error(error instanceof Error ? error.message : UPLOAD_FAILURE_MESSAGE)
             setLoadingMessage('')
+            setSaving(false)
         }
     }
 
@@ -190,7 +196,7 @@ export default function GymProfileSettings({ gym }: GymProfileSettingsProps) {
                                 <button
                                     type="button"
                                     onClick={() => fileInputRef.current?.click()}
-                                    disabled={pending}
+                                    disabled={pending || saving}
                                     className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors ${
                                         isDark
                                             ? 'border border-[#2a2a2a] bg-[#161616] text-gray-200 hover:bg-[#222222] hover:text-white'
@@ -203,7 +209,7 @@ export default function GymProfileSettings({ gym }: GymProfileSettingsProps) {
                                 <button
                                     type="button"
                                     onClick={() => cameraInputRef.current?.click()}
-                                    disabled={pending}
+                                    disabled={pending || saving}
                                     className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors ${
                                         isDark
                                             ? 'border border-[#2a2a2a] bg-[#161616] text-gray-200 hover:bg-[#222222] hover:text-white'
@@ -229,22 +235,22 @@ export default function GymProfileSettings({ gym }: GymProfileSettingsProps) {
                             value={name}
                             onChange={(e) => { setName(e.target.value); setNameTouched(true) }}
                             placeholder="Your gym's name"
-                            disabled={pending}
+                            disabled={pending || saving}
                             className={inputClass(!!nameError)}
                         />
                         {nameError ? <p className="text-[11px] text-red-500 flex items-center gap-1"><span>⚠</span> {nameError}</p> : null}
                     </div>
                     <div className="space-y-1.5">
                         <Label className={labelClass}>Phone</Label>
-                        <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone number" disabled={pending} className={inputClass(false)} />
+                        <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone number" disabled={pending || saving} className={inputClass(false)} />
                     </div>
                     <div className="space-y-1.5">
                         <Label className={labelClass}>Email</Label>
-                        <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="gym@example.com" disabled={pending} className={inputClass(false)} />
+                        <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="gym@example.com" disabled={pending || saving} className={inputClass(false)} />
                     </div>
                     <div className="space-y-1.5 md:col-span-2">
                         <Label className={labelClass}>Website</Label>
-                        <Input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://example.com" disabled={pending} className={inputClass(false)} />
+                        <Input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://example.com" disabled={pending || saving} className={inputClass(false)} />
                     </div>
                 </div>
             </div>
@@ -260,23 +266,23 @@ export default function GymProfileSettings({ gym }: GymProfileSettingsProps) {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div className="space-y-1.5 md:col-span-2">
                         <Label className={labelClass}>Address</Label>
-                        <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street address" disabled={pending} className={inputClass(false)} />
+                        <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street address" disabled={pending || saving} className={inputClass(false)} />
                     </div>
                     <div className="space-y-1.5">
                         <Label className={labelClass}>City</Label>
-                        <Input value={city} onChange={(e) => setCity(e.target.value)} disabled={pending} className={inputClass(false)} />
+                        <Input value={city} onChange={(e) => setCity(e.target.value)} disabled={pending || saving} className={inputClass(false)} />
                     </div>
                     <div className="space-y-1.5">
                         <Label className={labelClass}>State</Label>
-                        <Input value={state} onChange={(e) => setState(e.target.value)} disabled={pending} className={inputClass(false)} />
+                        <Input value={state} onChange={(e) => setState(e.target.value)} disabled={pending || saving} className={inputClass(false)} />
                     </div>
                     <div className="space-y-1.5">
                         <Label className={labelClass}>PIN/ZIP Code</Label>
-                        <Input value={postalCode} onChange={(e) => setPostalCode(e.target.value)} disabled={pending} className={inputClass(false)} />
+                        <Input value={postalCode} onChange={(e) => setPostalCode(e.target.value)} disabled={pending || saving} className={inputClass(false)} />
                     </div>
                     <div className="space-y-1.5">
                         <Label className={labelClass}>Country</Label>
-                        <Input value={country} onChange={(e) => setCountry(e.target.value)} disabled={pending} className={inputClass(false)} />
+                        <Input value={country} onChange={(e) => setCountry(e.target.value)} disabled={pending || saving} className={inputClass(false)} />
                     </div>
                 </div>
             </div>
@@ -291,14 +297,14 @@ export default function GymProfileSettings({ gym }: GymProfileSettingsProps) {
                 </div>
                 <div className="max-w-xs space-y-1.5">
                     <Label className={labelClass}>GSTIN</Label>
-                    <Input value={gstin} onChange={(e) => setGstin(e.target.value)} placeholder="22AAAAA0000A1Z5" disabled={pending} className={inputClass(false)} />
+                    <Input value={gstin} onChange={(e) => setGstin(e.target.value)} placeholder="22AAAAA0000A1Z5" disabled={pending || saving} className={inputClass(false)} />
                 </div>
             </div>
 
             <div>
                 <Button
                     type="submit"
-                    disabled={pending}
+                    disabled={pending || saving}
                     className={`h-10 px-6 font-semibold shadow-sm ${
                         isDark ? 'bg-[#10b981] hover:bg-[#0ea271] text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'
                     }`}

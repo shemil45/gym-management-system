@@ -51,7 +51,7 @@ coverage/
 
 # Supabase migrations
 supabase/migrations/*
-!supabase/migrations/008_multi_tenant_saas_refactor.sql
+!supabase/migrations/*.sql
 
 # Supabase scratch files
 test-whatsapp.ts

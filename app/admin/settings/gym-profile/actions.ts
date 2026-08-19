@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import type { UpdateTables } from '@/lib/types'
+import type { QueryResult, UpdateTables } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 import { getCurrentGymContext } from '@/lib/auth/gym-context'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
@@ -30,9 +30,24 @@ export async function updateGymProfile(formData: FormData) {
     }
 
     const logoUrl = trimmedOrNull(formData.get('logo_url'))
-    const previousLogoUrl = trimmedOrNull(formData.get('previous_logo_url'))
+
+    if (logoUrl && !getAvatarStoragePath(logoUrl)) {
+        return { error: 'Invalid logo URL.' }
+    }
 
     const supabase = await createClient()
+
+    const existingGymResult = await supabase
+        .from('gyms')
+        .select('logo_url')
+        .eq('id', viewer.gym.id)
+        .maybeSingle()
+    const { data: existingGym, error: existingGymError } = existingGymResult as unknown as QueryResult<{ logo_url: string | null } | null>
+
+    if (existingGymError) return { error: getErrorMessage(existingGymError, 'Failed to update gym profile') }
+
+    const previousLogoUrl = existingGym?.logo_url ?? null
+
     const { data: updated, error } = await supabase
         .from('gyms')
         .update(({
