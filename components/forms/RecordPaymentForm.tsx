@@ -13,7 +13,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
-import { Loader2, Search, ArrowLeft, RefreshCw } from 'lucide-react'
+import { Loader2, Search, ArrowLeft, RefreshCw, PencilLine, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
 import { recordPayment } from '@/app/admin/finances/payments/actions'
 import { useAdminTheme } from '@/components/layout/AdminThemeContext'
@@ -24,7 +24,8 @@ interface MemberOption {
     full_name: string
     photo_url?: string | null
     status: string
-    membership_plan?: { id: string; name: string; price: number } | null
+    membership_expiry_date?: string | null
+    membership_plan?: { id: string; name: string; price: number; duration_days: number } | null
 }
 
 interface PlanOption {
@@ -43,6 +44,11 @@ function getInitials(name: string) {
     return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
 }
 
+function formatDate(dateStr: string | null | undefined) {
+    if (!dateStr) return '—'
+    return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
 export default function RecordPaymentForm({ members, plans }: RecordPaymentFormProps) {
     const router = useRouter()
     const { isDark } = useAdminTheme()
@@ -56,7 +62,7 @@ export default function RecordPaymentForm({ members, plans }: RecordPaymentFormP
     const [paymentStatus, setPaymentStatus] = useState('paid')
     const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0])
     const [selectedPlanId, setSelectedPlanId] = useState('')
-    const [renewMembership, setRenewMembership] = useState(false)
+    const [membershipMode, setMembershipMode] = useState<'renew' | 'change'>('renew')
     const [notes, setNotes] = useState('')
 
     // Member selector state
@@ -81,13 +87,15 @@ export default function RecordPaymentForm({ members, plans }: RecordPaymentFormP
         setSelectedMemberId(member.id)
         setMemberSearch(member.full_name)
         setShowMemberDropdown(false)
-        // Pre-fill plan if member has one
+        // Default to renewing the member's current plan; if they have none, staff must pick one
         if (member.membership_plan) {
-            const matchingPlan = plans.find((p) => p.id === member.membership_plan?.id)
-            if (matchingPlan) {
-                setSelectedPlanId(matchingPlan.id)
-                setAmount(String(matchingPlan.price))
-            }
+            setMembershipMode('renew')
+            setSelectedPlanId(member.membership_plan.id)
+            setAmount(String(member.membership_plan.price))
+        } else {
+            setMembershipMode('change')
+            setSelectedPlanId('')
+            setAmount('')
         }
     }
 
@@ -97,9 +105,22 @@ export default function RecordPaymentForm({ members, plans }: RecordPaymentFormP
         if (plan) setAmount(String(plan.price))
     }
 
+    const handleRenewMode = () => {
+        setMembershipMode('renew')
+        if (selectedMember?.membership_plan) {
+            setSelectedPlanId(selectedMember.membership_plan.id)
+            setAmount(String(selectedMember.membership_plan.price))
+        }
+    }
+
+    const handleChangePlanMode = () => {
+        setMembershipMode('change')
+    }
+
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         if (!selectedMemberId) { toast.error('Please select a member'); return }
+        if (!selectedPlanId) { toast.error('Please select a membership plan'); return }
         if (!amount || isNaN(parseFloat(amount))) { toast.error('Please enter a valid amount'); return }
         if (!paymentMethod) { toast.error('Please select a payment method'); return }
 
@@ -110,8 +131,8 @@ export default function RecordPaymentForm({ members, plans }: RecordPaymentFormP
         formData.append('payment_method', paymentMethod)
         formData.append('payment_status', paymentStatus)
         formData.append('payment_date', paymentDate)
-        if (selectedPlanId) formData.append('plan_id', selectedPlanId)
-        formData.append('renew_membership', String(renewMembership))
+        formData.append('plan_id', selectedPlanId)
+        formData.append('renew_membership', 'true')
         formData.append('notes', notes)
 
         const result = await recordPayment(formData)
@@ -217,8 +238,96 @@ export default function RecordPaymentForm({ members, plans }: RecordPaymentFormP
                         )}
                     </div>
 
+                    {/* ── Membership ── */}
+                    {selectedMember && (
+                        <div className="border-t border-gray-100 pt-5 space-y-4">
+                            <Label className="text-sm font-medium text-gray-700">Membership</Label>
+
+                            {/* Current plan summary */}
+                            {selectedMember.membership_plan ? (
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                                    <div>
+                                        <p className="text-[10px] uppercase tracking-wide text-gray-400">Current Plan</p>
+                                        <p className="text-sm font-medium text-gray-800 mt-0.5">{selectedMember.membership_plan.name}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] uppercase tracking-wide text-gray-400">Price</p>
+                                        <p className="text-sm font-medium text-gray-800 mt-0.5">₹{selectedMember.membership_plan.price}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] uppercase tracking-wide text-gray-400">Duration</p>
+                                        <p className="text-sm font-medium text-gray-800 mt-0.5">{selectedMember.membership_plan.duration_days} days</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] uppercase tracking-wide text-gray-400">Current Expiry</p>
+                                        <p className="text-sm font-medium text-gray-800 mt-0.5 flex items-center gap-1">
+                                            <Calendar className="h-3 w-3 text-gray-400" />
+                                            {formatDate(selectedMember.membership_expiry_date)}
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-xs text-gray-400 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                                    This member has no active plan. Choose a plan below to start their membership.
+                                </p>
+                            )}
+
+                            {/* Renew vs Change Plan */}
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={handleRenewMode}
+                                    disabled={loading || !selectedMember.membership_plan}
+                                    className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                                        membershipMode === 'renew'
+                                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                                            : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    <RefreshCw className="h-3.5 w-3.5" />
+                                    Renew Membership
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleChangePlanMode}
+                                    disabled={loading}
+                                    className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                                        membershipMode === 'change'
+                                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                                            : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    <PencilLine className="h-3.5 w-3.5" />
+                                    Change Plan
+                                </button>
+                            </div>
+
+                            {membershipMode === 'renew' ? (
+                                <p className="text-xs text-gray-400">Renew using the member&apos;s current plan.</p>
+                            ) : (
+                                <div className="space-y-1.5">
+                                    <p className="text-xs text-amber-600">
+                                        The member will be switched to a different plan.
+                                    </p>
+                                    <Select value={selectedPlanId} onValueChange={handlePlanChange} disabled={loading}>
+                                        <SelectTrigger className="h-10 border-gray-300 text-sm text-gray-700 max-w-sm">
+                                            <SelectValue placeholder="Select a plan" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {plans.map((plan) => (
+                                                <SelectItem key={plan.id} value={plan.id}>
+                                                    {plan.name} — ₹{plan.price} ({plan.duration_days}d)
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* ── Payment Details ── */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                    <div className="border-t border-gray-100 pt-5 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                         {/* Amount */}
                         <div className="space-y-1.5">
                             <Label htmlFor="amount" className="text-sm font-medium text-gray-700">
@@ -290,49 +399,6 @@ export default function RecordPaymentForm({ members, plans }: RecordPaymentFormP
                         </div>
                     </div>
 
-                    {/* ── Membership Renewal ── */}
-                    <div className="border-t border-gray-100 pt-5 space-y-4">
-                        <div className="flex items-start gap-3">
-                            <input
-                                type="checkbox"
-                                id="renew_membership"
-                                checked={renewMembership}
-                                onChange={(e) => setRenewMembership(e.target.checked)}
-                                disabled={loading}
-                                className="mt-0.5 h-4 w-4 rounded accent-emerald-600 cursor-pointer"
-                            />
-                            <div>
-                                <label htmlFor="renew_membership" className="text-sm font-medium text-gray-700 cursor-pointer flex items-center gap-1.5">
-                                    <RefreshCw className="h-3.5 w-3.5 text-emerald-600" />
-                                    Renew / Update Membership
-                                </label>
-                                <p className="text-xs text-gray-400 mt-0.5">
-                                    This will update the member&apos;s plan, start date, and expiry date
-                                </p>
-                            </div>
-                        </div>
-
-                        {renewMembership && (
-                            <div className="ml-7">
-                                <Label className="text-sm font-medium text-gray-700 mb-1.5 block">
-                                    Membership Plan
-                                </Label>
-                                <Select value={selectedPlanId} onValueChange={handlePlanChange} disabled={loading}>
-                                    <SelectTrigger className="h-10 border-gray-300 text-sm text-gray-700 max-w-sm">
-                                        <SelectValue placeholder="Select a plan" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {plans.map((plan) => (
-                                            <SelectItem key={plan.id} value={plan.id}>
-                                                {plan.name} — ₹{plan.price} ({plan.duration_days}d)
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        )}
-                    </div>
-
                     {/* ── Notes ── */}
                     <div className="space-y-1.5">
                         <Label htmlFor="notes" className="text-sm font-medium text-gray-700">
@@ -371,7 +437,7 @@ export default function RecordPaymentForm({ members, plans }: RecordPaymentFormP
                             className="h-10 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm"
                         >
                             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Save Payment
+                            Record Payment
                         </Button>
                     </div>
                 </div>

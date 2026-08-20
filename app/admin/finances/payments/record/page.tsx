@@ -6,7 +6,7 @@ export default async function FinancesRecordPaymentPage() {
 
     const { data: members } = await supabase
         .from('members')
-        .select('id, member_id, full_name, photo_url, status, membership_plan:membership_plans(id, name, price)')
+        .select('id, member_id, full_name, photo_url, status, membership_expiry_date, membership_plan:membership_plans(id, name, price, duration_days)')
         .in('status', ['active', 'expired', 'inactive'])
         .order('full_name')
 
