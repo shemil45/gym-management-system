@@ -10,7 +10,6 @@ import { getCurrentGymContext } from '@/lib/auth/gym-context'
 import { findAuthUserByEmail, getSupabaseAdmin } from '@/lib/supabase/admin'
 import { invalidateGymAdminSummaries } from '@/lib/auth/admin-server'
 
-type MemberIdRow = Pick<InsertTables<'members'>, 'member_id'>
 type PlanLookup = Pick<InsertTables<'membership_plans'>, 'duration_days' | 'price'>
 type ReferrerLookup = { id: string }
 type CreatedMember = { id: string }
@@ -31,38 +30,6 @@ function formatDateOfBirthPassword(dateOfBirth: string) {
     }
 
     return `${day}${month}${year}`
-}
-
-export async function generateNextMemberId(): Promise<string> {
-    const supabase = await createClient()
-
-    // Only look at properly formatted GYM### IDs to avoid picking up numbers from mock/legacy data
-    const membersResult = await supabase
-        .from('members')
-        .select('member_id')
-        .like('member_id', 'GYM%')
-        .order('member_id', { ascending: false })
-
-    const { data: members } = membersResult as unknown as QueryResult<MemberIdRow[] | null>
-
-    if (!members || members.length === 0) {
-        return 'GYM001'
-    }
-
-    // Extract numbers only from GYM-prefixed IDs
-    let maxNumber = 0
-    for (const member of members) {
-        const match = member.member_id.match(/^GYM(\d+)$/)
-        if (match) {
-            const num = parseInt(match[1])
-            if (num > maxNumber) {
-                maxNumber = num
-            }
-        }
-    }
-
-    const nextNumber = maxNumber + 1
-    return `GYM${nextNumber.toString().padStart(3, '0')}`
 }
 
 export async function createMember(formData: FormData) {
@@ -114,7 +81,13 @@ export async function createMember(formData: FormData) {
             return { error: 'A member with this email already exists in the selected gym.' }
         }
 
-        const memberId = await generateNextMemberId()
+        const { data: memberId, error: memberIdError } = await supabase.rpc('generate_member_id', {
+            p_gym_id: viewer.gym.id,
+        } as never)
+
+        if (memberIdError || !memberId) {
+            return { error: getErrorMessage(memberIdError, 'Failed to generate member ID') }
+        }
 
         // Get plan details
         const planResult = await supabase
