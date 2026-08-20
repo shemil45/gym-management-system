@@ -1,7 +1,6 @@
 import { format } from 'date-fns'
 
 export const notificationTypes = [
-    'payment_reminder',
     'membership_expiring',
     'membership_expired',
     'payment_received',
@@ -14,12 +13,6 @@ export type NotificationType = (typeof notificationTypes)[number]
 type BaseTemplateData = {
     fullName: string
     gymName?: string | null
-}
-
-export type PaymentReminderTemplateData = BaseTemplateData & {
-    expiryDate: string
-    daysRemaining: number
-    planName?: string | null
 }
 
 export type MembershipExpiringTemplateData = BaseTemplateData & {
@@ -69,7 +62,7 @@ function getGymName(value?: string | null) {
     return value?.trim() || process.env.NEXT_PUBLIC_APP_NAME || 'your gym'
 }
 
-/** Finance messages: payment_reminder, payment_received, membership_expiring, membership_expired */
+/** Finance messages: payment_received, membership_expiring, membership_expired */
 function getSupportFooter(gymName?: string | null) {
     return `_— ${getGymName(gymName)} Support_`
 }
@@ -77,29 +70,6 @@ function getSupportFooter(gymName?: string | null) {
 /** Relationship messages: welcome_new_member, referral_reward_earned */
 function getFamilyFooter(gymName?: string | null) {
     return `_— ${getGymName(gymName)} Family 🏋️_`
-}
-
-// ─── Payment Reminder ────────────────────────────────────────────────────────
-
-export function buildPaymentReminderMessage(data: PaymentReminderTemplateData) {
-    return [
-        `⏰ *Payment Reminder*`,
-        ``,
-        `Hi *${data.fullName}*,`,
-        ``,
-        `Your *${data.planName || 'membership'}* at *${getGymName(data.gymName)}* is coming up for renewal soon.`,
-        ``,
-        `📋 *Membership Details*`,
-        `• Plan: *${data.planName || 'Membership'}*`,
-        `• Expiry Date: *${formatDisplayDate(data.expiryDate)}*`,
-        `• Days Remaining: *${data.daysRemaining} day${data.daysRemaining !== 1 ? 's' : ''}*`,
-        ``,
-        `✅ Please renew in advance to avoid any interruption in access.`,
-        ``,
-        `For assistance, reach out to the front desk.`,
-        ``,
-        getSupportFooter(data.gymName),
-    ].join('\n')
 }
 
 // ─── Membership Expiring ─────────────────────────────────────────────────────

@@ -76,6 +76,13 @@ export interface Database {
                     receipt_show_gstin: boolean
                     receipt_footer_message: string | null
                     receipt_additional_notes: string | null
+                    notify_expiry_reminder_enabled: boolean
+                    notify_expiry_reminder_days: number
+                    notify_expired_notice_enabled: boolean
+                    notify_expired_notice_days: number
+                    notify_payment_confirmation_enabled: boolean
+                    notify_renewal_confirmation_enabled: boolean
+                    notify_welcome_message_enabled: boolean
                     created_at: string
                     updated_at: string
                 }
@@ -115,6 +122,13 @@ export interface Database {
                     receipt_show_gstin?: boolean
                     receipt_footer_message?: string | null
                     receipt_additional_notes?: string | null
+                    notify_expiry_reminder_enabled?: boolean
+                    notify_expiry_reminder_days?: number
+                    notify_expired_notice_enabled?: boolean
+                    notify_expired_notice_days?: number
+                    notify_payment_confirmation_enabled?: boolean
+                    notify_renewal_confirmation_enabled?: boolean
+                    notify_welcome_message_enabled?: boolean
                     created_at?: string
                     updated_at?: string
                 }
@@ -154,6 +168,13 @@ export interface Database {
                     receipt_show_gstin?: boolean
                     receipt_footer_message?: string | null
                     receipt_additional_notes?: string | null
+                    notify_expiry_reminder_enabled?: boolean
+                    notify_expiry_reminder_days?: number
+                    notify_expired_notice_enabled?: boolean
+                    notify_expired_notice_days?: number
+                    notify_payment_confirmation_enabled?: boolean
+                    notify_renewal_confirmation_enabled?: boolean
+                    notify_welcome_message_enabled?: boolean
                     created_at?: string
                     updated_at?: string
                 }

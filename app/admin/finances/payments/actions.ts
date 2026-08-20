@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { InsertTables, QueryResult, UpdateTables } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 import { invalidateGymAdminSummaries } from '@/lib/auth/admin-server'
+import { sendMemberWhatsAppNotification } from '@/lib/notifications/service'
 
 function getErrorMessage(error: unknown, fallback: string) {
     return error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
@@ -123,9 +124,30 @@ export async function recordPayment(formData: FormData) {
         if (insertedPayment?.gym_id) {
             invalidateGymAdminSummaries(insertedPayment.gym_id)
         }
+
+        let notificationWarning: string | undefined
+
+        if (paymentStatus === 'paid') {
+            const wasRenewal = Boolean(membershipStartDate && membershipEndDate)
+            const confirmationResult = await sendMemberWhatsAppNotification({
+                memberId,
+                notificationType: 'payment_received',
+                source: 'api',
+                confirmationKind: wasRenewal ? 'renewal' : 'payment',
+            })
+
+            if (!confirmationResult.success) {
+                notificationWarning = `Payment recorded, but the confirmation WhatsApp could not be sent: ${confirmationResult.error}`
+                console.warn('[payments] Confirmation WhatsApp was not sent after payment', {
+                    memberId,
+                    error: confirmationResult.error,
+                })
+            }
+        }
+
         revalidatePath('/admin/finances/payments')
         revalidatePath('/admin/members')
-        return { success: true, invoiceNumber }
+        return { success: true, invoiceNumber, notificationWarning }
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to record payment'
         return { error: message }

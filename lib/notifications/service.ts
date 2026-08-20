@@ -7,7 +7,6 @@ import {
     buildMembershipExpiredMessage,
     buildMembershipExpiringMessage,
     buildPaymentReceivedMessage,
-    buildPaymentReminderMessage,
     buildReferralRewardMessage,
     buildWelcomeNewMemberMessage,
 } from '@/lib/notifications/templates'
@@ -20,9 +19,18 @@ type MemberRecord = {
     status: 'active' | 'inactive' | 'frozen' | 'expired'
     membership_expiry_date: string | null
     created_at: string
+    gym_id: string
     membership_plan: {
         name: string
     } | null
+}
+
+type GymNotificationSettings = {
+    notify_expiry_reminder_enabled: boolean
+    notify_expired_notice_enabled: boolean
+    notify_payment_confirmation_enabled: boolean
+    notify_renewal_confirmation_enabled: boolean
+    notify_welcome_message_enabled: boolean
 }
 
 type LatestPaymentRecord = {
@@ -51,6 +59,10 @@ export type SendMemberNotificationInput = {
     skipIfAlreadySentToday?: boolean
     source?: 'api' | 'cron'
     dateValue?: string
+    /** Only meaningful for 'payment_received': which gym setting gates this send. Defaults to 'payment'. */
+    confirmationKind?: 'payment' | 'renewal'
+    /** Overrides the days-remaining figure shown in the membership_expiring template (e.g. the gym's configured reminder window). */
+    daysRemaining?: number
 }
 
 export type SendMemberNotificationResult =
@@ -147,6 +159,7 @@ async function getMemberRecord(memberId: string) {
             status,
             membership_expiry_date,
             created_at,
+            gym_id,
             membership_plan:membership_plans(name)
         `)
         .eq('id', memberId)
@@ -204,24 +217,61 @@ async function getLatestAppliedReferral(memberId: string) {
     return result.data as LatestReferralRecord | null
 }
 
-async function buildNotificationMessage(member: MemberRecord, notificationType: NotificationType) {
+async function getGymNotificationSettings(gymId: string): Promise<GymNotificationSettings> {
+    const fallback: GymNotificationSettings = {
+        notify_expiry_reminder_enabled: true,
+        notify_expired_notice_enabled: true,
+        notify_payment_confirmation_enabled: true,
+        notify_renewal_confirmation_enabled: true,
+        notify_welcome_message_enabled: true,
+    }
+
+    const supabase = getSupabaseAdmin()
+    const result = await supabase
+        .from('gyms')
+        .select('notify_expiry_reminder_enabled, notify_expired_notice_enabled, notify_payment_confirmation_enabled, notify_renewal_confirmation_enabled, notify_welcome_message_enabled')
+        .eq('id', gymId)
+        .single()
+
+    const { data, error } = result as unknown as QueryResult<GymNotificationSettings | null>
+
+    // Fail open: if settings can't be read, preserve the pre-existing behavior (always send)
+    // rather than silently dropping notifications because of an unrelated read error.
+    if (error || !data) {
+        return fallback
+    }
+
+    return data
+}
+
+function isNotificationEnabled(
+    settings: GymNotificationSettings,
+    notificationType: NotificationType,
+    confirmationKind: 'payment' | 'renewal'
+) {
+    switch (notificationType) {
+        case 'welcome_new_member':
+            return settings.notify_welcome_message_enabled
+        case 'payment_received':
+            return confirmationKind === 'renewal'
+                ? settings.notify_renewal_confirmation_enabled
+                : settings.notify_payment_confirmation_enabled
+        case 'membership_expiring':
+            return settings.notify_expiry_reminder_enabled
+        case 'membership_expired':
+            return settings.notify_expired_notice_enabled
+        case 'referral_reward_earned':
+            return true
+        default:
+            return assertNever(notificationType)
+    }
+}
+
+async function buildNotificationMessage(member: MemberRecord, notificationType: NotificationType, daysRemaining?: number) {
     const gymName = process.env.NEXT_PUBLIC_APP_NAME || 'your gym'
     const planName = member.membership_plan?.name || null
 
     switch (notificationType) {
-        case 'payment_reminder': {
-            if (!member.membership_expiry_date) {
-                throw new Error('Member does not have a membership expiry date for payment reminders.')
-            }
-
-            return buildPaymentReminderMessage({
-                fullName: member.full_name,
-                gymName,
-                expiryDate: member.membership_expiry_date,
-                daysRemaining: 3,
-                planName,
-            })
-        }
         case 'membership_expiring': {
             if (!member.membership_expiry_date) {
                 throw new Error('Member does not have a membership expiry date for expiring notifications.')
@@ -231,7 +281,7 @@ async function buildNotificationMessage(member: MemberRecord, notificationType: 
                 fullName: member.full_name,
                 gymName,
                 expiryDate: member.membership_expiry_date,
-                daysRemaining: 7,
+                daysRemaining: daysRemaining ?? 7,
                 planName,
             })
         }
@@ -309,7 +359,7 @@ async function logFailure(memberId: string, notificationType: NotificationType, 
 }
 
 export async function sendMemberWhatsAppNotification(input: SendMemberNotificationInput): Promise<SendMemberNotificationResult> {
-    const { memberId, notificationType, skipIfAlreadySentToday = false, source = 'api', dateValue } = input
+    const { memberId, notificationType, skipIfAlreadySentToday = false, source = 'api', dateValue, confirmationKind = 'payment', daysRemaining } = input
 
     try {
         const member = await getMemberRecord(memberId)
@@ -326,6 +376,25 @@ export async function sendMemberWhatsAppNotification(input: SendMemberNotificati
                 notificationType,
                 error,
                 logId,
+            }
+        }
+
+        const settings = await getGymNotificationSettings(member.gym_id)
+
+        if (!isNotificationEnabled(settings, notificationType, confirmationKind)) {
+            console.info('[notifications] Skipping notification disabled by gym settings', {
+                memberId,
+                notificationType,
+                source,
+            })
+
+            return {
+                success: true,
+                status: 'skipped',
+                message: 'Notification is disabled in this gym\'s settings.',
+                memberId,
+                notificationType,
+                reason: 'disabled_by_settings',
             }
         }
 
@@ -350,7 +419,7 @@ export async function sendMemberWhatsAppNotification(input: SendMemberNotificati
             }
         }
 
-        const message = await buildNotificationMessage(member, notificationType)
+        const message = await buildNotificationMessage(member, notificationType, daysRemaining)
         const sendResult = await sendWhatsAppMessage(member.phone, message)
 
         if (!sendResult.success) {
@@ -416,17 +485,42 @@ export async function sendMemberWhatsAppNotification(input: SendMemberNotificati
     }
 }
 
-export async function getMembersExpiringOn(dateValue: string): Promise<ExpiringMemberRecord[]> {
+export async function getMembersExpiringOn(dateValue: string, gymId: string): Promise<ExpiringMemberRecord[]> {
     const supabase = getSupabaseAdmin()
     const result = await supabase
         .from('members')
         .select('id')
         .eq('status', 'active')
         .eq('membership_expiry_date', dateValue)
+        .eq('gym_id', gymId)
 
     if (result.error) {
         throw new Error(result.error.message)
     }
 
     return (result.data ?? []) as ExpiringMemberRecord[]
+}
+
+export type GymExpiryReminderConfig = {
+    id: string
+    notify_expiry_reminder_enabled: boolean
+    notify_expiry_reminder_days: number
+    notify_expired_notice_enabled: boolean
+    notify_expired_notice_days: number
+}
+
+/** Active gyms that currently have the expiry reminder and/or the expired notice turned on, with their configured day offsets. */
+export async function getActiveGymsForExpiryReminders(): Promise<GymExpiryReminderConfig[]> {
+    const supabase = getSupabaseAdmin()
+    const result = await supabase
+        .from('gyms')
+        .select('id, notify_expiry_reminder_enabled, notify_expiry_reminder_days, notify_expired_notice_enabled, notify_expired_notice_days')
+        .eq('is_active', true)
+        .or('notify_expiry_reminder_enabled.eq.true,notify_expired_notice_enabled.eq.true')
+
+    if (result.error) {
+        throw new Error(result.error.message)
+    }
+
+    return (result.data ?? []) as GymExpiryReminderConfig[]
 }

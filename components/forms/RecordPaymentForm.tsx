@@ -144,6 +144,11 @@ export default function RecordPaymentForm({ members, plans }: RecordPaymentFormP
             setLoading(false)
         } else {
             toast.success(`Payment recorded! Invoice: ${result.invoiceNumber}`)
+            if (result.notificationWarning) {
+                toast.warning(result.notificationWarning, {
+                    duration: 7000,
+                })
+            }
             router.push('/admin/finances/payments')
         }
     }

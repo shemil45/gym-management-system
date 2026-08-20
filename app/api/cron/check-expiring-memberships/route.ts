@@ -1,6 +1,7 @@
 import { addDays, format } from 'date-fns'
 import { NextResponse } from 'next/server'
 import {
+    getActiveGymsForExpiryReminders,
     getMembersExpiringOn,
     sendMemberWhatsAppNotification,
     type SendMemberNotificationResult,
@@ -14,6 +15,7 @@ const BUSINESS_TIME_ZONE = 'Asia/Kolkata'
 type NotificationRunConfig = {
     notificationType: NotificationType
     offsetDays: number
+    daysRemaining?: number
 }
 
 function getBusinessDateValue(date = new Date(), offsetDays = 0) {
@@ -58,11 +60,7 @@ export async function GET(request: Request) {
     try {
         const startedAt = new Date().toISOString()
         const businessDate = getBusinessDateValue()
-        const notificationRuns: NotificationRunConfig[] = [
-            { notificationType: 'membership_expiring', offsetDays: 7 },
-            { notificationType: 'payment_reminder', offsetDays: 3 },
-            { notificationType: 'membership_expired', offsetDays: 0 },
-        ]
+        const gyms = await getActiveGymsForExpiryReminders()
 
         const results: SendMemberNotificationResult[] = []
         const summary = {
@@ -70,39 +68,67 @@ export async function GET(request: Request) {
             skipped: 0,
             failed: 0,
         }
-        const byType = await Promise.all(
-            notificationRuns.map(async ({ notificationType, offsetDays }) => {
-                const targetDate = getBusinessDateValue(new Date(), offsetDays)
-                const members = await getMembersExpiringOn(targetDate)
-                const typeResults: SendMemberNotificationResult[] = []
 
-                for (const member of members) {
-                    const result = await sendMemberWhatsAppNotification({
-                        memberId: member.id,
-                        notificationType,
-                        skipIfAlreadySentToday: true,
-                        source: 'cron',
-                        dateValue: businessDate,
+        const byGym = await Promise.all(
+            gyms.map(async (gym) => {
+                const notificationRuns: NotificationRunConfig[] = []
+
+                if (gym.notify_expiry_reminder_enabled) {
+                    notificationRuns.push({
+                        notificationType: 'membership_expiring',
+                        offsetDays: gym.notify_expiry_reminder_days,
+                        daysRemaining: gym.notify_expiry_reminder_days,
                     })
-
-                    typeResults.push(result)
-                    results.push(result)
-                    summary[result.status] += 1
                 }
 
+                if (gym.notify_expired_notice_enabled) {
+                    notificationRuns.push({
+                        notificationType: 'membership_expired',
+                        offsetDays: -gym.notify_expired_notice_days,
+                    })
+                }
+
+                const byType = await Promise.all(
+                    notificationRuns.map(async ({ notificationType, offsetDays, daysRemaining }) => {
+                        const targetDate = getBusinessDateValue(new Date(), offsetDays)
+                        const members = await getMembersExpiringOn(targetDate, gym.id)
+                        const typeResults: SendMemberNotificationResult[] = []
+
+                        for (const member of members) {
+                            const result = await sendMemberWhatsAppNotification({
+                                memberId: member.id,
+                                notificationType,
+                                skipIfAlreadySentToday: true,
+                                source: 'cron',
+                                dateValue: businessDate,
+                                daysRemaining,
+                            })
+
+                            typeResults.push(result)
+                            results.push(result)
+                            summary[result.status] += 1
+                        }
+
+                        return {
+                            notificationType,
+                            targetDate,
+                            totalMembers: members.length,
+                            sent: typeResults.filter((item) => item.status === 'sent').length,
+                            skipped: typeResults.filter((item) => item.status === 'skipped').length,
+                            failed: typeResults.filter((item) => item.status === 'failed').length,
+                        }
+                    })
+                )
+
                 return {
-                    notificationType,
-                    targetDate,
-                    totalMembers: members.length,
-                    sent: typeResults.filter((item) => item.status === 'sent').length,
-                    skipped: typeResults.filter((item) => item.status === 'skipped').length,
-                    failed: typeResults.filter((item) => item.status === 'failed').length,
-                    results: typeResults,
+                    gymId: gym.id,
+                    totalMembers: byType.reduce((count, group) => count + group.totalMembers, 0),
+                    byType,
                 }
             })
         )
 
-        const totalMembers = byType.reduce((count, group) => count + group.totalMembers, 0)
+        const totalMembers = byGym.reduce((count, group) => count + group.totalMembers, 0)
 
         await recordBackgroundJobRun({
             jobName: 'cron.check-expiring-memberships',
@@ -126,7 +152,7 @@ export async function GET(request: Request) {
             sent: summary.sent,
             skipped: summary.skipped,
             failed: summary.failed,
-            byType,
+            byGym,
             results,
         })
     } catch (error) {
