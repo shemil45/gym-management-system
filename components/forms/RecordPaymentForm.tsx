@@ -53,6 +53,7 @@ export default function RecordPaymentForm({ members, plans }: RecordPaymentFormP
     const router = useRouter()
     const { isDark } = useAdminTheme()
     const [loading, setLoading] = useState(false)
+    const today = new Date().toISOString().split('T')[0]
 
     // Form state
     const [memberSearch, setMemberSearch] = useState('')
@@ -60,7 +61,7 @@ export default function RecordPaymentForm({ members, plans }: RecordPaymentFormP
     const [amount, setAmount] = useState('')
     const [paymentMethod, setPaymentMethod] = useState('')
     const [paymentStatus, setPaymentStatus] = useState('paid')
-    const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0])
+    const [paymentDate, setPaymentDate] = useState(today)
     const [selectedPlanId, setSelectedPlanId] = useState('')
     const [membershipMode, setMembershipMode] = useState<'renew' | 'change'>('renew')
     const [notes, setNotes] = useState('')
@@ -120,6 +121,7 @@ export default function RecordPaymentForm({ members, plans }: RecordPaymentFormP
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         if (!selectedMemberId) { toast.error('Please select a member'); return }
+        if (paymentDate > today) { toast.error('Payment date cannot be in the future'); return }
         if (!selectedPlanId) { toast.error('Please select a membership plan'); return }
         if (!amount || isNaN(parseFloat(amount))) { toast.error('Please enter a valid amount'); return }
         if (!paymentMethod) { toast.error('Please select a payment method'); return }
@@ -358,6 +360,7 @@ export default function RecordPaymentForm({ members, plans }: RecordPaymentFormP
                                 id="payment_date"
                                 type="date"
                                 value={paymentDate}
+                                max={today}
                                 onChange={(e) => setPaymentDate(e.target.value)}
                                 disabled={loading}
                                 className="h-10 border-gray-300 text-sm text-gray-600 focus:border-emerald-400 focus:ring-emerald-400"
