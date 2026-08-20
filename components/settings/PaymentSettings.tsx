@@ -15,6 +15,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
+import SettingsPageContainer from '@/components/settings/SettingsPageContainer'
 import { updatePaymentSettings } from '@/app/admin/settings/payment-settings/actions'
 
 const PAYMENT_METHODS = [
@@ -86,7 +87,7 @@ export default function PaymentSettings({ gym }: PaymentSettingsProps) {
     }
 
     return (
-        <div className="mx-auto max-w-2xl space-y-6">
+        <SettingsPageContainer>
             <Link href="/admin/settings" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
                 <ArrowLeft className="h-4 w-4" /> Back to settings
             </Link>
@@ -156,6 +157,6 @@ export default function PaymentSettings({ gym }: PaymentSettingsProps) {
                 {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 {pending ? 'Saving...' : 'Save Changes'}
             </Button>
-        </div>
+        </SettingsPageContainer>
     )
 }
