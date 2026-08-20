@@ -250,7 +250,8 @@ export default function AdminDashboard() {
                         : 'border border-[#e7e9ee] bg-white shadow-[0_14px_32px_rgba(15,23,42,0.07)] hover:border-[#d9dde5] hover:shadow-[0_18px_38px_rgba(15,23,42,0.1)]'
                 }`}
             >
-                <div className="flex items-center gap-3 sm:gap-4">
+                <div className="flex items-center justify-between gap-3 sm:gap-4">
+                <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
                     <Avatar
                         className={`h-14 w-14 shrink-0 ring-2 sm:h-16 sm:w-16 ${
                             isDark ? 'ring-white/10' : 'ring-slate-200'
@@ -361,6 +362,35 @@ export default function AdminDashboard() {
                             </div>
                         )}
                     </div>
+                </div>
+
+                <div className="hidden shrink-0 items-center gap-2.5 md:flex">
+                    <LoadingLinkButton
+                        href="/admin/finances/payments/record"
+                        loadingText=""
+                        variant="outline"
+                        className={`rounded-lg px-4 py-2 text-sm font-medium shadow-none ${
+                            isDark
+                                ? 'border-[#2a2a2a] bg-[#161616] text-zinc-200 hover:bg-[#222222] hover:text-white'
+                                : 'border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-50'
+                        }`}
+                    >
+                        <CreditCard className="h-4 w-4" />
+                        Record Payment
+                    </LoadingLinkButton>
+                    <LoadingLinkButton
+                        href="/admin/members/add"
+                        loadingText=""
+                        className={`rounded-lg px-4 py-2 text-sm font-medium shadow-none text-white ${
+                            isDark
+                                ? 'bg-[#10b981] hover:bg-[#0ea271]'
+                                : 'bg-[#0f5be1] hover:bg-[#0c4ec6]'
+                        }`}
+                    >
+                        <Plus className="h-4 w-4" />
+                        Add Member
+                    </LoadingLinkButton>
+                </div>
                 </div>
             </section>
 
@@ -604,7 +634,7 @@ export default function AdminDashboard() {
             </SectionShell>
         </div>
 
-        <div className="fixed bottom-6 right-5 z-30 lg:hidden">
+        <div className="fixed bottom-6 right-5 z-30 md:hidden">
                 <div className="mb-3 flex flex-col items-center gap-3">
                     {quickActionsOpen ? (
                         <>
