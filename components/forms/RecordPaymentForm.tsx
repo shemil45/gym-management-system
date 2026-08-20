@@ -34,16 +34,23 @@ interface PlanOption {
     duration_days: number
 }
 
+interface PaymentMethodOption {
+    value: string
+    label: string
+}
+
 interface RecordPaymentFormProps {
     members: MemberOption[]
     plans: PlanOption[]
+    paymentMethods: PaymentMethodOption[]
+    defaultPaymentMethod?: string
 }
 
 function getInitials(name: string) {
     return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
 }
 
-export default function RecordPaymentForm({ members, plans }: RecordPaymentFormProps) {
+export default function RecordPaymentForm({ members, plans, paymentMethods, defaultPaymentMethod = '' }: RecordPaymentFormProps) {
     const router = useRouter()
     const { isDark } = useAdminTheme()
     const [loading, setLoading] = useState(false)
@@ -52,7 +59,7 @@ export default function RecordPaymentForm({ members, plans }: RecordPaymentFormP
     const [memberSearch, setMemberSearch] = useState('')
     const [selectedMemberId, setSelectedMemberId] = useState('')
     const [amount, setAmount] = useState('')
-    const [paymentMethod, setPaymentMethod] = useState('')
+    const [paymentMethod, setPaymentMethod] = useState(defaultPaymentMethod)
     const [paymentStatus, setPaymentStatus] = useState('paid')
     const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0])
     const [selectedPlanId, setSelectedPlanId] = useState('')
@@ -265,11 +272,11 @@ export default function RecordPaymentForm({ members, plans }: RecordPaymentFormP
                                     <SelectValue placeholder="Select method" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="cash">Cash</SelectItem>
-                                    <SelectItem value="upi">UPI</SelectItem>
-                                    <SelectItem value="card">Card</SelectItem>
-                                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                                    <SelectItem value="online">Online</SelectItem>
+                                    {paymentMethods.map((method) => (
+                                        <SelectItem key={method.value} value={method.value}>
+                                            {method.label}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>

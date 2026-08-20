@@ -76,6 +76,11 @@ export interface Database {
                     receipt_show_gstin: boolean
                     receipt_footer_message: string | null
                     receipt_additional_notes: string | null
+                    payment_method_cash_enabled: boolean
+                    payment_method_upi_enabled: boolean
+                    payment_method_card_enabled: boolean
+                    payment_method_bank_transfer_enabled: boolean
+                    default_payment_method: string
                     created_at: string
                     updated_at: string
                 }
@@ -115,6 +120,11 @@ export interface Database {
                     receipt_show_gstin?: boolean
                     receipt_footer_message?: string | null
                     receipt_additional_notes?: string | null
+                    payment_method_cash_enabled?: boolean
+                    payment_method_upi_enabled?: boolean
+                    payment_method_card_enabled?: boolean
+                    payment_method_bank_transfer_enabled?: boolean
+                    default_payment_method?: string
                     created_at?: string
                     updated_at?: string
                 }
@@ -154,6 +164,11 @@ export interface Database {
                     receipt_show_gstin?: boolean
                     receipt_footer_message?: string | null
                     receipt_additional_notes?: string | null
+                    payment_method_cash_enabled?: boolean
+                    payment_method_upi_enabled?: boolean
+                    payment_method_card_enabled?: boolean
+                    payment_method_bank_transfer_enabled?: boolean
+                    default_payment_method?: string
                     created_at?: string
                     updated_at?: string
                 }
