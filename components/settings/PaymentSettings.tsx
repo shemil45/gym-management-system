@@ -16,6 +16,7 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 import SettingsPageContainer from '@/components/settings/SettingsPageContainer'
+import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { updatePaymentSettings } from '@/app/admin/settings/payment-settings/actions'
 
 const PAYMENT_METHODS = [
@@ -38,6 +39,7 @@ interface PaymentSettingsProps {
 }
 
 export default function PaymentSettings({ gym }: PaymentSettingsProps) {
+    const { isDark } = useAdminTheme()
     const router = useRouter()
     const [pending, startTransition] = useTransition()
 
@@ -93,11 +95,11 @@ export default function PaymentSettings({ gym }: PaymentSettingsProps) {
             </Link>
 
             <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-white">
-                    <Wallet className="h-5 w-5" />
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${isDark ? 'bg-[#10b981]/15' : 'bg-slate-950'}`}>
+                    <Wallet className={`h-5 w-5 ${isDark ? 'text-[#10b981]' : 'text-white'}`} />
                 </div>
                 <div>
-                    <h1 className="text-lg font-bold text-slate-950">Payment Settings</h1>
+                    <h1 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-slate-950'}`}>Payment Settings</h1>
                     <p className="text-sm text-slate-500">Accepted payment methods and defaults.</p>
                 </div>
             </div>
@@ -131,9 +133,13 @@ export default function PaymentSettings({ gym }: PaymentSettingsProps) {
                 </div>
 
                 {!defaultMethod && (
-                    <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-                        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
-                        <p className="text-xs text-amber-700">
+                    <div
+                        className={`flex items-start gap-2 rounded-lg border px-3 py-2 ${
+                            isDark ? 'border-amber-500/30 bg-amber-500/10' : 'border-amber-200 bg-amber-50'
+                        }`}
+                    >
+                        <AlertTriangle className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-500'}`} />
+                        <p className={`text-xs ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
                             Your previous default method is disabled. Select another enabled method before saving.
                         </p>
                     </div>
@@ -153,7 +159,11 @@ export default function PaymentSettings({ gym }: PaymentSettingsProps) {
                 </Select>
             </section>
 
-            <Button onClick={handleSave} disabled={pending} className="w-full sm:w-auto">
+            <Button
+                onClick={handleSave}
+                disabled={pending}
+                className={`w-full sm:w-auto ${isDark ? 'bg-[#10b981] hover:bg-[#0ea271] text-white' : ''}`}
+            >
                 {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 {pending ? 'Saving...' : 'Save Changes'}
             </Button>

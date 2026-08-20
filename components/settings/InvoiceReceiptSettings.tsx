@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import SettingsPageContainer from '@/components/settings/SettingsPageContainer'
+import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { updateReceiptSettings } from '@/app/admin/settings/invoice-receipt/actions'
 
 interface InvoiceReceiptSettingsProps {
@@ -28,6 +29,7 @@ interface InvoiceReceiptSettingsProps {
 }
 
 export default function InvoiceReceiptSettings({ gym }: InvoiceReceiptSettingsProps) {
+    const { isDark } = useAdminTheme()
     const router = useRouter()
     const [pending, startTransition] = useTransition()
 
@@ -74,11 +76,11 @@ export default function InvoiceReceiptSettings({ gym }: InvoiceReceiptSettingsPr
             </Link>
 
             <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-white">
-                    <Receipt className="h-5 w-5" />
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${isDark ? 'bg-[#10b981]/15' : 'bg-slate-950'}`}>
+                    <Receipt className={`h-5 w-5 ${isDark ? 'text-[#10b981]' : 'text-white'}`} />
                 </div>
                 <div>
-                    <h1 className="text-lg font-bold text-slate-950">Invoice &amp; Receipt</h1>
+                    <h1 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-slate-950'}`}>Invoice &amp; Receipt</h1>
                     <p className="text-sm text-slate-500">Receipt numbering, branding, and content.</p>
                 </div>
             </div>
@@ -101,7 +103,7 @@ export default function InvoiceReceiptSettings({ gym }: InvoiceReceiptSettingsPr
                         />
                     </div>
                 </div>
-                <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3">
+                <div className={`rounded-lg border border-dashed bg-slate-50 px-4 py-3 ${isDark ? 'border-[#2a2a2a]' : 'border-slate-300'}`}>
                     <p className="text-xs text-slate-500">Next generated receipt number will look like</p>
                     <p className="mt-0.5 font-mono text-sm font-semibold text-slate-900">{previewNumber}</p>
                 </div>
@@ -156,7 +158,11 @@ export default function InvoiceReceiptSettings({ gym }: InvoiceReceiptSettingsPr
                 </div>
             </section>
 
-            <Button onClick={handleSave} disabled={pending} className="w-full sm:w-auto">
+            <Button
+                onClick={handleSave}
+                disabled={pending}
+                className={`w-full sm:w-auto ${isDark ? 'bg-[#10b981] hover:bg-[#0ea271] text-white' : ''}`}
+            >
                 {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 {pending ? 'Saving...' : 'Save receipt settings'}
             </Button>
