@@ -3,6 +3,7 @@
 import { ArrowLeft, Construction } from 'lucide-react'
 import LoadingLinkButton from '@/components/ui/loading-link-button'
 import { useAdminTheme } from '@/components/layout/AdminThemeContext'
+import SettingsPageContainer from '@/components/settings/SettingsPageContainer'
 
 interface SettingsPlaceholderPageProps {
     title: string
@@ -14,7 +15,7 @@ export default function SettingsPlaceholderPage({ title, description, icon }: Se
     const { isDark } = useAdminTheme()
 
     return (
-        <div className="space-y-5">
+        <SettingsPageContainer className="space-y-5">
             <LoadingLinkButton
                 href="/admin/settings"
                 loadingText="Going back..."
@@ -64,6 +65,6 @@ export default function SettingsPlaceholderPage({ title, description, icon }: Se
                     </p>
                 </div>
             </div>
-        </div>
+        </SettingsPageContainer>
     )
 }

@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
+import SettingsPageContainer from '@/components/settings/SettingsPageContainer'
 import { updateNotificationSettings } from '@/app/admin/settings/notifications/actions'
 
 interface NotificationSettingsProps {
@@ -57,7 +58,7 @@ export default function NotificationSettings({ gym }: NotificationSettingsProps)
     }
 
     return (
-        <div className="mx-auto max-w-2xl space-y-6">
+        <SettingsPageContainer>
             <Link href="/admin/settings" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
                 <ArrowLeft className="h-4 w-4" /> Back to settings
             </Link>
@@ -158,6 +159,6 @@ export default function NotificationSettings({ gym }: NotificationSettingsProps)
                 {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 {pending ? 'Saving...' : 'Save changes'}
             </Button>
-        </div>
+        </SettingsPageContainer>
     )
 }
