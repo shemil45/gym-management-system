@@ -32,6 +32,23 @@ export async function recordPayment(formData: FormData) {
         const dateStr = paymentDate.replace(/-/g, '')
         const rand = Math.floor(1000 + Math.random() * 9000)
         const invoiceNumber = `INV-${dateStr}-${rand}`
+
+        const memberGymResult = await supabase
+            .from('members')
+            .select('gym_id')
+            .eq('id', memberId)
+            .single()
+        const { data: memberGymRow, error: memberGymError } = memberGymResult as unknown as QueryResult<{ gym_id: string | null } | null>
+
+        if (memberGymError) return { error: getErrorMessage(memberGymError, 'Failed to resolve member') }
+        if (!memberGymRow?.gym_id) return { error: 'Member is not linked to a gym' }
+
+        const { data: receiptNumber, error: receiptNumberError } = await supabase.rpc('generate_receipt_number', {
+            p_gym_id: memberGymRow.gym_id,
+        } as never)
+
+        if (receiptNumberError) return { error: getErrorMessage(receiptNumberError, 'Failed to generate receipt number') }
+
         let membershipStartDate: string | null = null
         let membershipEndDate: string | null = null
 
@@ -74,6 +91,7 @@ export async function recordPayment(formData: FormData) {
             payment_status: paymentStatus as InsertTables<'payments'>['payment_status'],
             payment_date: paymentDate,
             invoice_number: invoiceNumber,
+            receipt_number: receiptNumber,
             notes,
             membership_start_date: membershipStartDate,
             membership_end_date: membershipEndDate,

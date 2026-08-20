@@ -67,6 +67,15 @@ export interface Database {
                     address: string | null
                     postal_code: string | null
                     gstin: string | null
+                    receipt_prefix: string
+                    receipt_next_number: number
+                    receipt_show_logo: boolean
+                    receipt_show_address: boolean
+                    receipt_show_phone: boolean
+                    receipt_show_email: boolean
+                    receipt_show_gstin: boolean
+                    receipt_footer_message: string | null
+                    receipt_additional_notes: string | null
                     created_at: string
                     updated_at: string
                 }
@@ -97,6 +106,15 @@ export interface Database {
                     address?: string | null
                     postal_code?: string | null
                     gstin?: string | null
+                    receipt_prefix?: string
+                    receipt_next_number?: number
+                    receipt_show_logo?: boolean
+                    receipt_show_address?: boolean
+                    receipt_show_phone?: boolean
+                    receipt_show_email?: boolean
+                    receipt_show_gstin?: boolean
+                    receipt_footer_message?: string | null
+                    receipt_additional_notes?: string | null
                     created_at?: string
                     updated_at?: string
                 }
@@ -127,6 +145,15 @@ export interface Database {
                     address?: string | null
                     postal_code?: string | null
                     gstin?: string | null
+                    receipt_prefix?: string
+                    receipt_next_number?: number
+                    receipt_show_logo?: boolean
+                    receipt_show_address?: boolean
+                    receipt_show_phone?: boolean
+                    receipt_show_email?: boolean
+                    receipt_show_gstin?: boolean
+                    receipt_footer_message?: string | null
+                    receipt_additional_notes?: string | null
                     created_at?: string
                     updated_at?: string
                 }
@@ -353,6 +380,7 @@ export interface Database {
                     notes: string | null
                     processed_by: string | null
                     admission_fee_amount: number | null
+                    receipt_number: string | null
                     created_at: string
                     updated_at: string
                 }
@@ -372,6 +400,7 @@ export interface Database {
                     notes?: string | null
                     processed_by?: string | null
                     admission_fee_amount?: number | null
+                    receipt_number?: string | null
                     created_at?: string
                     updated_at?: string
                 }
@@ -391,6 +420,7 @@ export interface Database {
                     notes?: string | null
                     processed_by?: string | null
                     admission_fee_amount?: number | null
+                    receipt_number?: string | null
                     created_at?: string
                     updated_at?: string
                 }
@@ -1038,6 +1068,12 @@ export interface Database {
                 Args: never
                 Returns: string
             }
+            generate_receipt_number: {
+                Args: {
+                    p_gym_id: string
+                }
+                Returns: string
+            }
             is_platform_admin: {
                 Args: never
                 Returns: boolean
@@ -1079,6 +1115,9 @@ export interface Database {
             support_ticket_priority: SupportTicketPriority
             support_ticket_status: SupportTicketStatus
             system_event_severity: SystemEventSeverity
+        }
+        CompositeTypes: {
+            [_ in never]: never
         }
     }
 }
