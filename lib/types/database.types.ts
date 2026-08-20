@@ -81,6 +81,9 @@ export interface Database {
                     payment_method_card_enabled: boolean
                     payment_method_bank_transfer_enabled: boolean
                     default_payment_method: string
+                    member_id_prefix: string
+                    member_id_next_number: number
+                    member_id_padding: number
                     created_at: string
                     updated_at: string
                 }
@@ -125,6 +128,9 @@ export interface Database {
                     payment_method_card_enabled?: boolean
                     payment_method_bank_transfer_enabled?: boolean
                     default_payment_method?: string
+                    member_id_prefix?: string
+                    member_id_next_number?: number
+                    member_id_padding?: number
                     created_at?: string
                     updated_at?: string
                 }
@@ -169,6 +175,9 @@ export interface Database {
                     payment_method_card_enabled?: boolean
                     payment_method_bank_transfer_enabled?: boolean
                     default_payment_method?: string
+                    member_id_prefix?: string
+                    member_id_next_number?: number
+                    member_id_padding?: number
                     created_at?: string
                     updated_at?: string
                 }
@@ -1084,6 +1093,12 @@ export interface Database {
                 Returns: string
             }
             generate_receipt_number: {
+                Args: {
+                    p_gym_id: string
+                }
+                Returns: string
+            }
+            generate_member_id: {
                 Args: {
                     p_gym_id: string
                 }
