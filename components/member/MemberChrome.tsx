@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
     IconBell,
+    IconChevronLeft,
     IconCreditCard,
     IconHome,
     IconQrcode,
@@ -46,11 +47,15 @@ function useIsActive() {
 
 /* ------------------------------------------------------------------ top */
 
+/*
+  Titles live here, not on each screen, so a page renders its name exactly once
+  on mobile. Screens still declare a title for desktop, where this bar is hidden.
+*/
 const TITLES: Record<string, string> = {
     '/member': 'Home',
-    '/member/train': 'Training',
+    '/member/train': 'Train',
     '/member/pass': 'Gym pass',
-    '/member/membership': 'Membership',
+    '/member/membership': 'Plan',
     '/member/membership/renew': 'Renew plan',
     '/member/account': 'Account',
     '/member/activity': 'Activity',
@@ -59,6 +64,22 @@ const TITLES: Record<string, string> = {
     '/member/profile': 'Profile',
     '/member/referrals': 'Refer a friend',
     '/member/support': 'Help',
+}
+
+/*
+  Where "back" goes from a screen that is not a bottom-nav destination. An
+  explicit parent beats history.back(), which lands somewhere arbitrary when the
+  member arrived from a notification deep link or a shared URL.
+*/
+const PARENTS: Record<string, string> = {
+    '/member/pass': '/member',
+    '/member/activity': '/member',
+    '/member/notifications': '/member',
+    '/member/payments': '/member/membership',
+    '/member/membership/renew': '/member/membership',
+    '/member/profile': '/member/account',
+    '/member/referrals': '/member/account',
+    '/member/support': '/member/account',
 }
 
 export function TopBar({
@@ -72,17 +93,28 @@ export function TopBar({
 }) {
     const pathname = usePathname() ?? '/member'
     const title = pathname === '/member' ? homeTitle : (TITLES[pathname] ?? 'Member portal')
+    const parent = PARENTS[pathname]
 
     return (
         <header
             className="sticky top-0 z-30 border-b border-[var(--m-line-soft)] bg-[var(--m-bg)]/85 backdrop-blur-xl lg:hidden"
             style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
         >
-            <div className="flex h-[var(--m-topbar)] items-center gap-3 px-5">
+            <div className="flex h-[var(--m-topbar)] items-center gap-2 px-5">
+                {parent ? (
+                    <Link
+                        href={parent}
+                        aria-label="Back"
+                        className="m-tap -ml-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+                    >
+                        <IconChevronLeft size={22} stroke={2} />
+                    </Link>
+                ) : null}
+
                 <div className="min-w-0 flex-1">
-                    <p className="truncate text-[15px] font-semibold tracking-[-0.015em]">
+                    <h1 className="truncate text-[15px] font-semibold tracking-[-0.015em]">
                         {title}
-                    </p>
+                    </h1>
                     <p className="truncate text-[11.5px] leading-tight text-[var(--m-ink-3)]">
                         {gymName}
                     </p>

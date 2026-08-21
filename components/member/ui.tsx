@@ -26,8 +26,10 @@ export function Screen({
 }) {
     return (
         <div className={cn('mx-auto w-full max-w-[720px] px-5 lg:max-w-none lg:px-0', className)}>
+            {/* Desktop only: below lg the sticky TopBar is the page heading, and
+                printing the name twice wastes the scarcest resource on a phone. */}
             {title ? (
-                <h1 className="mb-4 text-[26px] font-semibold leading-[1.15] tracking-[-0.02em]">
+                <h1 className="mb-6 hidden text-[26px] font-semibold leading-[1.15] tracking-[-0.02em] lg:block">
                     {title}
                 </h1>
             ) : null}

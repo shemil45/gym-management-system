@@ -1,106 +1,44 @@
-import {
-    IconArrowUpRight,
-    IconGift,
-    IconHistory,
-    IconLifebuoy,
-    IconReceipt,
-    IconSparkles,
-} from '@tabler/icons-react'
+import { IconArrowUpRight, IconSparkles } from '@tabler/icons-react'
 import type { MemberPortalData } from '@/lib/member/portal-data'
 import { getNotifications } from '@/lib/member/notifications'
 import { AnnouncementCard, MembershipStatus, SessionCard, WeekStrip } from './blocks'
-import {
-    Card,
-    LinkButton,
-    Row,
-    RowGroup,
-    Screen,
-    SectionHeading,
-    Stack,
-} from './ui'
+import { Card, LinkButton, Screen, SectionHeading, Stack } from './ui'
 
 /**
  * Home, as a pure function of portal data.
  *
- * Mobile is one column ordered by urgency: can I train, am I showing up, what is
- * today's session, what did the gym say, everything else. Desktop keeps that
- * exact ranking and only moves the two lowest-priority blocks into a side
- * column so the fold does more work.
+ * Four blocks, ordered by urgency: can I train, am I showing up, what is today's
+ * session, what did the gym say. Nothing else. Payments, referrals and help live
+ * in Account and are deliberately not mirrored here, so Home stays a status
+ * screen rather than a second navigation menu.
+ *
+ * Each block is a single grid child placed explicitly at lg, so the desktop
+ * two-column layout reuses the same nodes instead of rendering a hidden copy.
  */
-export function HomeScreen({ data }: { data: MemberPortalData }) {
+export function HomeScreen({ data, greeting }: { data: MemberPortalData; greeting: string }) {
     const latest = getNotifications(data).find((n) => n.kind === 'announcement')
 
     return (
-        <Screen>
-            <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-7">
-                <div>
-                    <Stack gap={14}>
-                        <MembershipStatus
-                            membership={data.membership}
-                            memberCode={data.member.memberCode}
-                        />
+        <Screen title={greeting}>
+            {/* Two column stacks, which happen to concatenate into exactly the
+                mobile order we want: status, week, today, announcement. Each
+                block therefore renders once, and the columns size independently
+                instead of being locked to shared grid rows. */}
+            <div className="flex flex-col gap-3.5 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-7">
+                <Stack gap={14}>
+                    <MembershipStatus
+                        membership={data.membership}
+                        memberCode={data.member.memberCode}
+                    />
+                    <WeekStrip activity={data.activity} href="/member/activity" />
+                </Stack>
 
-                        <WeekStrip activity={data.activity} />
-
-                        <div className="lg:hidden">
-                            <TrainingBlock data={data} />
-                        </div>
-
-                        {latest ? (
-                            <div className="lg:hidden">
-                                <AnnouncementCard
-                                    title={latest.title}
-                                    body={latest.body}
-                                    at={latest.at}
-                                />
-                            </div>
-                        ) : null}
-
-                        <SectionHeading>More</SectionHeading>
-                        <RowGroup>
-                            <Row
-                                href="/member/activity"
-                                icon={<IconHistory size={18} stroke={1.7} />}
-                                label="Attendance history"
-                                hint={`${data.activity.allTime} visits all time`}
-                            />
-                            <Row
-                                href="/member/payments"
-                                icon={<IconReceipt size={18} stroke={1.7} />}
-                                label="Payments and receipts"
-                                hint={
-                                    data.payments.last
-                                        ? `Last paid ${new Date(data.payments.last.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
-                                        : 'No payments yet'
-                                }
-                            />
-                            <Row
-                                href="/member/referrals"
-                                icon={<IconGift size={18} stroke={1.7} />}
-                                label="Refer a friend"
-                                hint={`${data.credits} credits earned`}
-                            />
-                            <Row
-                                href="/member/support"
-                                icon={<IconLifebuoy size={18} stroke={1.7} />}
-                                label="Help and contact"
-                            />
-                        </RowGroup>
-                    </Stack>
-                </div>
-
-                <aside className="hidden lg:block">
-                    <Stack gap={14}>
-                        <TrainingBlock data={data} />
-                        {latest ? (
-                            <AnnouncementCard
-                                title={latest.title}
-                                body={latest.body}
-                                at={latest.at}
-                            />
-                        ) : null}
-                    </Stack>
-                </aside>
+                <Stack gap={14}>
+                    <TrainingBlock data={data} />
+                    {latest ? (
+                        <AnnouncementCard title={latest.title} body={latest.body} at={latest.at} />
+                    ) : null}
+                </Stack>
             </div>
         </Screen>
     )

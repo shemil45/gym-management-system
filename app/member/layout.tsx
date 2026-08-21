@@ -3,6 +3,7 @@ import { Toaster } from 'sonner'
 import { getCurrentMemberContext } from '@/lib/auth/member-server'
 import { getMemberPortalData } from '@/lib/member/portal-data'
 import { getNotifications } from '@/lib/member/notifications'
+import { greetingFor } from '@/lib/member/greeting'
 import { MemberThemeProvider } from '@/components/member/MemberTheme'
 import { BottomNav, DesktopRail, TopBar } from '@/components/member/MemberChrome'
 import './member.css'
@@ -12,13 +13,6 @@ export const metadata = {
         default: 'Member portal',
         template: '%s | Member portal',
     },
-}
-
-function greeting(name: string) {
-    const hour = new Date().getHours()
-    if (hour < 12) return `Morning, ${name}`
-    if (hour < 17) return `Afternoon, ${name}`
-    return `Evening, ${name}`
 }
 
 export default async function MemberLayout({ children }: { children: React.ReactNode }) {
@@ -36,7 +30,7 @@ export default async function MemberLayout({ children }: { children: React.React
             <div className="min-h-[100dvh] bg-[var(--m-bg)] text-[var(--m-ink)]">
                 <Toaster richColors position="top-center" offset={72} />
 
-                <TopBar homeTitle={greeting(firstName)} gymName={gym.name} unread={unread} />
+                <TopBar homeTitle={greetingFor(firstName)} gymName={gym.name} unread={unread} />
                 <DesktopRail
                     gymName={gym.name}
                     memberName={data?.member.fullName ?? profile.full_name ?? 'Member'}

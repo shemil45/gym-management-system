@@ -3,6 +3,7 @@ import {
     IconAlertTriangle,
     IconArrowUpRight,
     IconBarbell,
+    IconChevronRight,
     IconPlayerPlay,
     IconSnowflake,
 } from '@tabler/icons-react'
@@ -152,18 +153,39 @@ function dayKey(d: Date) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-/** Seven chips, current week, Monday first. The fastest read of "am I showing up". */
-export function WeekStrip({ activity }: { activity: ActivitySummary }) {
+/**
+ * Seven chips, current week, Monday first. The fastest read of "am I showing up".
+ *
+ * When `href` is set the whole card is the entry point to the full history,
+ * which is a far better touch target than a menu row and lets Home drop its
+ * duplicate navigation list.
+ */
+export function WeekStrip({
+    activity,
+    href,
+}: {
+    activity: ActivitySummary
+    href?: string
+}) {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const monday = new Date(today.getTime() - ((today.getDay() + 6) % 7) * 86_400_000)
     const active = new Set(activity.activeDays)
 
-    return (
-        <Card className="p-4">
-            <div className="flex items-center justify-between">
+    const inner = (
+        <>
+            <div className="flex items-center justify-between gap-3">
                 <div>
-                    <p className="text-[13px] font-medium text-[var(--m-ink-2)]">This week</p>
+                    <p className="flex items-center gap-1 text-[13px] font-medium text-[var(--m-ink-2)]">
+                        This week
+                        {href ? (
+                            <IconChevronRight
+                                size={15}
+                                stroke={2}
+                                className="text-[var(--m-ink-3)]"
+                            />
+                        ) : null}
+                    </p>
                     <p className="m-num mt-1 text-[24px] font-semibold leading-none">
                         {activity.thisWeek}
                         <span className="ml-1.5 font-sans text-[12.5px] font-medium text-[var(--m-ink-3)]">
@@ -211,8 +233,18 @@ export function WeekStrip({ activity }: { activity: ActivitySummary }) {
                     )
                 })}
             </ul>
-        </Card>
+        </>
     )
+
+    if (href) {
+        return (
+            <Link href={href} className="m-tap block" aria-label="This week, open full activity">
+                <Card className="p-4">{inner}</Card>
+            </Link>
+        )
+    }
+
+    return <Card className="p-4">{inner}</Card>
 }
 
 /* ---------------------------------------------------------- session card */

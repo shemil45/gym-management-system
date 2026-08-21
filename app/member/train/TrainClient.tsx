@@ -38,7 +38,7 @@ export default function TrainClient({ training }: { training: TrainingSummary })
 
     if (!plan) {
         return (
-            <Screen title="Training">
+            <Screen title="Train">
                 <Stack gap={14}>
                     <EmptyState
                         icon={<IconSparkles size={26} stroke={1.6} />}
@@ -73,7 +73,7 @@ export default function TrainClient({ training }: { training: TrainingSummary })
     const session = plan.sessions[index]
 
     return (
-        <Screen title="Training">
+        <Screen title="Train">
             <Stack gap={14}>
                 {preview ? (
                     <div className="flex items-center justify-between gap-3 rounded-[var(--m-r-control)] bg-[var(--m-surface-2)] px-3.5 py-2.5">

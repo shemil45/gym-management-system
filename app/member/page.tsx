@@ -1,6 +1,7 @@
 import { IconUserQuestion } from '@tabler/icons-react'
 import { getMemberPortalData } from '@/lib/member/portal-data'
 import { HomeScreen } from '@/components/member/HomeScreen'
+import { greetingFor } from '@/lib/member/greeting'
 import { EmptyState, LinkButton, Screen } from '@/components/member/ui'
 
 export default async function MemberHome() {
@@ -23,5 +24,5 @@ export default async function MemberHome() {
         )
     }
 
-    return <HomeScreen data={data} />
+    return <HomeScreen data={data} greeting={greetingFor(data.member.firstName)} />
 }

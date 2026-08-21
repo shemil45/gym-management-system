@@ -3,7 +3,7 @@ import { getMemberPortalData } from '@/lib/member/portal-data'
 import { EmptyState, LinkButton, Screen } from '@/components/member/ui'
 import TrainClient from './TrainClient'
 
-export const metadata = { title: 'Training' }
+export const metadata = { title: 'Train' }
 
 export default async function TrainPage() {
     const data = await getMemberPortalData()

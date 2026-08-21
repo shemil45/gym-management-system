@@ -1,16 +1,13 @@
 import {
     IconArrowUpRight,
-    IconCalendarEvent,
     IconCreditCard,
     IconGift,
-    IconLifebuoy,
     IconReceipt,
     IconSnowflake,
 } from '@tabler/icons-react'
 import { getMemberPortalData } from '@/lib/member/portal-data'
 import { MembershipStatus } from '@/components/member/blocks'
 import {
-    Card,
     EmptyState,
     LinkButton,
     Row,
@@ -21,7 +18,7 @@ import {
 } from '@/components/member/ui'
 import { formatCurrency } from '@/lib/utils/currency'
 
-export const metadata = { title: 'Membership' }
+export const metadata = { title: 'Plan' }
 
 function formatDay(value: string | null) {
     if (!value) return 'Not set'
@@ -37,7 +34,7 @@ export default async function MembershipPage() {
 
     if (!data) {
         return (
-            <Screen title="Membership">
+            <Screen title="Plan">
                 <EmptyState
                     icon={<IconCreditCard size={26} stroke={1.6} />}
                     title="No membership found"
@@ -55,7 +52,7 @@ export default async function MembershipPage() {
     const { membership, payments, credits } = data
 
     return (
-        <Screen title="Membership">
+        <Screen title="Plan">
             <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-7">
                 <Stack gap={14}>
                     <MembershipStatus
@@ -119,33 +116,19 @@ export default async function MembershipPage() {
                         />
                     </RowGroup>
 
+                    {/* One row, not three. Holds, billing-date changes and
+                        cancellations all reach the same people, so offering them
+                        as separate destinations promised a choice that did not
+                        exist behind it. */}
                     <SectionHeading>Need a change</SectionHeading>
                     <RowGroup>
                         <Row
                             href="/member/support"
                             icon={<IconSnowflake size={18} stroke={1.7} />}
-                            label="Put my membership on hold"
-                            hint="Handled by the front desk"
-                        />
-                        <Row
-                            href="/member/support"
-                            icon={<IconCalendarEvent size={18} stroke={1.7} />}
-                            label="Change my billing date"
-                            hint="Handled by the front desk"
-                        />
-                        <Row
-                            href="/member/support"
-                            icon={<IconLifebuoy size={18} stroke={1.7} />}
-                            label="Something else"
+                            label="Hold, cancel or change billing"
+                            hint={`${data.gym.name} staff handle these so your unused days carry over`}
                         />
                     </RowGroup>
-
-                    <Card className="p-4">
-                        <p className="text-[13px] leading-relaxed text-[var(--m-ink-2)]">
-                            Holds and cancellations are processed by {data.gym.name} staff so your
-                            remaining days are carried over correctly.
-                        </p>
-                    </Card>
                 </Stack>
             </div>
         </Screen>
