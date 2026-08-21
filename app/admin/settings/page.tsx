@@ -7,7 +7,7 @@ export default async function SettingsPage() {
     const { user, profile } = await getCurrentAdminContext()
 
     if (!user) redirect('/login')
-    if (!profile || !isStaffRole(profile.role)) redirect('/member/dashboard')
+    if (!profile || !isStaffRole(profile.role)) redirect('/member')
 
     return <SettingsHub />
 }

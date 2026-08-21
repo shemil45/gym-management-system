@@ -14,7 +14,7 @@ export default async function PaymentSettingsPage() {
     const { user, profile, gym } = await getCurrentAdminContext()
 
     if (!user) redirect('/login')
-    if (!profile || !isStaffRole(profile.role) || !gym) redirect('/member/dashboard')
+    if (!profile || !isStaffRole(profile.role) || !gym) redirect('/member')
 
     const supabase = await createClient()
     const gymResult = await supabase

@@ -1,0 +1,244 @@
+/*
+  Member Portal design tokens.
+  Scoped to .member-portal so the admin/platform themes are untouched.
+
+  Locked systems (do not deviate per component):
+  - Palette : warm ink neutrals + ONE accent (signal lime). Status hues are
+              functional only (membership expiry), never decorative.
+  - Radius  : shell 24px / core 18px / control 14px / pill full.
+  - Easing  : --m-ease on every transition. No linear, no ease-in-out.
+*/
+
+.member-portal {
+  --m-bg: oklch(0.978 0.003 95);
+  --m-bg-sunk: oklch(0.955 0.004 95);
+  --m-surface: oklch(1 0 0);
+  --m-surface-2: oklch(0.968 0.003 95);
+  --m-ink: oklch(0.19 0.006 95);
+  --m-ink-2: oklch(0.44 0.008 95);
+  --m-ink-3: oklch(0.6 0.008 95);
+  --m-line: oklch(0.9 0.004 95);
+  --m-line-soft: oklch(0.94 0.003 95);
+
+  /* single accent */
+  --m-accent: oklch(0.86 0.18 122);
+  --m-accent-strong: oklch(0.72 0.16 128);
+  --m-accent-ink: oklch(0.19 0.05 128);
+  --m-accent-wash: oklch(0.96 0.05 122);
+  /* Text sitting ON --m-accent-wash. Flips with the mode; --m-accent-ink is
+     only for text on the solid --m-accent fill, which stays light in both. */
+  --m-accent-wash-ink: oklch(0.36 0.1 128);
+
+  /* functional status only */
+  --m-warn: oklch(0.8 0.14 78);
+  --m-warn-ink: oklch(0.38 0.09 70);
+  --m-warn-wash: oklch(0.96 0.04 85);
+  --m-danger: oklch(0.55 0.19 27);
+  --m-danger-wash: oklch(0.96 0.03 27);
+
+  --m-shadow: 0 1px 2px oklch(0.19 0.006 95 / 0.04), 0 8px 24px -12px oklch(0.19 0.006 95 / 0.14);
+  --m-shadow-lift: 0 2px 4px oklch(0.19 0.006 95 / 0.05), 0 18px 40px -18px oklch(0.19 0.006 95 / 0.24);
+
+  --m-r-shell: 24px;
+  --m-r-core: 18px;
+  --m-r-control: 14px;
+
+  --m-ease: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* fixed chrome heights, used to reserve content space */
+  --m-topbar: 56px;
+  --m-bottomnav: 66px;
+
+  background-color: var(--m-bg);
+  color: var(--m-ink);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.member-portal.dark {
+  --m-bg: oklch(0.155 0.004 95);
+  --m-bg-sunk: oklch(0.125 0.004 95);
+  --m-surface: oklch(0.205 0.004 95);
+  --m-surface-2: oklch(0.245 0.004 95);
+  --m-ink: oklch(0.972 0.002 95);
+  --m-ink-2: oklch(0.75 0.005 95);
+  --m-ink-3: oklch(0.61 0.006 95);
+  --m-line: oklch(1 0 0 / 0.11);
+  --m-line-soft: oklch(1 0 0 / 0.07);
+
+  --m-accent: oklch(0.86 0.18 122);
+  --m-accent-strong: oklch(0.9 0.19 122);
+  --m-accent-ink: oklch(0.17 0.05 128);
+  --m-accent-wash: oklch(0.3 0.06 125);
+  --m-accent-wash-ink: oklch(0.89 0.16 122);
+
+  --m-warn: oklch(0.82 0.14 78);
+  --m-warn-ink: oklch(0.92 0.09 85);
+  --m-warn-wash: oklch(0.3 0.05 70);
+  --m-danger: oklch(0.7 0.17 27);
+  --m-danger-wash: oklch(0.29 0.06 27);
+
+  --m-shadow: 0 1px 2px oklch(0 0 0 / 0.4), 0 8px 24px -12px oklch(0 0 0 / 0.6);
+  --m-shadow-lift: 0 2px 4px oklch(0 0 0 / 0.45), 0 18px 40px -18px oklch(0 0 0 / 0.7);
+}
+
+/*
+  Reserve space for the fixed bottom bar plus the raised Pass button that
+  overlaps it, so nothing is ever covered. Desktop drops the reservation
+  because the bar is replaced by the left rail.
+*/
+.m-main {
+  padding-bottom: calc(var(--m-bottomnav) + env(safe-area-inset-bottom, 0px) + 36px);
+}
+
+@media (min-width: 1024px) {
+  .m-main {
+    padding-bottom: 0;
+  }
+}
+
+/*
+  Action bar that must stay reachable: pinned directly above the bottom nav on
+  mobile, and a sticky footer inside the content column on desktop.
+*/
+.m-confirmbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--m-bottomnav) + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 1024px) {
+  .m-confirmbar {
+    position: sticky;
+    left: auto;
+    right: auto;
+    bottom: 16px;
+  }
+}
+
+/* ---------- surfaces ---------- */
+
+/* Default content card, and the inner core of a double-bezel pairing. */
+.m-card {
+  background-color: var(--m-surface);
+  border: 1px solid var(--m-line);
+  border-radius: var(--m-r-shell);
+  box-shadow: var(--m-shadow);
+}
+
+/* Outer shell: wraps .m-core to give machined, concentric edges. */
+.m-shell {
+  background-color: var(--m-surface-2);
+  border: 1px solid var(--m-line);
+  border-radius: var(--m-r-shell);
+  padding: 6px;
+  box-shadow: var(--m-shadow-lift);
+}
+
+.m-core {
+  background-color: var(--m-surface);
+  border-radius: var(--m-r-core);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.6);
+}
+
+.member-portal.dark .m-core {
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.06);
+}
+
+.m-divide > * + * {
+  border-top: 1px solid var(--m-line-soft);
+}
+
+/* ---------- controls ---------- */
+
+.m-tap {
+  transition: transform 320ms var(--m-ease), background-color 320ms var(--m-ease),
+    border-color 320ms var(--m-ease), color 320ms var(--m-ease), opacity 320ms var(--m-ease);
+}
+
+.m-tap:active {
+  transform: scale(0.975);
+}
+
+.member-portal :focus-visible {
+  outline: 2px solid var(--m-accent-strong);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* ---------- numerics ---------- */
+
+.m-num {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+/* ---------- motion ---------- */
+
+@keyframes m-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.m-rise {
+  animation: m-rise 520ms var(--m-ease) both;
+}
+
+@keyframes m-shimmer {
+  from {
+    transform: translate3d(-100%, 0, 0);
+  }
+  to {
+    transform: translate3d(100%, 0, 0);
+  }
+}
+
+.m-skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--m-surface-2);
+}
+
+.m-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.55), transparent);
+  animation: m-shimmer 1.4s var(--m-ease) infinite;
+}
+
+.member-portal.dark .m-skeleton::after {
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.06), transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .member-portal *,
+  .member-portal *::before,
+  .member-portal *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .m-tap:active {
+    transform: none;
+  }
+}
+
+/* ---------- scroll ---------- */
+
+.m-snap-x {
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scroll-padding-left: 20px;
+}
+
+.m-snap-x > * {
+  scroll-snap-align: start;
+}

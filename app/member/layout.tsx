@@ -1,49 +1,57 @@
 import { redirect } from 'next/navigation'
-import MemberSidebar from '@/components/layout/MemberSidebar'
-import MemberHeader from '@/components/layout/MemberHeader'
-import { SidebarProvider } from '@/components/layout/SidebarContext'
 import { Toaster } from 'sonner'
 import { getCurrentMemberContext } from '@/lib/auth/member-server'
+import { getMemberPortalData } from '@/lib/member/portal-data'
+import { getNotifications } from '@/lib/member/notifications'
+import { MemberThemeProvider } from '@/components/member/MemberTheme'
+import { BottomNav, DesktopRail, TopBar } from '@/components/member/MemberChrome'
+import './member.css'
 
-export default async function MemberLayout({
-    children,
-}: {
-    children: React.ReactNode
-}) {
-    const { user, profile, member, gym } = await getCurrentMemberContext()
+export const metadata = {
+    title: {
+        default: 'Member portal',
+        template: '%s | Member portal',
+    },
+}
 
-    if (!user) {
-        redirect('/login')
-    }
+function greeting(name: string) {
+    const hour = new Date().getHours()
+    if (hour < 12) return `Morning, ${name}`
+    if (hour < 17) return `Afternoon, ${name}`
+    return `Evening, ${name}`
+}
 
-    if (!gym) {
-        redirect('/login')
-    }
+export default async function MemberLayout({ children }: { children: React.ReactNode }) {
+    const { user, profile, gym } = await getCurrentMemberContext()
 
-    if (!profile || profile.role !== 'member') {
-        redirect('/admin/dashboard')
-    }
+    if (!user || !gym) redirect('/login')
+    if (!profile || profile.role !== 'member') redirect('/admin/dashboard')
+
+    const data = await getMemberPortalData()
+    const firstName = data?.member.firstName ?? profile.full_name?.split(' ')[0] ?? 'there'
+    const unread = data ? getNotifications(data).filter((n) => n.unread).length : 0
 
     return (
-        <SidebarProvider>
-            <div className="min-h-screen bg-[#f4f6fa]">
-                <Toaster richColors position="top-right" />
-                <MemberSidebar />
-                <div className="lg:pl-[100px] xl:pl-[110px]">
-                    <MemberHeader
-                        user={{
-                            email: user.email,
-                            full_name: profile.full_name,
-                            photo_url: profile.photo_url,
-                            member_id: member?.member_id ?? null,
-                            gym_name: gym.name,
-                        }}
-                    />
-                    <main className="p-4 sm:p-6">
+        <MemberThemeProvider>
+            <div className="min-h-[100dvh] bg-[var(--m-bg)] text-[var(--m-ink)]">
+                <Toaster richColors position="top-center" offset={72} />
+
+                <TopBar homeTitle={greeting(firstName)} gymName={gym.name} unread={unread} />
+                <DesktopRail
+                    gymName={gym.name}
+                    memberName={data?.member.fullName ?? profile.full_name ?? 'Member'}
+                    memberCode={data?.member.memberCode ?? '-'}
+                    unread={unread}
+                />
+
+                <main className="m-main lg:pl-[248px]">
+                    <div className="pt-4 lg:mx-auto lg:max-w-[1120px] lg:px-10 lg:pb-10 lg:pt-10">
                         {children}
-                    </main>
-                </div>
+                    </div>
+                </main>
+
+                <BottomNav />
             </div>
-        </SidebarProvider>
+        </MemberThemeProvider>
     )
 }

@@ -1,18 +1,20 @@
-import { IconUserQuestion } from '@tabler/icons-react'
+import { IconBarbell } from '@tabler/icons-react'
 import { getMemberPortalData } from '@/lib/member/portal-data'
-import { HomeScreen } from '@/components/member/HomeScreen'
 import { EmptyState, LinkButton, Screen } from '@/components/member/ui'
+import TrainClient from './TrainClient'
 
-export default async function MemberHome() {
+export const metadata = { title: 'Training' }
+
+export default async function TrainPage() {
     const data = await getMemberPortalData()
 
     if (!data) {
         return (
-            <Screen>
+            <Screen title="Training">
                 <EmptyState
-                    icon={<IconUserQuestion size={26} stroke={1.6} />}
-                    title="We could not find your membership"
-                    body="Your account is signed in but is not linked to a member record yet. The front desk can connect it in a minute."
+                    icon={<IconBarbell size={26} stroke={1.6} />}
+                    title="Nothing to show yet"
+                    body="Your account is not linked to a member record, so training plans cannot be loaded."
                     action={
                         <LinkButton href="/member/support" tone="primary">
                             Contact the gym
@@ -23,5 +25,5 @@ export default async function MemberHome() {
         )
     }
 
-    return <HomeScreen data={data} />
+    return <TrainClient training={data.training} />
 }
