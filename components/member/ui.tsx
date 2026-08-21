@@ -2,6 +2,7 @@ import Link from 'next/link'
 import type { ComponentPropsWithoutRef, ElementType, ReactNode } from 'react'
 import { IconChevronRight } from '@tabler/icons-react'
 import { cn } from '@/lib/utils/cn'
+import { BackLink } from '@/components/member/MemberChrome'
 
 /*
   Member portal primitives.
@@ -26,12 +27,15 @@ export function Screen({
 }) {
     return (
         <div className={cn('mx-auto w-full max-w-[720px] px-5 lg:max-w-none lg:px-0', className)}>
-            {/* Desktop only: below lg the sticky TopBar is the page heading, and
-                printing the name twice wastes the scarcest resource on a phone. */}
+            {/* The page names itself here at every width. The headers carry only
+                brand and utility controls, so this is the sole page heading. */}
             {title ? (
-                <h1 className="mb-6 hidden text-[26px] font-semibold leading-[1.15] tracking-[-0.02em] lg:block">
-                    {title}
-                </h1>
+                <div className="mb-4 flex items-center gap-1 lg:mb-6">
+                    <BackLink />
+                    <h1 className="min-w-0 text-[26px] font-semibold leading-[1.15] tracking-[-0.02em]">
+                        {title}
+                    </h1>
+                </div>
             ) : null}
             {children}
         </div>

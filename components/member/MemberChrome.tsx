@@ -12,6 +12,8 @@ import {
     IconUser,
 } from '@tabler/icons-react'
 import { cn } from '@/lib/utils/cn'
+import { ThemeToggleButton } from '@/components/member/ThemeToggleButton'
+import { NotificationButton } from '@/components/member/NotificationButton'
 
 /*
   Portal chrome.
@@ -48,25 +50,6 @@ function useIsActive() {
 /* ------------------------------------------------------------------ top */
 
 /*
-  Titles live here, not on each screen, so a page renders its name exactly once
-  on mobile. Screens still declare a title for desktop, where this bar is hidden.
-*/
-const TITLES: Record<string, string> = {
-    '/member': 'Home',
-    '/member/train': 'Train',
-    '/member/pass': 'Gym pass',
-    '/member/membership': 'Plan',
-    '/member/membership/renew': 'Renew plan',
-    '/member/account': 'Account',
-    '/member/activity': 'Activity',
-    '/member/payments': 'Payments',
-    '/member/notifications': 'Notifications',
-    '/member/profile': 'Profile',
-    '/member/referrals': 'Refer a friend',
-    '/member/support': 'Help',
-}
-
-/*
   Where "back" goes from a screen that is not a bottom-nav destination. An
   explicit parent beats history.back(), which lands somewhere arbitrary when the
   member arrived from a notification deep link or a shared URL.
@@ -82,57 +65,71 @@ const PARENTS: Record<string, string> = {
     '/member/support': '/member/account',
 }
 
-export function TopBar({
-    homeTitle,
-    gymName,
-    unread,
-}: {
-    homeTitle: string
-    gymName: string
-    unread: number
-}) {
-    const pathname = usePathname() ?? '/member'
-    const title = pathname === '/member' ? homeTitle : (TITLES[pathname] ?? 'Member portal')
-    const parent = PARENTS[pathname]
-
+/**
+ * Mobile header. Brand and two utility controls, nothing else.
+ *
+ * No page title, no member identity, no navigation: the page names itself in
+ * content and the bottom bar owns navigation, so this stays one line tall and
+ * never competes with either.
+ */
+export function TopBar({ gymName, unread }: { gymName: string; unread: number }) {
     return (
         <header
             className="sticky top-0 z-30 border-b border-[var(--m-line-soft)] bg-[var(--m-bg)]/85 backdrop-blur-xl lg:hidden"
             style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
         >
             <div className="flex h-[var(--m-topbar)] items-center gap-2 px-5">
-                {parent ? (
-                    <Link
-                        href={parent}
-                        aria-label="Back"
-                        className="m-tap -ml-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
-                    >
-                        <IconChevronLeft size={22} stroke={2} />
-                    </Link>
-                ) : null}
-
-                <div className="min-w-0 flex-1">
-                    <h1 className="truncate text-[15px] font-semibold tracking-[-0.015em]">
-                        {title}
-                    </h1>
-                    <p className="truncate text-[11.5px] leading-tight text-[var(--m-ink-3)]">
-                        {gymName}
-                    </p>
-                </div>
-                <Link
-                    href="/member/notifications"
-                    aria-label={
-                        unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'
-                    }
-                    className="m-tap relative flex h-11 w-11 items-center justify-center rounded-full border border-[var(--m-line)] bg-[var(--m-surface)]"
-                >
-                    <IconBell size={19} stroke={1.7} />
-                    {unread > 0 ? (
-                        <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[var(--m-accent-strong)] ring-2 ring-[var(--m-surface)]" />
-                    ) : null}
-                </Link>
+                <p className="min-w-0 flex-1 truncate text-[15px] font-semibold tracking-[-0.015em]">
+                    {gymName}
+                </p>
+                <ThemeToggleButton />
+                <NotificationButton unread={unread} />
             </div>
         </header>
+    )
+}
+
+/**
+ * Desktop header. Sits above the content column only, so the rail keeps the
+ * full height of the viewport and the two align on the same top edge.
+ *
+ * It is sticky rather than fixed and therefore occupies its own space in the
+ * flow, which is what keeps it from overlapping the page beneath it.
+ */
+export function DesktopHeader({ gymName, unread }: { gymName: string; unread: number }) {
+    return (
+        <header className="sticky top-0 z-20 hidden border-b border-[var(--m-line-soft)] bg-[var(--m-bg)]/85 backdrop-blur-xl lg:block">
+            {/* Same max-width and gutters as the page content below, so the
+                brand lines up with the first heading on the page. */}
+            <div className="mx-auto flex h-[var(--m-header)] max-w-[1120px] items-center gap-3 px-10">
+                <p className="min-w-0 flex-1 truncate text-[15px] font-semibold tracking-[-0.015em]">
+                    {gymName}
+                </p>
+                <ThemeToggleButton />
+                <NotificationButton unread={unread} />
+            </div>
+        </header>
+    )
+}
+
+/**
+ * Back control for screens that are not bottom-nav destinations. It renders
+ * inside the page heading rather than in the header, which the design brief
+ * keeps free of navigation.
+ */
+export function BackLink() {
+    const pathname = usePathname() ?? '/member'
+    const parent = PARENTS[pathname]
+    if (!parent) return null
+
+    return (
+        <Link
+            href={parent}
+            aria-label="Back"
+            className="m-tap -ml-2.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full lg:hidden"
+        >
+            <IconChevronLeft size={22} stroke={2} />
+        </Link>
     )
 }
 

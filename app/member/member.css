@@ -49,6 +49,7 @@
 
   /* fixed chrome heights, used to reserve content space */
   --m-topbar: 56px;
+  --m-header: 64px;
   --m-bottomnav: 66px;
 
   background-color: var(--m-bg);
