@@ -143,6 +143,18 @@ export async function createMember(formData: FormData) {
 
         if (existingAuthUser) {
             createdUserId = existingAuthUser.id
+
+            const updateUserResult = await supabaseAdmin.auth.admin.updateUserById(existingAuthUser.id, {
+                password: generatedPassword,
+                email_confirm: true,
+            })
+
+            if (updateUserResult.error) {
+                if (uploadedPhotoPath) {
+                    await supabaseAdmin.storage.from('avatars').remove([uploadedPhotoPath])
+                }
+                return { error: getErrorMessage(updateUserResult.error, 'Failed to set member login credentials.') }
+            }
         } else {
             const createUserResult = await supabaseAdmin.auth.admin.createUser({
                 email,
