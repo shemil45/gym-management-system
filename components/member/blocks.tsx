@@ -6,6 +6,7 @@ import {
     IconChevronRight,
     IconPlayerPlay,
     IconSnowflake,
+    IconSpeakerphone,
 } from '@tabler/icons-react'
 import { cn } from '@/lib/utils/cn'
 import type {
@@ -309,6 +310,81 @@ export function SessionCard({
 }
 
 /* --------------------------------------------------------- announcement */
+
+/**
+ * Unread gym announcement.
+ *
+ * The old treatment was a fourth white rounded rectangle at the bottom of a
+ * stack of white rounded rectangles, which is the most reliable way to make
+ * something invisible. This inverts the surface instead: on a light page it is
+ * the only dark object, on a dark page the only light one, so it reads before
+ * the eye has parsed any text. It costs no new colour, only a token swap.
+ *
+ * It is deliberately loud only while unread. Once read the same content drops
+ * back to the quiet card, so the portal never shouts permanently.
+ */
+export function AnnouncementBanner({
+    title,
+    body,
+    at,
+    extraUnread = 0,
+    href = '/member/notifications',
+}: {
+    title: string
+    body: string
+    at: string
+    /** Unread announcements beyond this one. */
+    extraUnread?: number
+    href?: string
+}) {
+    return (
+        <Link href={href} className="m-tap m-rise block">
+            <div className="relative overflow-hidden rounded-[var(--m-r-shell)] bg-[var(--m-ink)] p-4 text-[var(--m-bg)] shadow-[var(--m-shadow-lift)]">
+                {/* Inner top highlight, so the panel reads as a lit surface
+                    rather than a flat fill. */}
+                <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 rounded-[var(--m-r-shell)] shadow-[inset_0_1px_0_rgb(255_255_255/0.14)]"
+                />
+
+                <div className="flex items-center gap-2.5">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--m-bg)]/12">
+                        <IconSpeakerphone size={17} stroke={1.8} />
+                    </span>
+                    <span className="text-[12px] font-medium text-[var(--m-bg)]/70">
+                        From the gym
+                    </span>
+                    <span className="ml-auto flex shrink-0 items-center gap-2">
+                        <span className="inline-flex h-[22px] items-center rounded-full bg-[var(--m-accent)] px-2 text-[11px] font-semibold text-[var(--m-accent-ink)]">
+                            New
+                        </span>
+                    </span>
+                </div>
+
+                <p className="mt-3 text-[17px] font-semibold leading-snug tracking-[-0.02em]">
+                    {title}
+                </p>
+                <p className="mt-1.5 line-clamp-2 text-[13.5px] leading-relaxed text-[var(--m-bg)]/75">
+                    {body}
+                </p>
+
+                <div className="mt-3.5 flex items-center gap-3">
+                    <span className="m-num text-[11.5px] text-[var(--m-bg)]/60">
+                        {relativeTime(at)}
+                    </span>
+                    {extraUnread > 0 ? (
+                        <span className="text-[11.5px] text-[var(--m-bg)]/60">
+                            +{extraUnread} more unread
+                        </span>
+                    ) : null}
+                    <span className="ml-auto flex h-7 w-7 items-center justify-center rounded-full bg-[var(--m-bg)]/12">
+                        <IconChevronRight size={15} stroke={2.2} />
+                    </span>
+                </div>
+            </div>
+        </Link>
+    )
+}
 
 export function AnnouncementCard({
     title,
