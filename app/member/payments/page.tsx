@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { IconDownload, IconReceipt } from '@tabler/icons-react'
 import { getMemberPortalData } from '@/lib/member/portal-data'
 import { formatCurrency } from '@/lib/utils/currency'
@@ -99,13 +100,13 @@ export default async function PaymentsPage() {
                                         {payment.status}
                                     </Pill>
                                     {payment.invoiceNumber ? (
-                                        <a
-                                            href={`/invoice?invoice=${encodeURIComponent(payment.invoiceNumber)}&portal=member`}
+                                        <Link
+                                            href={`/member/payments/result?invoice=${encodeURIComponent(payment.invoiceNumber)}`}
                                             className="m-tap flex h-9 items-center gap-1.5 rounded-full border border-[var(--m-line)] px-3 text-[12.5px] font-medium"
                                         >
                                             <IconDownload size={14} stroke={1.8} />
                                             Receipt
-                                        </a>
+                                        </Link>
                                     ) : null}
                                 </div>
                             </div>

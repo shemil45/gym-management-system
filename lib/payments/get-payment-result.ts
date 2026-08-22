@@ -3,50 +3,12 @@ import 'server-only'
 import { getCurrentGymContext } from '@/lib/auth/gym-context'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 
-export type PaymentReceiptGym = {
-    name: string
-    logoUrl: string | null
-    address: string | null
-    city: string | null
-    state: string | null
-    postalCode: string | null
-    country: string | null
-    contactPhone: string | null
-    contactEmail: string | null
-    gstin: string | null
-    showLogo: boolean
-    showAddress: boolean
-    showPhone: boolean
-    showEmail: boolean
-    showGstin: boolean
-    footerMessage: string | null
-    additionalNotes: string | null
-}
+import type { PaymentReceipt, ReceiptGym } from '@/lib/payments/receipt'
 
-export type PaymentResult =
-    | {
-        success: true
-        payment: {
-            amount: number
-            coinsUsed: number
-            invoiceNumber: string
-            receiptNumber: string | null
-            admissionFeeAmount: number | null
-            membershipEndDate: string | null
-            membershipStartDate: string | null
-            originalPrice: number
-            paymentDate: string
-            paymentMethod: string
-            paymentStatus: 'paid' | 'pending' | 'failed' | 'refunded'
-            planName: string
-            razorpayOrderId: string | null
-            razorpayPaymentId: string | null
-            memberDisplayId: string
-            memberFullName: string
-            gym: PaymentReceiptGym
-        }
-    }
-    | { error: string }
+/** Kept as an alias so existing importers of this name keep working. */
+export type PaymentReceiptGym = ReceiptGym
+
+export type PaymentResult = { success: true; payment: PaymentReceipt } | { error: string }
 
 type PaymentRow = {
     member_id: string | null
