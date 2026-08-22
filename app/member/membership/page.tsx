@@ -60,29 +60,14 @@ export default async function MembershipPage() {
                         memberCode={data.member.memberCode}
                     />
 
-                    <SectionHeading>Plan details</SectionHeading>
-                    <RowGroup>
-                        <Row label="Plan" value={membership.planName ?? 'None'} />
-                        <Row
-                            label="Price"
-                            value={
-                                membership.planPrice !== null
-                                    ? formatCurrency(membership.planPrice)
-                                    : 'Not set'
-                            }
-                        />
-                        <Row
-                            label="Term"
-                            value={
-                                membership.durationDays
-                                    ? `${membership.durationDays} days`
-                                    : 'Not set'
-                            }
-                        />
-                        <Row label="Started" value={formatDay(membership.startDate)} />
-                        <Row label="Ends" value={formatDay(membership.expiryDate)} />
-                    </RowGroup>
+                    {/* No "Plan details" table under the card. It restated the
+                        card almost line for line: plan name is the card title,
+                        Ends is the card's renews date, Started and Term are the
+                        card's own detail list. Price was the only fact it added,
+                        and a price is a billing fact, so it moved there.
 
+                        What follows the card is now the one thing a member comes
+                        to this screen to do. */}
                     {membership.state !== 'expired' && membership.state !== 'expiring' ? (
                         <LinkButton
                             href="/member/membership/renew"
@@ -98,6 +83,22 @@ export default async function MembershipPage() {
                 <Stack gap={14}>
                     <SectionHeading>Billing</SectionHeading>
                     <RowGroup>
+                        {/* The one fact the removed table carried that the card
+                            does not. It reads better here anyway: what the plan
+                            costs, immediately above what has been paid. */}
+                        <Row
+                            icon={<IconCreditCard size={18} stroke={1.7} />}
+                            label="Plan price"
+                            value={
+                                membership.planPrice !== null ? (
+                                    <span className="m-num">
+                                        {formatCurrency(membership.planPrice)}
+                                    </span>
+                                ) : (
+                                    'Not set'
+                                )
+                            }
+                        />
                         <Row
                             href="/member/payments"
                             icon={<IconReceipt size={18} stroke={1.7} />}
