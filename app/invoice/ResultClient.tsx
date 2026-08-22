@@ -118,7 +118,7 @@ export default function ResultClient({ invoiceNumber, payment, portal, reason, s
     const [processingError, setProcessingError] = useState<string | null>(null)
     const processingInvoiceNumber = invoiceNumber ?? null
     const historyHref = portal === 'admin' ? '/admin/finances/payments' : '/member/payments'
-    const fallbackHref = portal === 'admin' ? '/admin/finances/payments' : '/member/plans'
+    const fallbackHref = portal === 'admin' ? '/admin/finances/payments' : '/member/membership'
     const hasDiscount = payment && payment.coinsUsed > 0
     // admission_fee_amount, when present, is already folded into originalPrice/amount
     // (see app/admin/members/actions.ts: totalAmount = planAmount + admissionFee) —

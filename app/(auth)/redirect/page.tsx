@@ -17,5 +17,5 @@ export default async function AuthRedirectPage() {
         redirect('/admin/dashboard')
     }
 
-    redirect('/member/dashboard')
+    redirect('/member')
 }

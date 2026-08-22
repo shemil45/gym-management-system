@@ -313,8 +313,8 @@ async function applyMembershipAfterPayment(context: PurchaseContext, razorpayOrd
         }
     }
 
-    revalidatePath('/member/dashboard')
-    revalidatePath('/member/plans')
+    revalidatePath('/member')
+    revalidatePath('/member/membership')
     revalidatePath('/member/payments')
     revalidatePath('/member/referrals')
 }
@@ -510,8 +510,8 @@ export async function verifyRazorpayPayment(input: {
             }
         }
 
-        revalidatePath('/member/dashboard')
-        revalidatePath('/member/plans')
+        revalidatePath('/member')
+        revalidatePath('/member/membership')
         revalidatePath('/member/payments')
         revalidatePath('/member/referrals')
 
@@ -551,7 +551,7 @@ export async function markRazorpayPaymentFailed(input: {
         }
 
         revalidatePath('/member/payments')
-        revalidatePath('/member/plans')
+        revalidatePath('/member/membership')
         return { success: true }
     } catch (error) {
         return { error: error instanceof Error ? error.message : 'Failed to update payment status' }

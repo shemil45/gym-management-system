@@ -23,7 +23,7 @@ export default async function AdminLayout({
     }
 
     if (!profile || !isStaffRole(profile.role) || !isStaff) {
-        redirect('/member/dashboard')
+        redirect('/member')
     }
 
     return (
