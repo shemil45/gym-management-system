@@ -25,8 +25,8 @@ import {
   "Pay now" hands off to Razorpay. The amount shown here is only a preview: the
   server re-prices the plan and reserves referral coins inside
   `createRazorpayOrder`, so the credit arithmetic below mirrors that action
-  rather than inventing its own discount. Confirmation happens on `/invoice`,
-  which verifies the signature server-side.
+  rather than inventing its own discount. Confirmation happens on
+  `/member/payments/result`, which verifies the signature server-side.
 */
 
 export default function RenewClient({
@@ -79,7 +79,7 @@ export default function RenewClient({
         // membership and there is nothing to collect.
         if (order.amount === 0) {
             router.push(
-                `/invoice?status=success&portal=member&invoice=${encodeURIComponent(order.invoiceNumber)}`,
+                `/member/payments/result?status=success&invoice=${encodeURIComponent(order.invoiceNumber)}`,
             )
             return
         }
@@ -101,7 +101,7 @@ export default function RenewClient({
                     JSON.stringify(payload),
                 )
                 router.push(
-                    `/invoice?status=processing&portal=member&invoice=${encodeURIComponent(order.invoiceNumber)}`,
+                    `/member/payments/result?status=processing&invoice=${encodeURIComponent(order.invoiceNumber)}`,
                 )
             },
             onDismiss: async (reason) => {
@@ -114,7 +114,7 @@ export default function RenewClient({
                 })
                 setPaying(false)
                 router.push(
-                    `/invoice?status=failure&portal=member&invoice=${encodeURIComponent(order.invoiceNumber)}&reason=${encodeURIComponent(message)}`,
+                    `/member/payments/result?status=failure&invoice=${encodeURIComponent(order.invoiceNumber)}&reason=${encodeURIComponent(message)}`,
                 )
             },
         })

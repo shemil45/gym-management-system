@@ -24,6 +24,19 @@ export default async function PaymentResultPage({
                 ? 'processing'
                 : 'success'
 
+    /*
+      This route renders the admin receipt. Members get the same information
+      inside the member portal, where the layout supplies the header, back link
+      and theme, so anything arriving with the member portal flag, including old
+      links and bookmarks, is handed over to that screen.
+    */
+    if (portal === 'member') {
+        const forwarded = new URLSearchParams({ status })
+        if (invoiceNumber) forwarded.set('invoice', invoiceNumber)
+        if (params.reason) forwarded.set('reason', params.reason)
+        redirect(`/member/payments/result?${forwarded.toString()}`)
+    }
+
     if (!invoiceNumber && status === 'success') {
         redirect(portal === 'admin' ? '/admin/finances/payments' : '/member/membership')
     }

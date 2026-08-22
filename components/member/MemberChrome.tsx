@@ -74,6 +74,7 @@ const PARENTS: Record<string, string> = {
     '/member/activity': '/member',
     '/member/notifications': '/member',
     '/member/membership/renew': '/member/membership',
+    '/member/payments/result': '/member/payments',
     '/member/profile': '/member/account',
     '/member/referrals': '/member/account',
     '/member/support': '/member/account',

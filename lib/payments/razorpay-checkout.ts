@@ -8,7 +8,8 @@
  * amount.
  *
  * Confirmation deliberately does not happen here. The signed response is parked
- * in `sessionStorage` and the caller navigates to `/invoice?status=processing`,
+ * in `sessionStorage` and the caller navigates to the portal's payment result
+ * screen with `status=processing`,
  * which verifies the signature server-side and renders the receipt. Keeping the
  * verification on a dedicated screen means the confirmation survives the
  * navigation away from the checkout window.
@@ -48,7 +49,10 @@ declare global {
     }
 }
 
-/** Shared with `/invoice`, which reads the payload back to verify the payment. */
+/**
+ * Shared with the result screens, which read the payload back to verify the
+ * payment: `/member/payments/result` for members, `/invoice` for admins.
+ */
 export function verificationStorageKey(invoiceNumber: string) {
     return `razorpay-result:${invoiceNumber}`
 }
