@@ -4,6 +4,7 @@ import crypto from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { getCurrentGymContext } from '@/lib/auth/gym-context'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { sendMemberWhatsAppNotification } from '@/lib/notifications/service'
 
 type PurchaseContext = {
     availableCoins: number
@@ -241,6 +242,30 @@ async function getPurchaseContext(planId: string, useReferralCoins: boolean): Pr
     }
 }
 
+/** Fire-and-log: a payment must not be reported as failed just because the WhatsApp send failed. */
+async function notifyPaymentReceived(memberId: string, wasRenewal: boolean) {
+    try {
+        const result = await sendMemberWhatsAppNotification({
+            memberId,
+            notificationType: 'payment_received',
+            source: 'api',
+            confirmationKind: wasRenewal ? 'renewal' : 'payment',
+        })
+
+        if (!result.success) {
+            console.warn('[plans] Confirmation WhatsApp was not sent after self-service payment', {
+                memberId,
+                error: result.error,
+            })
+        }
+    } catch (error) {
+        console.error('[plans] Unexpected error sending payment confirmation WhatsApp', {
+            memberId,
+            error: error instanceof Error ? error.message : error,
+        })
+    }
+}
+
 async function applyMembershipAfterPayment(context: PurchaseContext, razorpayOrderId: string | null, razorpayPaymentId: string | null) {
     const supabaseAdmin = getSupabaseAdmin()
     const receiptNumber = await generateReceiptNumber(context.gymId)
@@ -327,6 +352,7 @@ export async function createRazorpayOrder(planId: string, useReferralCoins = tru
 
         if (context.finalAmount <= 0) {
             await applyMembershipAfterPayment(context, null, null)
+            await notifyPaymentReceived(context.memberId, context.currentExpiry !== null)
             return {
                 success: true,
                 amount: 0,
@@ -509,6 +535,8 @@ export async function verifyRazorpayPayment(input: {
                 }
             }
         }
+
+        await notifyPaymentReceived(context.memberId, context.currentExpiry !== null)
 
         revalidatePath('/member')
         revalidatePath('/member/membership')
