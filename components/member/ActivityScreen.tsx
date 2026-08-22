@@ -34,10 +34,10 @@ export function ActivityScreen({ activity }: { activity: ActivitySummary }) {
                 <EmptyState
                     icon={<IconFlame size={26} stroke={1.6} />}
                     title="No visits yet"
-                    body="Once you scan your pass at the door, every visit shows up here with your streak and monthly totals."
+                    body="Every visit shows up here with your streak and monthly totals as soon as you check in at the gym."
                     action={
-                        <LinkButton href="/member/pass" tone="accent">
-                            Show my pass
+                        <LinkButton href="/member/train" tone="accent">
+                            Go to Train
                         </LinkButton>
                     }
                 />

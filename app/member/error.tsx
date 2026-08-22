@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { IconCloudOff, IconRefresh } from '@tabler/icons-react'
-import { Button, Card, LinkButton, Screen } from '@/components/member/ui'
+import { Button, Card, Screen } from '@/components/member/ui'
 
 /**
  * Route-level failure state. On a phone this most often means the request died
@@ -30,10 +30,9 @@ export default function MemberError({
                     This did not load
                 </p>
                 <p className="mt-1.5 max-w-[34ch] text-[13.5px] leading-relaxed text-[var(--m-ink-2)]">
-                    Check your connection and try again. Your gym pass still works offline if you
-                    are already at the door.
+                    Check your connection and try again.
                 </p>
-                <div className="mt-6 flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row">
+                <div className="mt-6 w-full sm:w-auto">
                     <Button
                         tone="primary"
                         full
@@ -42,9 +41,6 @@ export default function MemberError({
                     >
                         Try again
                     </Button>
-                    <LinkButton href="/member/pass" tone="quiet" full>
-                        Open my pass
-                    </LinkButton>
                 </div>
             </Card>
         </Screen>
