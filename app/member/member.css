@@ -85,7 +85,7 @@
 }
 
 /*
-  Reserve space for the fixed bottom bar plus the raised Pass button that
+  Reserve space for the fixed bottom bar plus the raised Home disc that
   overlaps it, so nothing is ever covered. Desktop drops the reservation
   because the bar is replaced by the left rail.
 */

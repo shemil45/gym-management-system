@@ -7,7 +7,7 @@ import {
     IconChevronLeft,
     IconCreditCard,
     IconHome,
-    IconQrcode,
+    IconReceipt,
     IconStretching,
     IconUser,
 } from '@tabler/icons-react'
@@ -18,12 +18,16 @@ import { NotificationButton } from '@/components/member/NotificationButton'
 /*
   Portal chrome.
 
-  Mobile: a fixed bottom bar with four destinations and one raised primary
-  action (Pass) in the thumb-sweet-spot at the centre. Everything a member
-  reaches for one-handed lives in the bottom third of the screen.
+  Five destinations, one set, two shapes.
 
-  Desktop (lg+): the same five items become a left rail. The hierarchy does not
-  change, it only unfolds sideways: Pass stays the single emphasised action.
+  Mobile: a fixed bottom bar. Home sits in the centre, raised, because it is
+  where a member lands and where they return between tasks. It is a navigation
+  destination that has been given weight, not a floating action: it carries its
+  own label on the same baseline as its neighbours, and it takes the same
+  active and inactive states they do.
+
+  Desktop (lg+): the same five become a left rail in reading order, Home first.
+  The hierarchy does not change, it only unfolds sideways.
 */
 
 interface Destination {
@@ -34,12 +38,21 @@ interface Destination {
     exact?: boolean
 }
 
+/*
+  Desktop rail order. The bottom bar reorders around the raised centre using the
+  slices below, so there is only ever one list to keep correct.
+*/
 const DESTINATIONS: Destination[] = [
     { href: '/member', label: 'Home', icon: IconHome, exact: true },
     { href: '/member/train', label: 'Train', icon: IconStretching },
     { href: '/member/membership', label: 'Plan', icon: IconCreditCard },
+    { href: '/member/payments', label: 'Payments', icon: IconReceipt },
     { href: '/member/account', label: 'Account', icon: IconUser },
 ]
+
+const HOME = DESTINATIONS[0]
+const BOTTOM_LEFT = [DESTINATIONS[1], DESTINATIONS[2]]
+const BOTTOM_RIGHT = [DESTINATIONS[3], DESTINATIONS[4]]
 
 function useIsActive() {
     const pathname = usePathname() ?? '/member'
@@ -53,12 +66,13 @@ function useIsActive() {
   Where "back" goes from a screen that is not a bottom-nav destination. An
   explicit parent beats history.back(), which lands somewhere arbitrary when the
   member arrived from a notification deep link or a shared URL.
+
+  Payments is a destination now, so it has no parent: it is reached from the bar
+  rather than from inside membership.
 */
 const PARENTS: Record<string, string> = {
-    '/member/pass': '/member',
     '/member/activity': '/member',
     '/member/notifications': '/member',
-    '/member/payments': '/member/membership',
     '/member/membership/renew': '/member/membership',
     '/member/profile': '/member/account',
     '/member/referrals': '/member/account',
@@ -137,7 +151,6 @@ export function BackLink() {
 
 export function BottomNav() {
     const isActive = useIsActive()
-    const passActive = isActive('/member/pass')
 
     return (
         <nav
@@ -145,29 +158,14 @@ export function BottomNav() {
             className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--m-line)] bg-[var(--m-bg)]/90 backdrop-blur-xl lg:hidden"
             style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
         >
-            <div className="relative mx-auto grid h-[var(--m-bottomnav)] max-w-[560px] grid-cols-5 items-center px-1">
-                {DESTINATIONS.slice(0, 2).map((item) => (
+            <div className="mx-auto grid h-[var(--m-bottomnav)] max-w-[560px] grid-cols-5 items-center px-1">
+                {BOTTOM_LEFT.map((item) => (
                     <NavTab key={item.href} item={item} active={isActive(item.href, item.exact)} />
                 ))}
 
-                {/* Raised primary action, centred for thumb reach. */}
-                <div className="flex items-start justify-center">
-                    <Link
-                        href="/member/pass"
-                        aria-label="Show gym pass"
-                        aria-current={passActive ? 'page' : undefined}
-                        className={cn(
-                            'm-tap -mt-7 flex h-[58px] w-[58px] flex-col items-center justify-center rounded-full border-4 border-[var(--m-bg)] shadow-[0_10px_24px_-8px_oklch(0.19_0.006_95_/_0.45)]',
-                            passActive
-                                ? 'bg-[var(--m-ink)] text-[var(--m-bg)]'
-                                : 'bg-[var(--m-accent)] text-[var(--m-accent-ink)]',
-                        )}
-                    >
-                        <IconQrcode size={24} stroke={1.8} />
-                    </Link>
-                </div>
+                <HomeTab active={isActive(HOME.href, HOME.exact)} />
 
-                {DESTINATIONS.slice(2).map((item) => (
+                {BOTTOM_RIGHT.map((item) => (
                     <NavTab key={item.href} item={item} active={isActive(item.href, item.exact)} />
                 ))}
             </div>
@@ -175,27 +173,76 @@ export function BottomNav() {
     )
 }
 
-function NavTab({
-    item,
-    active,
-}: {
-    item: Destination
-    active: boolean
-}) {
+/*
+  Both tab shapes bottom-align their contents inside the same 54px box, so all
+  five labels share one baseline whatever height the mark above them takes. That
+  shared baseline is what stops the raised centre from reading as a button
+  dropped on top of a nav bar.
+*/
+const TAB_BOX = 'm-tap flex h-[54px] flex-col items-center justify-end gap-1 pb-2'
+
+function TabLabel({ children, active }: { children: React.ReactNode; active: boolean }) {
+    return (
+        <span
+            className={cn(
+                'text-[10.5px] leading-[13px]',
+                active ? 'font-semibold' : 'font-medium',
+            )}
+        >
+            {children}
+        </span>
+    )
+}
+
+function NavTab({ item, active }: { item: Destination; active: boolean }) {
     const Icon = item.icon
     return (
         <Link
             href={item.href}
             aria-current={active ? 'page' : undefined}
             className={cn(
-                'm-tap flex h-[54px] flex-col items-center justify-center gap-1 rounded-[16px]',
+                TAB_BOX,
+                'rounded-[16px]',
                 active ? 'text-[var(--m-ink)]' : 'text-[var(--m-ink-3)]',
             )}
         >
             <Icon size={22} stroke={active ? 2.1 : 1.6} />
-            <span className={cn('text-[10.5px]', active ? 'font-semibold' : 'font-medium')}>
-                {item.label}
+            <TabLabel active={active}>{item.label}</TabLabel>
+        </Link>
+    )
+}
+
+/**
+ * Home. The centre destination, lifted clear of the bar so it reads as the
+ * anchor of the set rather than as one of five equals.
+ *
+ * The lift is a consequence of the disc being taller than its box while the
+ * column stays bottom-aligned, which is what keeps the label on the shared
+ * baseline. The ring is painted in the page background so the disc cuts
+ * cleanly through the bar's top hairline instead of sitting on it.
+ */
+function HomeTab({ active }: { active: boolean }) {
+    return (
+        <Link
+            href={HOME.href}
+            aria-current={active ? 'page' : undefined}
+            className={cn(TAB_BOX, active ? 'text-[var(--m-ink)]' : 'text-[var(--m-ink-2)]')}
+        >
+            <span
+                className={cn(
+                    // shrink-0 matters: the column has a fixed height, so the
+                    // disc would otherwise be compressed to fit rather than
+                    // overflowing upward, which is the whole point of it.
+                    'flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-full shadow-[var(--m-shadow)] ring-4 ring-[var(--m-bg)] transition-colors duration-[320ms]',
+                    active
+                        ? 'bg-[var(--m-accent)] text-[var(--m-accent-ink)]'
+                        : 'border border-[var(--m-line)] bg-[var(--m-surface)]',
+                )}
+                style={{ transitionTimingFunction: 'var(--m-ease)' }}
+            >
+                <IconHome size={24} stroke={active ? 2.1 : 1.7} />
             </span>
+            <TabLabel active={active}>{HOME.label}</TabLabel>
         </Link>
     )
 }
@@ -222,15 +269,10 @@ export function DesktopRail({
                 <p className="mt-0.5 text-[12px] text-[var(--m-ink-3)]">Member portal</p>
             </div>
 
-            <Link
-                href="/member/pass"
-                className="m-tap mt-6 flex h-12 items-center gap-2.5 rounded-full bg-[var(--m-accent)] px-4 text-[14px] font-semibold text-[var(--m-accent-ink)]"
-            >
-                <IconQrcode size={20} stroke={1.9} />
-                Show my pass
-            </Link>
-
-            <nav aria-label="Primary, desktop" className="mt-6 flex flex-col gap-1">
+            {/* Home leads the rail, so the rail needs no separate primary action
+                above it. The extra top margin replaces the one the old action
+                carried, keeping the brand block's breathing room intact. */}
+            <nav aria-label="Primary, desktop" className="mt-8 flex flex-col gap-1">
                 {DESTINATIONS.map((item) => {
                     const Icon = item.icon
                     const active = isActive(item.href, item.exact)
