@@ -80,7 +80,7 @@ export default async function MembershipPage() {
                     ) : null}
                 </Stack>
 
-                <Stack gap={14}>
+                <Stack gap={5}>
                     <SectionHeading>Billing</SectionHeading>
                     <RowGroup>
                         {/* The one fact the removed table carried that the card

@@ -58,7 +58,7 @@ export function SectionHeading({
     action?: { label: string; href: string }
 }) {
     return (
-        <div className="flex min-h-[28px] items-center justify-between gap-3 px-1">
+        <div className="flex min-h-7 items-center justify-between gap-3 px-1 mt-2">
             <h2 className="text-[15px] font-semibold tracking-[-0.01em]">{children}</h2>
             {action ? (
                 <Link
