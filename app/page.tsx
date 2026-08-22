@@ -164,14 +164,14 @@ export default function HomePage() {
 
               <Link
                 href="/login"
-                className="hidden rounded-lg px-4 py-2 text-sm font-medium text-[#45464d] transition-all dark:text-slate-300 sm:block"
+                className="block rounded-lg px-4 py-2 text-sm font-medium text-[#45464d] transition-all dark:text-slate-300"
               >
                 Log in
               </Link>
 
               <Link
                 href="/admin/register"
-                className={`rounded-lg px-5 py-2 text-sm font-bold shadow-md transition-all duration-150 active:scale-95 ${
+                className={`hidden rounded-lg px-5 py-2 text-sm font-bold shadow-md transition-all duration-150 active:scale-95 sm:block ${
                   isDark
                     ? 'bg-white text-black'
                     : 'bg-black text-white'
