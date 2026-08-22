@@ -13,6 +13,7 @@ export default async function RenewPage() {
             plans={data.plans}
             currentPlanName={data.membership.planName}
             credits={data.credits}
+            gymName={data.gym.name}
         />
     )
 }

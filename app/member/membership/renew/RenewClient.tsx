@@ -1,33 +1,49 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { IconCheck, IconCoin, IconShieldCheck } from '@tabler/icons-react'
+import { IconCheck, IconCoin, IconLoader2, IconShieldCheck } from '@tabler/icons-react'
 import { cn } from '@/lib/utils/cn'
 import { formatCurrency } from '@/lib/utils/currency'
 import type { PlanOption } from '@/lib/member/portal-data'
 import { Card, EmptyState, Pill, Screen, Stack } from '@/components/member/ui'
+import { createRazorpayOrder, markRazorpayPaymentFailed } from '@/app/member/plans/actions'
+import {
+    openRazorpayCheckout,
+    verificationStorageKey,
+    type StoredVerificationPayload,
+} from '@/lib/payments/razorpay-checkout'
 
 /*
   Renewal.
 
   Plans are cards, one per row on mobile so the price and term never compete for
   width, and the confirm bar is pinned above the bottom nav so the decision and
-  the action are both in the thumb zone. Checkout itself is presentational for
-  now.
+  the action are both in the thumb zone.
+
+  "Pay now" hands off to Razorpay. The amount shown here is only a preview: the
+  server re-prices the plan and reserves referral coins inside
+  `createRazorpayOrder`, so the credit arithmetic below mirrors that action
+  rather than inventing its own discount. Confirmation happens on `/invoice`,
+  which verifies the signature server-side.
 */
 
 export default function RenewClient({
     plans,
     currentPlanName,
     credits,
+    gymName,
 }: {
     plans: PlanOption[]
     currentPlanName: string | null
     credits: number
+    gymName: string
 }) {
+    const router = useRouter()
     const [selected, setSelected] = useState<string | null>(plans[0]?.id ?? null)
     const [useCredits, setUseCredits] = useState(credits > 0)
+    const [paying, setPaying] = useState(false)
 
     if (plans.length === 0) {
         return (
@@ -42,8 +58,74 @@ export default function RenewClient({
     }
 
     const plan = plans.find((p) => p.id === selected) ?? plans[0]
-    const discount = useCredits ? Math.min(credits, Math.round(plan.price * 0.2)) : 0
+    // Mirrors `getPurchaseContext`: coins offset the price rupee for rupee, up
+    // to the full price. Any other rule here would quote a total the gateway
+    // then contradicts.
+    const discount = useCredits ? Math.min(credits, plan.price) : 0
     const total = Math.max(0, plan.price - discount)
+
+    const handlePay = async () => {
+        setPaying(true)
+
+        const order = await createRazorpayOrder(plan.id, useCredits)
+
+        if ('error' in order) {
+            setPaying(false)
+            toast.error(order.error)
+            return
+        }
+
+        // Coins covered the whole plan, so the server already applied the
+        // membership and there is nothing to collect.
+        if (order.amount === 0) {
+            router.push(
+                `/invoice?status=success&portal=member&invoice=${encodeURIComponent(order.invoiceNumber)}`,
+            )
+            return
+        }
+
+        const opened = await openRazorpayCheckout({
+            order,
+            gymName,
+            planName: plan.name,
+            onSuccess: (response) => {
+                const payload: StoredVerificationPayload = {
+                    planId: plan.id,
+                    razorpayOrderId: response.razorpay_order_id,
+                    razorpayPaymentId: response.razorpay_payment_id,
+                    razorpaySignature: response.razorpay_signature,
+                    useReferralCoins: useCredits,
+                }
+                sessionStorage.setItem(
+                    verificationStorageKey(order.invoiceNumber),
+                    JSON.stringify(payload),
+                )
+                router.push(
+                    `/invoice?status=processing&portal=member&invoice=${encodeURIComponent(order.invoiceNumber)}`,
+                )
+            },
+            onDismiss: async (reason) => {
+                // Releases the pending row so the member's history does not
+                // accumulate payments that will never settle.
+                const message = reason ?? 'Checkout was closed before payment completed.'
+                await markRazorpayPaymentFailed({
+                    razorpayOrderId: order.orderId,
+                    reason: message,
+                })
+                setPaying(false)
+                router.push(
+                    `/invoice?status=failure&portal=member&invoice=${encodeURIComponent(order.invoiceNumber)}&reason=${encodeURIComponent(message)}`,
+                )
+            },
+        })
+
+        if (!opened) {
+            setPaying(false)
+            toast.error('Could not load the payment window', {
+                description: 'Check your connection and try again.',
+            })
+        }
+    }
 
     return (
         <Screen title="Renew plan">
@@ -155,7 +237,7 @@ export default function RenewClient({
                 {/* Clears the pinned confirm bar so the last card is never covered. */}
                 <p className="flex items-center justify-center gap-2 pb-24 text-[12.5px] text-[var(--m-ink-3)] lg:pb-0">
                     <IconShieldCheck size={15} stroke={1.8} />
-                    Payment is processed by the gym, receipts appear in Payments.
+                    Secured by Razorpay, your receipt appears in Payments.
                 </p>
             </Stack>
 
@@ -180,14 +262,15 @@ export default function RenewClient({
                     </div>
                     <button
                         type="button"
-                        onClick={() =>
-                            toast('Checkout is not wired up yet', {
-                                description: `${plan.name} for ${formatCurrency(total)} would go to payment here.`,
-                            })
-                        }
-                        className="m-tap h-12 shrink-0 rounded-full bg-[var(--m-ink)] px-6 text-[14px] font-semibold text-[var(--m-bg)]"
+                        onClick={handlePay}
+                        disabled={paying}
+                        aria-busy={paying}
+                        className="m-tap flex h-12 shrink-0 items-center gap-2 rounded-full bg-[var(--m-ink)] px-6 text-[14px] font-semibold text-[var(--m-bg)] disabled:opacity-60"
                     >
-                        Pay now
+                        {paying ? (
+                            <IconLoader2 size={16} stroke={2} className="animate-spin" />
+                        ) : null}
+                        {paying ? 'Opening' : total === 0 ? 'Confirm' : 'Pay now'}
                     </button>
                 </div>
             </div>
