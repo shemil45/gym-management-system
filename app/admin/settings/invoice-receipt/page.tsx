@@ -13,7 +13,7 @@ type ReceiptSettingsFields = Pick<Tables<'gyms'>,
 export default async function InvoiceReceiptSettingsPage() {
     const { user, profile, gym } = await getCurrentAdminContext()
 
-    if (!user) redirect('/login')
+    if (!user) redirect('/admin/login')
     if (!profile || !isStaffRole(profile.role) || !gym) redirect('/member')
 
     const supabase = await createClient()

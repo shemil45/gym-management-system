@@ -13,8 +13,8 @@ export default function AuthLayout({
     children: React.ReactNode
 }) {
     const pathname = usePathname()
-    const isLoginPage = pathname === '/login'
-    const ctaHref = isLoginPage ? '/admin/register' : '/login'
+    const isLoginPage = pathname === '/admin/login' || pathname === '/member/login' || pathname === '/login'
+    const ctaHref = isLoginPage ? '/admin/register' : '/admin/login'
     const ctaLabel = isLoginPage ? 'Sign Up' : 'Sign In'
 
     return (

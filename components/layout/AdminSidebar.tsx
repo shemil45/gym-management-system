@@ -90,7 +90,7 @@ export default function AdminSidebar({ user, open, setOpen }: AdminSidebarProps)
     // Navigating away already unmounts the admin route tree, so there's no
     // need to also force a full refresh (which would re-run the admin
     // layout's auth/platform-context queries) for a page we're leaving.
-    router.push('/login')
+    router.push('/admin/login')
   }
 
   return (
@@ -148,7 +148,7 @@ export default function AdminSidebar({ user, open, setOpen }: AdminSidebarProps)
           <SidebarLink
             link={{
               label: 'Logout',
-              href: '/login',
+              href: '/admin/login',
               icon: <ArrowLeft className={iconClassName} />,
             }}
             onClick={(event) => void handleLogout(event)}

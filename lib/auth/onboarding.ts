@@ -179,7 +179,7 @@ export async function registerGymOwner(input: RegisterGymOwnerInput): Promise<Re
         }
 
         revalidatePath('/admin/register')
-        revalidatePath('/login')
+        revalidatePath('/admin/login')
 
         return {
             success: true,

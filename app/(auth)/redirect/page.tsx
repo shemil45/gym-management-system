@@ -6,11 +6,11 @@ export default async function AuthRedirectPage() {
     const { user } = context
 
     if (!user) {
-        redirect('/login')
+        redirect('/admin/login')
     }
 
     if (!context.profile) {
-        redirect('/login')
+        redirect('/admin/login')
     }
 
     if (context.isStaff) {
