@@ -189,7 +189,7 @@ export default function RegisterGymOwnerForm() {
                         <p className="text-xs text-[#45464d] dark:text-[#cfc4c5]">
                             Already have an owner account?{' '}
                             <Link
-                                href="/login"
+                                href="/admin/login"
                                 className="font-bold text-[#9d4300] hover:underline dark:text-[#e4e1e6] dark:hover:text-white"
                             >
                                 Sign In

@@ -10,7 +10,7 @@ type GymMemberIdSettings = Pick<Tables<'gyms'>, 'member_id_prefix' | 'member_id_
 export default async function MemberSettingsPage() {
     const { user, profile, gym } = await getCurrentAdminContext()
 
-    if (!user) redirect('/login')
+    if (!user) redirect('/admin/login')
     if (!profile || !isStaffRole(profile.role) || !gym) redirect('/member')
 
     const supabase = await createClient()

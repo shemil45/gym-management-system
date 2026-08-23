@@ -22,7 +22,7 @@ export const metadata = {
 export default async function MemberLayout({ children }: { children: React.ReactNode }) {
     const { user, profile, gym } = await getCurrentMemberContext()
 
-    if (!user || !gym) redirect('/login')
+    if (!user || !gym) redirect('/member/login')
     if (!profile || profile.role !== 'member') redirect('/admin/dashboard')
 
     const data = await getMemberPortalData()

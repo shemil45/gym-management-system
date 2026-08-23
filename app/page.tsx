@@ -163,7 +163,7 @@ export default function HomePage() {
               />
 
               <Link
-                href="/login"
+                href="/admin/login"
                 className="block rounded-lg px-4 py-2 text-sm font-medium text-[#45464d] transition-all dark:text-slate-300"
               >
                 Log in

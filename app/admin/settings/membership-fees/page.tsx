@@ -10,7 +10,7 @@ type GymFeeSettings = Pick<Tables<'gyms'>, 'default_admission_fee' | 'allow_admi
 export default async function MembershipFeesSettingsPage() {
     const { user, profile, gym } = await getCurrentAdminContext()
 
-    if (!user) redirect('/login')
+    if (!user) redirect('/admin/login')
     if (!profile || !isStaffRole(profile.role) || !gym) redirect('/member')
 
     const supabase = await createClient()

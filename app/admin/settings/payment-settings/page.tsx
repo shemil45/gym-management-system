@@ -13,7 +13,7 @@ type PaymentSettingsFields = Pick<Tables<'gyms'>,
 export default async function PaymentSettingsPage() {
     const { user, profile, gym } = await getCurrentAdminContext()
 
-    if (!user) redirect('/login')
+    if (!user) redirect('/admin/login')
     if (!profile || !isStaffRole(profile.role) || !gym) redirect('/member')
 
     const supabase = await createClient()

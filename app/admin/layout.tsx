@@ -15,11 +15,11 @@ export default async function AdminLayout({
     const platformContext = await getCurrentPlatformContext()
 
     if (!user) {
-        redirect('/login')
+        redirect('/admin/login')
     }
 
     if (!gym) {
-        redirect('/login')
+        redirect('/admin/login')
     }
 
     if (!profile || !isStaffRole(profile.role) || !isStaff) {

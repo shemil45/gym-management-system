@@ -49,7 +49,7 @@ export default function AccountClient({
         setSigningOut(true)
         const supabase = createClient()
         await supabase.auth.signOut()
-        router.push('/login')
+        router.push('/member/login')
         router.refresh()
     }
 
