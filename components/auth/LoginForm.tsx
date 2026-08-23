@@ -4,6 +4,8 @@ import { startTransition, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { isStaffRole } from '@/lib/auth/roles'
+import type { QueryResult } from '@/lib/types'
 import { Loader2, Eye, EyeOff, ArrowRight } from 'lucide-react'
 
 function GoogleIcon() {
@@ -30,6 +32,12 @@ function GoogleIcon() {
 }
 
 export type LoginFormProps = {
+    /**
+     * Which kind of account this portal accepts. Anyone who authenticates with
+     * the other kind of account is signed straight back out and pointed at the
+     * portal they belong to, so the two logins can't be used interchangeably.
+     */
+    portal: 'admin' | 'member'
     /** Small line under the "Welcome back" heading, e.g. "Admin Login Portal". */
     portalLabel: string
     /** Optional sign-up prompt rendered at the bottom of the card. */
@@ -40,7 +48,21 @@ export type LoginFormProps = {
     redirectTo?: string
 }
 
+const WRONG_PORTAL: Record<LoginFormProps['portal'], { message: string; href: string; label: string }> = {
+    admin: {
+        message: 'This is a member account. Admin access is not available here.',
+        href: '/member/login',
+        label: 'Go to member login',
+    },
+    member: {
+        message: 'This is an admin account. Member access is not available here.',
+        href: '/admin/login',
+        label: 'Go to admin login',
+    },
+}
+
 export default function LoginForm({
+    portal,
     portalLabel,
     signUp,
     helperText,
@@ -50,7 +72,7 @@ export default function LoginForm({
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [loading, setLoading] = useState(false)
-    const [error, setError] = useState<string | null>(null)
+    const [error, setError] = useState<React.ReactNode>(null)
     const [showPassword, setShowPassword] = useState(false)
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -68,6 +90,38 @@ export default function LoginForm({
 
             if (authError) throw authError
             if (!authData.user) throw new Error('Login succeeded but no user session was returned.')
+
+            // Each portal only accepts its own kind of account. Read the role
+            // the session just unlocked and drop the session again on mismatch,
+            // so a member can't sign in here and get bounced into their portal.
+            const profileResult = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', authData.user.id)
+                .maybeSingle()
+            const { data: profile, error: profileError } = profileResult as unknown as QueryResult<{
+                role: string
+            } | null> & { error: Error | null }
+
+            if (profileError) throw profileError
+            if (!profile) throw new Error('No profile is linked to this account. Contact your gym admin.')
+
+            const belongsHere = portal === 'admin' ? isStaffRole(profile.role) : profile.role === 'member'
+
+            if (!belongsHere) {
+                await supabase.auth.signOut()
+                const wrong = WRONG_PORTAL[portal]
+                setError(
+                    <>
+                        {wrong.message}{' '}
+                        <Link href={wrong.href} className="font-semibold underline">
+                            {wrong.label}
+                        </Link>
+                        .
+                    </>
+                )
+                return
+            }
 
             startTransition(() => {
                 router.replace(redirectTo)

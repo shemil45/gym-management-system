@@ -8,6 +8,7 @@ export const metadata = {
 export default function AdminLoginPage() {
     return (
         <LoginForm
+            portal="admin"
             portalLabel="Admin Login Portal"
             signUp={{
                 prompt: "Don't have an account?",
