@@ -1,0 +1,445 @@
+/*
+  Platform Portal design tokens.
+  Scoped to .platform-portal so the admin and member themes are untouched.
+
+  Locked systems (do not deviate per component):
+  - Palette : cool graphite neutrals (hue 250) + ONE accent (instrument cyan).
+              The accent deliberately sits OUTSIDE the status ramp
+              (green 150 / amber 80 / red 25) because this portal is mostly
+              status: if the brand hue overlapped a status hue, an accented
+              control would read as a health signal. Status hues are
+              functional only, never decorative.
+  - Radius  : shell 14px / core 10px / control 8px / pill full.
+              Tighter than the member portal (24/18/14) because this is a
+              density-8 operations surface, not a consumer one.
+  - Numerals: every figure, id, and timestamp is --p-font-mono with
+              tabular-nums. Numbers in this portal get compared down columns.
+  - Easing  : --p-ease on every transition. No linear, no ease-in-out.
+  - Motion  : restrained. This is a tool operated daily; entrance animation
+              on a page someone opens 30 times a day becomes friction.
+              Everything collapses under prefers-reduced-motion.
+*/
+
+.platform-portal {
+    --p-font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+    /* surfaces, lightest to deepest */
+    --p-bg: oklch(0.977 0.002 250);
+    --p-bg-sunk: oklch(0.955 0.003 250);
+    --p-surface: oklch(1 0 0);
+    --p-surface-2: oklch(0.968 0.003 250);
+    --p-surface-3: oklch(0.945 0.004 250);
+
+    /* ink ramp. --p-ink-3 is the lightest value clearing WCAG AA (4.5:1)
+       against every light surface above. Do not lighten it. */
+    --p-ink: oklch(0.21 0.008 250);
+    --p-ink-2: oklch(0.44 0.009 250);
+    --p-ink-3: oklch(0.545 0.01 250);
+
+    --p-line: oklch(0.905 0.004 250);
+    --p-line-soft: oklch(0.94 0.003 250);
+    --p-line-strong: oklch(0.85 0.006 250);
+
+    /* single accent: instrument cyan */
+    --p-accent: oklch(0.62 0.106 218);
+    --p-accent-hover: oklch(0.56 0.108 218);
+    --p-accent-ink: oklch(1 0 0);
+    --p-accent-wash: oklch(0.955 0.028 218);
+    --p-accent-wash-ink: oklch(0.4 0.08 218);
+    --p-accent-line: oklch(0.84 0.05 218);
+
+    /* functional status only. Each has a fill, a wash, and ink that clears
+       AA on that wash. */
+    --p-ok: oklch(0.6 0.13 150);
+    --p-ok-wash: oklch(0.955 0.035 150);
+    --p-ok-ink: oklch(0.4 0.09 150);
+
+    --p-warn: oklch(0.72 0.14 78);
+    --p-warn-wash: oklch(0.96 0.04 85);
+    --p-warn-ink: oklch(0.44 0.09 70);
+
+    --p-danger: oklch(0.56 0.19 27);
+    --p-danger-wash: oklch(0.958 0.03 27);
+    --p-danger-ink: oklch(0.45 0.16 27);
+
+    --p-idle: oklch(0.62 0.008 250);
+    --p-idle-wash: oklch(0.955 0.004 250);
+    --p-idle-ink: oklch(0.44 0.009 250);
+
+    --p-shadow: 0 1px 2px oklch(0.21 0.008 250 / 0.05), 0 6px 20px -12px oklch(0.21 0.008 250 / 0.16);
+    --p-shadow-lift: 0 2px 4px oklch(0.21 0.008 250 / 0.06), 0 16px 36px -18px oklch(0.21 0.008 250 / 0.26);
+
+    --p-r-shell: 14px;
+    --p-r-core: 10px;
+    --p-r-control: 8px;
+
+    --p-ease: cubic-bezier(0.32, 0.72, 0, 1);
+
+    /* fixed chrome, used to reserve content space */
+    --p-rail: 236px;
+    --p-topbar: 56px;
+
+    background-color: var(--p-bg);
+    color: var(--p-ink);
+    font-feature-settings: "cv11", "ss01";
+}
+
+.platform-portal.dark {
+    --p-bg: oklch(0.165 0.006 250);
+    --p-bg-sunk: oklch(0.135 0.006 250);
+    --p-surface: oklch(0.203 0.007 250);
+    --p-surface-2: oklch(0.238 0.008 250);
+    --p-surface-3: oklch(0.275 0.009 250);
+
+    --p-ink: oklch(0.965 0.003 250);
+    --p-ink-2: oklch(0.76 0.008 250);
+    /* Lightest value clearing AA on --p-surface in dark. Do not darken. */
+    --p-ink-3: oklch(0.645 0.01 250);
+
+    --p-line: oklch(0.305 0.009 250);
+    --p-line-soft: oklch(0.255 0.008 250);
+    --p-line-strong: oklch(0.375 0.011 250);
+
+    --p-accent: oklch(0.72 0.115 218);
+    --p-accent-hover: oklch(0.79 0.11 218);
+    --p-accent-ink: oklch(0.16 0.02 218);
+    --p-accent-wash: oklch(0.3 0.055 218);
+    --p-accent-wash-ink: oklch(0.87 0.08 218);
+    --p-accent-line: oklch(0.42 0.07 218);
+
+    --p-ok: oklch(0.73 0.14 150);
+    --p-ok-wash: oklch(0.29 0.06 150);
+    --p-ok-ink: oklch(0.88 0.11 150);
+
+    --p-warn: oklch(0.81 0.14 78);
+    --p-warn-wash: oklch(0.31 0.06 70);
+    --p-warn-ink: oklch(0.9 0.11 82);
+
+    --p-danger: oklch(0.68 0.17 27);
+    --p-danger-wash: oklch(0.31 0.08 27);
+    --p-danger-ink: oklch(0.87 0.1 27);
+
+    --p-idle: oklch(0.58 0.008 250);
+    --p-idle-wash: oklch(0.265 0.008 250);
+    --p-idle-ink: oklch(0.78 0.008 250);
+
+    --p-shadow: 0 1px 2px oklch(0 0 0 / 0.4), 0 6px 20px -12px oklch(0 0 0 / 0.6);
+    --p-shadow-lift: 0 2px 4px oklch(0 0 0 / 0.45), 0 16px 36px -18px oklch(0 0 0 / 0.7);
+}
+
+/* ── primitives ───────────────────────────────────────────────────────── */
+
+.platform-portal ::selection {
+    background: var(--p-accent-wash);
+    color: var(--p-accent-wash-ink);
+}
+
+/* One focus treatment for the whole portal. Never removed, only restyled. */
+.platform-portal :focus-visible {
+    outline: 2px solid var(--p-accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+.p-num {
+    font-family: var(--p-font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+}
+
+/* Uppercase micro-label. Used for column heads and field labels only, never
+   stacked above every section heading. */
+.p-label {
+    font-family: var(--p-font-mono);
+    font-size: 10.5px;
+    line-height: 1.4;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--p-ink-3);
+}
+
+.p-panel {
+    background: var(--p-surface);
+    border: 1px solid var(--p-line);
+    border-radius: var(--p-r-shell);
+}
+
+/* Rail navigation item. Active state is a filled wash plus a left marker,
+   so it survives a grayscale print and does not rely on hue alone. */
+.p-nav-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px 7px 12px;
+    border-radius: var(--p-r-control);
+    font-size: 13.5px;
+    line-height: 1.3;
+    color: var(--p-ink-2);
+    transition: background-color 0.16s var(--p-ease), color 0.16s var(--p-ease);
+}
+
+.p-nav-item:hover {
+    background: var(--p-surface-2);
+    color: var(--p-ink);
+}
+
+.p-nav-item[data-active='true'] {
+    background: var(--p-accent-wash);
+    color: var(--p-accent-wash-ink);
+    font-weight: 500;
+}
+
+.p-nav-item[data-active='true']::before {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 50%;
+    height: 15px;
+    width: 2px;
+    transform: translateY(-50%);
+    border-radius: 2px;
+    background: var(--p-accent);
+}
+
+/* Table rows. Hairline between rows only, never a border box per row. */
+.p-row {
+    transition: background-color 0.14s var(--p-ease);
+}
+
+.p-row:hover {
+    background: var(--p-surface-2);
+}
+
+.platform-portal table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.platform-portal th {
+    text-align: left;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.platform-portal td,
+.platform-portal th {
+    padding: 9px 14px;
+}
+
+/* Controls */
+.p-input {
+    width: 100%;
+    height: 38px;
+    padding: 0 11px;
+    font-size: 14px;
+    color: var(--p-ink);
+    background: var(--p-surface);
+    border: 1px solid var(--p-line-strong);
+    border-radius: var(--p-r-control);
+    transition: border-color 0.16s var(--p-ease), box-shadow 0.16s var(--p-ease);
+}
+
+.p-input::placeholder {
+    /* --p-ink-3 is the AA floor; placeholders must not go lighter. */
+    color: var(--p-ink-3);
+}
+
+.p-input:hover:not(:disabled) {
+    border-color: var(--p-ink-3);
+}
+
+.p-input:focus {
+    outline: none;
+    border-color: var(--p-accent);
+    box-shadow: 0 0 0 3px var(--p-accent-wash);
+}
+
+.p-input:disabled {
+    background: var(--p-surface-2);
+    color: var(--p-ink-3);
+    cursor: not-allowed;
+}
+
+.p-input[aria-invalid='true'] {
+    border-color: var(--p-danger);
+}
+
+.p-input[aria-invalid='true']:focus {
+    box-shadow: 0 0 0 3px var(--p-danger-wash);
+}
+
+.p-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    height: 38px;
+    padding: 0 14px;
+    border-radius: var(--p-r-control);
+    font-size: 13.5px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background-color 0.16s var(--p-ease), border-color 0.16s var(--p-ease),
+        color 0.16s var(--p-ease), transform 0.1s var(--p-ease);
+}
+
+/* Tactile press. Collapses under reduced motion via the block at the end. */
+.p-btn:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.p-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.p-btn[data-tone='primary'] {
+    background: var(--p-accent);
+    color: var(--p-accent-ink);
+}
+
+.p-btn[data-tone='primary']:hover:not(:disabled) {
+    background: var(--p-accent-hover);
+}
+
+.p-btn[data-tone='secondary'] {
+    background: var(--p-surface);
+    color: var(--p-ink);
+    border-color: var(--p-line-strong);
+}
+
+.p-btn[data-tone='secondary']:hover:not(:disabled) {
+    background: var(--p-surface-2);
+    border-color: var(--p-ink-3);
+}
+
+.p-btn[data-tone='ghost'] {
+    background: transparent;
+    color: var(--p-ink-2);
+}
+
+.p-btn[data-tone='ghost']:hover:not(:disabled) {
+    background: var(--p-surface-2);
+    color: var(--p-ink);
+}
+
+/* Destructive actions read as destructive before they are clicked, not after. */
+.p-btn[data-tone='danger'] {
+    background: var(--p-danger);
+    color: oklch(1 0 0);
+}
+
+.p-btn[data-tone='danger']:hover:not(:disabled) {
+    filter: brightness(1.08);
+}
+
+.p-btn[data-size='sm'] {
+    height: 30px;
+    padding: 0 10px;
+    font-size: 12.5px;
+}
+
+/* Status pill. Carries a dot AND a label so state never depends on hue
+   alone (WCAG 1.4.1). */
+.p-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 21px;
+    padding: 0 8px 0 7px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.p-pill::before {
+    content: '';
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+    flex: none;
+}
+
+.p-pill[data-tone='ok'] {
+    background: var(--p-ok-wash);
+    color: var(--p-ok-ink);
+}
+
+.p-pill[data-tone='warn'] {
+    background: var(--p-warn-wash);
+    color: var(--p-warn-ink);
+}
+
+.p-pill[data-tone='danger'] {
+    background: var(--p-danger-wash);
+    color: var(--p-danger-ink);
+}
+
+.p-pill[data-tone='accent'] {
+    background: var(--p-accent-wash);
+    color: var(--p-accent-wash-ink);
+}
+
+.p-pill[data-tone='idle'] {
+    background: var(--p-idle-wash);
+    color: var(--p-idle-ink);
+}
+
+/* Skeleton for loading states. Shaped like the content it replaces. */
+.p-skeleton {
+    background: linear-gradient(
+        90deg,
+        var(--p-surface-2) 0%,
+        var(--p-surface-3) 50%,
+        var(--p-surface-2) 100%
+    );
+    background-size: 200% 100%;
+    animation: p-shimmer 1.4s ease-in-out infinite;
+    border-radius: var(--p-r-control);
+}
+
+@keyframes p-shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* Single entrance used by the shell. Deliberately one short fade, not a
+   staggered choreography, because this page is reopened constantly. */
+@keyframes p-rise {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.p-rise {
+    animation: p-rise 0.28s var(--p-ease) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .platform-portal *,
+    .platform-portal *::before,
+    .platform-portal *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
+
+    .p-btn:active:not(:disabled) {
+        transform: none;
+    }
+}

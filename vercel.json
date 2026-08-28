@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/check-expiring-memberships",
       "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/billing-lifecycle",
+      "schedule": "10 2 * * *"
     }
   ]
 }

@@ -1,126 +1,281 @@
-import { createInvoice, updateGymSubscription } from '@/app/platform/actions'
+import Link from 'next/link'
+import { getBillingOverview } from '@/lib/platform/data'
+import { normalizeFeatureKeys } from '@/lib/platform/types'
 import {
     EmptyState,
-    PlatformBadge,
-    PlatformButton,
-    PlatformCardHeader,
-    PlatformShellCard,
-} from '@/components/platform/PortalUI'
-import { getPlatformGyms, getPlatformSettingsData } from '@/lib/platform/server'
-import { getSubscriptionAmount } from '@/lib/platform/types'
-import { formatCurrency } from '@/lib/utils/currency'
+    MetricTile,
+    Panel,
+    PanelHeader,
+    PageHeader,
+    StatusPill,
+    TableShell,
+    Td,
+    Th,
+    formatCurrency,
+    formatCurrencyCompact,
+    formatDate,
+    tenantStatusTone,
+} from '@/components/platform/ui'
 
-export default async function PlatformBillingPage() {
-    const [gyms, settings] = await Promise.all([
-        getPlatformGyms(),
-        getPlatformSettingsData(),
-    ])
+export const metadata = { title: 'Billing' }
+export const dynamic = 'force-dynamic'
+
+export default async function BillingPage() {
+    const { plans, planStats, tenants, invoices } = await getBillingOverview()
+
+    const billing = tenants.filter((tenant) => tenant.subscription?.status === 'active')
+    const trialing = tenants.filter((tenant) => tenant.subscription?.status === 'trialing')
+    const pastDue = tenants.filter((tenant) => tenant.subscription?.status === 'past_due')
+    const mrr = billing.reduce((total, tenant) => total + tenant.mrr, 0)
+
+    // Pipeline is what MRR would become if every current trial converted at
+    // its current plan price. Kept visibly separate from MRR.
+    const pipeline = trialing.reduce((total, tenant) => total + tenant.mrr, 0)
 
     return (
-        <div className="space-y-6">
-            <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-                <PlatformShellCard>
-                    <PlatformCardHeader eyebrow="Plans" title="SaaS plans" description="Current sellable tiers seeded into the platform catalog." />
-                    <div className="grid gap-4 p-5 md:grid-cols-3">
-                        {settings.plans.map((plan) => (
-                            <div key={plan.id} className="rounded-lg border border-slate-200 p-4">
-                                <div className="flex items-center justify-between gap-3">
-                                    <p className="text-lg font-semibold text-slate-950">{plan.name}</p>
-                                    <PlatformBadge tone={plan.is_active ? 'success' : 'neutral'}>
-                                        {plan.is_active ? 'Active' : 'Hidden'}
-                                    </PlatformBadge>
-                                </div>
-                                <p className="mt-1 text-xs uppercase tracking-[0.14em] text-slate-500">{plan.slug}</p>
-                                <p className="mt-4 text-sm text-slate-700">{formatCurrency(plan.price_monthly)}/mo</p>
-                                <p className="text-sm text-slate-500">{formatCurrency(plan.price_yearly)}/yr</p>
-                            </div>
-                        ))}
-                    </div>
-                </PlatformShellCard>
+        <div className="p-rise flex flex-col gap-5">
+            <PageHeader
+                title="Billing"
+                description="Subscription pricing across the network, and which tier is carrying the business."
+            />
 
-                <PlatformShellCard>
-                    <PlatformCardHeader eyebrow="Revenue" title="MRR by plan" description="Monthly equivalent revenue contribution from current subscriptions." />
-                    <div className="space-y-3 p-5">
-                        {settings.plans.map((plan) => {
-                            const gymsOnPlan = gyms.filter((gym) => gym.subscription?.saas_plan_id === plan.id)
-                            const revenue = gymsOnPlan.reduce((sum, gym) => sum + getSubscriptionAmount(gym.subscription, gym.subscription?.plan), 0)
-                            return (
-                                <div key={plan.id} className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3">
-                                    <div>
-                                        <p className="font-medium text-slate-950">{plan.name}</p>
-                                        <p className="text-sm text-slate-500">{gymsOnPlan.length} gyms on this tier</p>
-                                    </div>
-                                    <p className="font-semibold text-slate-950">{formatCurrency(revenue)}</p>
-                                </div>
-                            )
-                        })}
-                    </div>
-                </PlatformShellCard>
-            </section>
+            <div className="p-panel overflow-hidden">
+                <div className="grid grid-cols-2 divide-x divide-y divide-[var(--p-line-soft)] lg:grid-cols-4 lg:divide-y-0">
+                    <MetricTile
+                        label="MRR"
+                        value={formatCurrencyCompact(mrr)}
+                        footnote={`${billing.length} billing ${billing.length === 1 ? 'tenant' : 'tenants'}`}
+                    />
+                    <MetricTile
+                        label="Trial pipeline"
+                        value={formatCurrencyCompact(pipeline)}
+                        footnote={`${trialing.length} on trial, not yet billing`}
+                        tone={trialing.length > 0 ? 'warn' : undefined}
+                    />
+                    <MetricTile
+                        label="Past due"
+                        value={String(pastDue.length)}
+                        footnote="Failed recurring charges"
+                        tone={pastDue.length > 0 ? 'danger' : undefined}
+                    />
+                    <MetricTile
+                        label="Avg revenue"
+                        value={billing.length > 0 ? formatCurrencyCompact(mrr / billing.length) : '₹0'}
+                        footnote="Per billing tenant, monthly"
+                    />
+                </div>
+            </div>
 
-            <PlatformShellCard>
-                <PlatformCardHeader eyebrow="Subscriptions" title="Billing roster" description="Current subscription state for every gym on the platform." />
-                <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                        <thead className="border-b border-slate-200 bg-slate-50 text-left text-slate-500">
+            <Panel padded={false}>
+                <div className="p-4 pb-3">
+                    <PanelHeader
+                        title="Plans"
+                        description="Prices here are the list price. A tenant's rate is copied onto its subscription when the plan is assigned, so changing a price does not re-rate existing tenants."
+                    />
+                </div>
+
+                {plans.length === 0 ? (
+                    <EmptyState
+                        title="No plans defined"
+                        description="Subscription tiers live in platform_subscription_plans. Add one to start assigning tenants to it."
+                    />
+                ) : (
+                    <TableShell>
+                        <thead>
                             <tr>
-                                <th className="px-4 py-3 font-medium">Gym</th>
-                                <th className="px-4 py-3 font-medium">Plan</th>
-                                <th className="px-4 py-3 font-medium">Cycle</th>
-                                <th className="px-4 py-3 font-medium">Discount</th>
-                                <th className="px-4 py-3 font-medium">MRR</th>
-                                <th className="px-4 py-3 font-medium">Status</th>
-                                <th className="px-4 py-3 font-medium">Period end</th>
-                                <th className="px-4 py-3 font-medium">Actions</th>
+                                <Th>Plan</Th>
+                                <Th>Entitlements</Th>
+                                <Th align="right">Monthly</Th>
+                                <Th align="right">Annual</Th>
+                                <Th align="right">Trial</Th>
+                                <Th align="right">Grace</Th>
+                                <Th align="right">Tenants</Th>
+                                <Th align="right">MRR</Th>
                             </tr>
                         </thead>
                         <tbody>
-                            {gyms.length ? gyms.map((gym) => (
-                                <tr key={gym.id} className="border-b border-slate-200 last:border-b-0 hover:bg-slate-50">
-                                    <td className="px-4 py-4 font-medium text-slate-950">{gym.name}</td>
-                                    <td className="px-4 py-4 text-slate-700">{gym.subscription?.plan?.name || 'Unassigned'}</td>
-                                    <td className="px-4 py-4 text-slate-700">{gym.subscription?.billing_cycle || 'n/a'}</td>
-                                    <td className="px-4 py-4 text-slate-700">{gym.subscription?.discount_pct ?? 0}%</td>
-                                    <td className="px-4 py-4 font-medium text-slate-950">{formatCurrency(gym.mrr)}</td>
-                                    <td className="px-4 py-4">
-                                        <PlatformBadge tone={gym.subscription?.status === 'past_due' ? 'warning' : gym.subscription?.status === 'active' ? 'success' : 'accent'}>
-                                            {gym.subscription?.status?.replace(/_/g, ' ') || 'none'}
-                                        </PlatformBadge>
-                                    </td>
-                                    <td className="px-4 py-4 text-slate-700">{gym.subscription?.current_period_end || 'n/a'}</td>
-                                    <td className="px-4 py-4">
-                                        <div className="flex flex-wrap gap-2">
-                                            <form action={createInvoice}>
-                                                <input type="hidden" name="gym_id" value={gym.id} />
-                                                <input type="hidden" name="amount_due" value={gym.mrr || 0} />
-                                                <PlatformButton tone="secondary">Invoice</PlatformButton>
-                                            </form>
-                                            <form action={updateGymSubscription} className="flex flex-wrap items-center gap-2">
-                                                <input type="hidden" name="gym_id" value={gym.id} />
-                                                <select name="plan_id" defaultValue={gym.subscription?.saas_plan_id || settings.plans[0]?.id} className="h-9 rounded-md border border-slate-300 px-2 text-xs">
-                                                    {settings.plans.map((plan) => (
-                                                        <option key={plan.id} value={plan.id}>{plan.name}</option>
-                                                    ))}
-                                                </select>
-                                                <input type="hidden" name="status" value={gym.subscription?.status || 'active'} />
-                                                <input type="hidden" name="billing_cycle" value={gym.subscription?.billing_cycle || 'monthly'} />
-                                                <input type="hidden" name="discount_pct" value={gym.subscription?.discount_pct || 0} />
-                                                <PlatformButton>Save</PlatformButton>
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )) : (
-                                <tr>
-                                    <td colSpan={8} className="px-4 py-8">
-                                        <EmptyState message="No subscriptions have been created yet." />
-                                    </td>
-                                </tr>
-                            )}
+                            {plans.map((plan) => {
+                                const stats = planStats.get(plan.id) ?? { tenants: 0, mrr: 0 }
+                                const features = normalizeFeatureKeys(plan.features)
+
+                                return (
+                                    <tr key={plan.id} className="p-row">
+                                        <Td>
+                                            <span className="font-medium text-[var(--p-ink)]">{plan.name}</span>
+                                            <span className="p-num mt-0.5 block text-[11.5px] text-[var(--p-ink-3)]">
+                                                {plan.code}
+                                            </span>
+                                        </Td>
+                                        <Td>
+                                            <span className="p-num block text-[11.5px] text-[var(--p-ink-2)]">
+                                                {plan.max_members === null ? '∞' : plan.max_members} members
+                                                {' · '}
+                                                {plan.max_staff === null ? '∞' : plan.max_staff} staff
+                                            </span>
+                                            <span className="mt-1 flex flex-wrap gap-1">
+                                                {features.length === 0 ? (
+                                                    <span className="text-[11px] text-[var(--p-ink-3)]">
+                                                        No feature keys
+                                                    </span>
+                                                ) : (
+                                                    features.map((feature) => (
+                                                        <span
+                                                            key={feature}
+                                                            className="p-num rounded-full bg-[var(--p-surface-2)] px-2 py-0.5 text-[10.5px] text-[var(--p-ink-2)]"
+                                                        >
+                                                            {feature}
+                                                        </span>
+                                                    ))
+                                                )}
+                                            </span>
+                                        </Td>
+                                        <Td align="right" numeric>
+                                            {formatCurrency(plan.price_monthly)}
+                                        </Td>
+                                        <Td align="right" numeric>
+                                            {formatCurrency(plan.price_annual)}
+                                        </Td>
+                                        <Td align="right" numeric>
+                                            {plan.trial_days}d
+                                        </Td>
+                                        <Td align="right" numeric>
+                                            {plan.grace_period_days}d
+                                        </Td>
+                                        <Td align="right" numeric>
+                                            {stats.tenants}
+                                        </Td>
+                                        <Td align="right" numeric>
+                                            {stats.mrr > 0 ? formatCurrency(stats.mrr) : '—'}
+                                        </Td>
+                                    </tr>
+                                )
+                            })}
                         </tbody>
-                    </table>
+                    </TableShell>
+                )}
+            </Panel>
+
+            <Panel padded={false}>
+                <div className="p-4 pb-3">
+                    <PanelHeader
+                        title="Subscriptions"
+                        description="Every tenant's current billing state. Edit a subscription from its tenant page."
+                    />
                 </div>
-            </PlatformShellCard>
+
+                {tenants.length === 0 ? (
+                    <EmptyState
+                        title="No subscriptions"
+                        description="A subscription row is created for each gym at signup. None exist yet."
+                    />
+                ) : (
+                    <TableShell>
+                        <thead>
+                            <tr>
+                                <Th>Tenant</Th>
+                                <Th>Plan</Th>
+                                <Th>State</Th>
+                                <Th>Interval</Th>
+                                <Th align="right">Discount</Th>
+                                <Th align="right">Monthly</Th>
+                                <Th align="right">Renews</Th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {tenants.map((tenant) => {
+                                const subscription = tenant.subscription
+                                const state = tenantStatusTone(subscription?.status ?? 'unknown')
+
+                                return (
+                                    <tr key={tenant.id} className="p-row">
+                                        <Td>
+                                            <Link
+                                                href={`/platform/tenants/${tenant.id}`}
+                                                className="font-medium text-[var(--p-ink)] hover:text-[var(--p-accent-wash-ink)]"
+                                            >
+                                                {tenant.name}
+                                            </Link>
+                                        </Td>
+                                        <Td>{subscription?.plan?.name ?? '—'}</Td>
+                                        <Td>
+                                            {subscription ? (
+                                                <StatusPill tone={state.tone}>{state.label}</StatusPill>
+                                            ) : (
+                                                <span className="text-[var(--p-ink-3)]">No subscription</span>
+                                            )}
+                                        </Td>
+                                        <Td>{subscription?.billing_interval ?? '—'}</Td>
+                                        <Td align="right" numeric>
+                                            {Number(subscription?.discount_percentage ?? 0) > 0
+                                                ? `${subscription?.discount_percentage}%`
+                                                : '—'}
+                                        </Td>
+                                        <Td align="right" numeric>
+                                            {subscription?.status === 'active' ? formatCurrency(tenant.mrr) : '—'}
+                                        </Td>
+                                        <Td align="right" numeric>
+                                            {formatDate(subscription?.current_period_end)}
+                                        </Td>
+                                    </tr>
+                                )
+                            })}
+                        </tbody>
+                    </TableShell>
+                )}
+            </Panel>
+
+            <Panel padded={false}>
+                <div className="p-4 pb-3">
+                    <PanelHeader title="Recent invoices" />
+                </div>
+                {invoices.length === 0 ? (
+                    <EmptyState
+                        title="No invoices issued"
+                        description="Platform invoices are written by the payment-gateway webhook. Connect recurring billing to populate this."
+                    />
+                ) : (
+                    <TableShell>
+                        <thead>
+                            <tr>
+                                <Th>Invoice</Th>
+                                <Th>Status</Th>
+                                <Th align="right">Due</Th>
+                                <Th align="right">Paid</Th>
+                                <Th align="right">Issued</Th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {invoices.map((invoice) => (
+                                <tr key={invoice.id} className="p-row">
+                                    <Td numeric>{invoice.invoice_number}</Td>
+                                    <Td>
+                                        <StatusPill
+                                            tone={
+                                                invoice.status === 'paid'
+                                                    ? 'ok'
+                                                    : invoice.status === 'failed'
+                                                      ? 'danger'
+                                                      : 'idle'
+                                            }
+                                        >
+                                            {invoice.status}
+                                        </StatusPill>
+                                    </Td>
+                                    <Td align="right" numeric>
+                                        {formatCurrency(invoice.amount_due)}
+                                    </Td>
+                                    <Td align="right" numeric>
+                                        {formatCurrency(invoice.amount_paid)}
+                                    </Td>
+                                    <Td align="right" numeric>
+                                        {formatDate(invoice.issued_at)}
+                                    </Td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </TableShell>
+                )}
+            </Panel>
         </div>
     )
 }

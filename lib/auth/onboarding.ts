@@ -15,6 +15,38 @@ export type RegisterGymOwnerInput = {
     gymName: string
 }
 
+/**
+ * Trial length used when no active plan defines one. Kept deliberately short:
+ * a tenant that never gets a plan assigned should surface on the platform
+ * dashboard's trial-expiry lane quickly rather than sitting free forever.
+ */
+const FALLBACK_TRIAL_DAYS = 14
+
+type DefaultPlan = {
+    id: string
+    price_monthly: number
+    price_annual: number
+    trial_days: number
+}
+
+/**
+ * The plan a self-serve signup lands on: the cheapest active tier.
+ *
+ * Signup must not fail because no plans are configured, so a missing plan
+ * degrades to a null plan_id and the fallback trial window.
+ */
+async function resolveDefaultPlan(admin: SupabaseAdminClient): Promise<DefaultPlan | null> {
+    const result = await admin
+        .from('platform_subscription_plans')
+        .select('id, price_monthly, price_annual, trial_days')
+        .eq('is_active', true)
+        .order('price_monthly', { ascending: true })
+        .limit(1)
+        .maybeSingle()
+
+    return (result.data as DefaultPlan | null) ?? null
+}
+
 export type RegisterGymOwnerResult =
     | {
         success: true
@@ -109,12 +141,24 @@ export async function registerGymOwner(input: RegisterGymOwnerInput): Promise<Re
 
         const gymBase = slugify(gymName)
         const slug = await resolveUniqueGymField(admin, 'slug', gymBase)
-        const subdomain = await resolveUniqueGymField(admin, 'subdomain', gymBase)
 
+        const plan = await resolveDefaultPlan(admin)
+        const trialDays = plan?.trial_days || FALLBACK_TRIAL_DAYS
+        const trialEndsAt = new Date(Date.now() + trialDays * 86_400_000).toISOString()
+
+        // Onboarding phase 1: take the minimum needed to open a workspace.
+        // `subdomain` is deliberately left null - it is claimed later from the
+        // setup checklist, and claiming it is one of the gates that completes
+        // onboarding. Writing an auto-generated one here would silently
+        // satisfy that gate with a value the owner never chose.
         const gymPayload: InsertTables<'gyms'> = {
             name: gymName,
             slug,
-            subdomain,
+            subdomain: null,
+            contact_email: email,
+            platform_status: 'trialing',
+            onboarding_status: 'pending',
+            trial_ends_at: trialEndsAt,
         }
 
         const gymInsert = await admin
@@ -176,6 +220,30 @@ export async function registerGymOwner(input: RegisterGymOwnerInput): Promise<Re
 
         if (profileUpdate.error) {
             throw profileUpdate.error
+        }
+
+        // Every tenant gets a billing record at signup, on trial. Without it
+        // the gym exists but is invisible to the platform portal's billing and
+        // MRR views, which is how the first five tenants ended up with no
+        // subscription row at all.
+        //
+        // Prices are copied off the plan rather than referenced, so a later
+        // price change does not silently re-rate tenants already signed up.
+        const subscriptionInsert = await admin.from('gym_subscriptions').insert({
+            gym_id: gymId,
+            plan_id: plan?.id ?? null,
+            status: 'trialing',
+            billing_interval: 'monthly',
+            monthly_price: plan?.price_monthly ?? 0,
+            annual_price: plan?.price_annual ?? 0,
+            trial_ends_at: trialEndsAt,
+            current_period_start: new Date().toISOString(),
+            current_period_end: trialEndsAt,
+            next_invoice_at: trialEndsAt,
+        } as never)
+
+        if (subscriptionInsert.error) {
+            throw subscriptionInsert.error
         }
 
         revalidatePath('/admin/register')

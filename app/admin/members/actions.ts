@@ -9,6 +9,7 @@ import { sendMemberWhatsAppNotification } from '@/lib/notifications/service'
 import { getCurrentGymContext } from '@/lib/auth/gym-context'
 import { findAuthUserByEmail, getSupabaseAdmin } from '@/lib/supabase/admin'
 import { invalidateGymAdminSummaries } from '@/lib/auth/admin-server'
+import { canAddMember } from '@/lib/billing/entitlements'
 
 type PlanLookup = Pick<InsertTables<'membership_plans'>, 'duration_days' | 'price'>
 type ReferrerLookup = { id: string }
@@ -45,6 +46,14 @@ export async function createMember(formData: FormData) {
     try {
         if (!viewer.user || !viewer.isStaff || !viewer.gym) {
             return { error: 'You do not have permission to add members.' }
+        }
+
+        // Plan entitlement is checked before any work is done, so a tenant over
+        // their limit fails fast instead of part-way through creating an auth
+        // user and a member row.
+        const entitlement = await canAddMember(viewer.gym.id)
+        if (!entitlement.ok) {
+            return { error: entitlement.reason }
         }
 
         const fullName = (formData.get('full_name') as string | null)?.trim()

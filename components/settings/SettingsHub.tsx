@@ -5,6 +5,7 @@ import {
     Bell,
     Building2,
     ChevronRight,
+    CreditCard,
     Receipt,
     Tag,
     User,
@@ -47,6 +48,12 @@ const CATEGORIES: SettingsCategory[] = [
     {
         label: 'Billing',
         cards: [
+            {
+                title: 'Billing & Subscription',
+                description: 'Your GMS Cloud plan, usage, invoices, and renewals.',
+                href: '/admin/settings/subscription',
+                icon: <CreditCard className="h-4 w-4" />,
+            },
             {
                 title: 'Invoice & Receipt',
                 description: 'Invoice numbering, branding, and receipt templates.',
