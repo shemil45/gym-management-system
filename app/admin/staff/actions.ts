@@ -8,6 +8,7 @@ import { STAFF_ROLES, type StaffRole } from '@/lib/auth/roles'
 import type { InsertTables, QueryResult, UpdateTables } from '@/lib/types'
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
 import { getAvatarStoragePath } from '@/lib/utils/storage'
+import { canAddStaff } from '@/lib/billing/entitlements'
 
 type ExistingProfile = {
     id: string
@@ -26,6 +27,11 @@ export async function createStaff(formData: FormData) {
 
     if (!viewer.user || !viewer.isStaff || !viewer.gym) {
         return { error: 'You do not have permission to add staff.' }
+    }
+
+    const entitlement = await canAddStaff(viewer.gym.id)
+    if (!entitlement.ok) {
+        return { error: entitlement.reason }
     }
 
     const fullName = (formData.get('full_name') as string | null)?.trim()

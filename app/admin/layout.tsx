@@ -3,7 +3,8 @@ import AdminShell from '@/components/layout/AdminShell'
 import { AdminThemeProvider } from '@/components/layout/AdminThemeContext'
 import { getCurrentAdminContext } from '@/lib/auth/admin-server'
 import { isStaffRole } from '@/lib/auth/roles'
-import { getCurrentPlatformContext } from '@/lib/platform/server'
+import { getPlatformSession } from '@/lib/platform/auth'
+import AccountNotice from '@/components/layout/AccountNotice'
 import { stopImpersonation } from '@/app/platform/actions'
 
 export default async function AdminLayout({
@@ -12,7 +13,7 @@ export default async function AdminLayout({
     children: React.ReactNode
 }) {
     const { user, profile, gym, isStaff } = await getCurrentAdminContext()
-    const platformContext = await getCurrentPlatformContext()
+    const platformSession = await getPlatformSession()
 
     if (!user) {
         redirect('/admin/login')
@@ -29,7 +30,7 @@ export default async function AdminLayout({
     return (
         <AdminThemeProvider>
             <AdminShell user={{ ...user, ...profile, gym_name: gym.name }}>
-                {platformContext.activeImpersonation ? (
+                {platformSession.impersonation ? (
                     <div className="mb-5 rounded-3xl border border-amber-300/20 bg-amber-300/10 p-4 text-amber-50">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
@@ -46,6 +47,9 @@ export default async function AdminLayout({
                         </div>
                     </div>
                 ) : null}
+
+                <AccountNotice gymId={gym.id} />
+
                 {children}
             </AdminShell>
         </AdminThemeProvider>

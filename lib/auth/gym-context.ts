@@ -26,6 +26,7 @@ type LooseSupabaseQueryBuilder = {
     select(columns: string): LooseSupabaseQueryBuilder
     eq(column: string, value: unknown): LooseSupabaseQueryBuilder
     is(column: string, value: unknown): LooseSupabaseQueryBuilder
+    gt(column: string, value: unknown): LooseSupabaseQueryBuilder
     order(column: string, options: { ascending: boolean }): LooseSupabaseQueryBuilder
     limit(count: number): LooseSupabaseQueryBuilder
     maybeSingle(): Promise<unknown>
@@ -105,11 +106,15 @@ async function getAccessibleGymsForUser(userId: string) {
             .from('members')
             .select('id, user_id, gym_id, member_id, membership_plan_id, membership_expiry_date, status, referral_coins_balance, gym:gyms(id, name, subdomain)')
             .eq('user_id', userId),
+        // Table is `platform_impersonation_sessions`; the previous name here
+        // did not exist, so this query always failed and impersonated access
+        // silently resolved to "no access".
         platformAdmin
-            .from('impersonation_sessions')
+            .from('platform_impersonation_sessions')
             .select('*, gym:gyms(id, name, subdomain), platform_admin:platform_admins!inner(user_id)')
             .eq('platform_admin.user_id', userId)
             .is('ended_at', null)
+            .gt('expires_at', new Date().toISOString())
             .order('started_at', { ascending: false })
             .limit(1)
             .maybeSingle(),

@@ -7,7 +7,7 @@ import {
     type SendMemberNotificationResult,
 } from '@/lib/notifications/service'
 import type { NotificationType } from '@/lib/notifications/templates'
-import { recordBackgroundJobRun, recordSystemEvent } from '@/lib/platform/server'
+import { recordBackgroundJobRun, recordSystemEvent } from '@/lib/platform/auth'
 
 export const runtime = 'nodejs'
 const BUSINESS_TIME_ZONE = 'Asia/Kolkata'

@@ -1,83 +1,77 @@
 import Link from 'next/link'
-import { requirePlatformContext } from '@/lib/platform/server'
-import PlatformNav from '@/components/platform/PlatformNav'
-import { PlatformBadge, PlatformButton } from '@/components/platform/PortalUI'
-import { signOutPlatform, stopImpersonation } from '@/app/platform/actions'
-import { formatRoleLabel } from '@/lib/auth/roles'
+import { IconExternalLink, IconLogout } from '@tabler/icons-react'
+import { requirePlatformSession } from '@/lib/platform/auth'
+import { formatPlatformRole } from '@/lib/platform/types'
+import PlatformRail from '@/components/platform/PlatformRail'
+import { ThemeToggle } from '@/components/platform/PlatformTheme'
+import { Button } from '@/components/platform/ui'
+import { signOutOfPlatform, stopImpersonation } from '@/app/platform/actions'
 
-export default async function PlatformLayout({
-    children,
-}: {
-    children: React.ReactNode
-}) {
-    const context = await requirePlatformContext()
+export default async function PortalLayout({ children }: { children: React.ReactNode }) {
+    const session = await requirePlatformSession()
+
+    const railFooter = (
+        <div className="flex flex-col gap-3 border-t border-[var(--p-line)] pt-3.5">
+            <div className="min-w-0">
+                <p className="truncate text-[12.5px] font-medium text-[var(--p-ink)]">
+                    {session.admin.full_name}
+                </p>
+                <p className="truncate text-[11.5px] text-[var(--p-ink-3)]">
+                    {formatPlatformRole(session.admin.role)}
+                </p>
+            </div>
+
+            <div className="flex items-center justify-between gap-2">
+                <ThemeToggle />
+                <form action={signOutOfPlatform}>
+                    <Button tone="ghost" size="sm" type="submit">
+                        <IconLogout size={13} stroke={1.8} aria-hidden="true" />
+                        Sign out
+                    </Button>
+                </form>
+            </div>
+        </div>
+    )
 
     return (
-        <div className="min-h-screen bg-slate-50 text-slate-950">
-            <div className="flex min-h-screen">
-                <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-900/60 bg-[#0f1117] px-4 py-5 text-white lg:flex">
-                    <div className="border-b border-white/10 pb-5">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">GymOS Admin</p>
-                        <h1 className="mt-2 text-xl font-semibold tracking-tight">Platform Portal</h1>
-                        <p className="mt-2 text-sm text-slate-400">
-                            {context.platformAdmin.full_name} · {formatRoleLabel(context.platformAdmin.role)}
-                        </p>
-                    </div>
+        <div className="min-h-[100dvh]">
+            <PlatformRail footer={railFooter} />
 
-                    <div className="mt-5 flex-1">
-                        <PlatformNav />
-                    </div>
-
-                    <div className="space-y-3 border-t border-white/10 pt-4">
-                        <Link href="/admin/dashboard" className="block rounded-md border border-white/10 px-3 py-2 text-sm text-slate-300 transition hover:bg-white/5 hover:text-white">
-                            Open Tenant Workspace
-                        </Link>
-                        <form action={signOutPlatform}>
-                            <button className="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-500">
-                                Sign out
-                            </button>
-                        </form>
-                    </div>
-                </aside>
-
-                <div className="flex min-h-screen flex-1 flex-col">
-                    <header className="border-b border-slate-200 bg-white">
-                        <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 px-5 py-4 sm:px-6 xl:px-8">
-                            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                                <div>
-                                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Operations Workspace</p>
-                                    <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">GymOS platform command center</h2>
-                                    <p className="mt-1 text-sm text-slate-600">
-                                        SaaS billing, support, audits, and rollout controls for every gym on the network.
-                                    </p>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <PlatformBadge tone="accent">{context.user.email}</PlatformBadge>
-                                </div>
-                            </div>
-
-                            {context.activeImpersonation ? (
-                                <div className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <div>
-                                        <p className="text-sm font-medium text-amber-900">
-                                            Impersonation mode is active for {context.activeImpersonation.gym?.name ?? 'a gym'}.
-                                        </p>
-                                        <p className="text-sm text-amber-800">
-                                            Tenant-side access is currently pinned to this gym until the session is stopped.
-                                        </p>
-                                    </div>
-                                    <form action={stopImpersonation}>
-                                        <PlatformButton tone="secondary">Stop impersonation</PlatformButton>
-                                    </form>
-                                </div>
-                            ) : null}
+            <div className="lg:pl-[var(--p-rail)]">
+                {/* An open support session is the single most important thing
+                    on screen while it lasts, so it sits above the content and
+                    stays sticky rather than scrolling away. */}
+                {session.impersonation ? (
+                    <div className="sticky top-0 z-20 border-b border-[var(--p-warn)] bg-[var(--p-warn-wash)]">
+                        <div className="mx-auto flex max-w-[1400px] flex-col gap-2.5 px-5 py-2.5 sm:flex-row sm:items-center sm:justify-between lg:px-8">
+                            <p className="text-[12.5px] leading-[1.5] text-[var(--p-warn-ink)]">
+                                <strong className="font-semibold">Support session open</strong> on{' '}
+                                {session.impersonation.gymName ?? 'a tenant'}. Your writes in the gym
+                                workspace are recorded against your platform account.
+                            </p>
+                            <form action={stopImpersonation} className="shrink-0">
+                                <Button tone="secondary" size="sm" type="submit">
+                                    End session
+                                </Button>
+                            </form>
                         </div>
-                    </header>
+                    </div>
+                ) : null}
 
-                    <main className="mx-auto w-full max-w-[1600px] flex-1 px-5 py-6 sm:px-6 xl:px-8">
-                        {children}
-                    </main>
-                </div>
+                <main className="mx-auto max-w-[1400px] px-5 py-6 lg:px-8 lg:py-8">{children}</main>
+
+                <footer className="mx-auto max-w-[1400px] px-5 pb-8 lg:px-8">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-[var(--p-line)] pt-4 text-[11.5px] text-[var(--p-ink-3)]">
+                        <span>Signed in as {session.admin.email}</span>
+                        <Link
+                            href="/admin/dashboard"
+                            className="inline-flex items-center gap-1.5 hover:text-[var(--p-ink-2)]"
+                        >
+                            Open gym workspace
+                            <IconExternalLink size={12} stroke={1.8} aria-hidden="true" />
+                        </Link>
+                    </div>
+                </footer>
             </div>
         </div>
     )

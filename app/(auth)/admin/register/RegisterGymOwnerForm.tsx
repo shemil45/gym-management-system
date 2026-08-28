@@ -15,7 +15,7 @@ const inputClass =
 const labelClass =
     "block text-xs font-semibold tracking-[0.01em] text-[#191c1e] dark:text-[#e4e1e6]"
 
-export default function RegisterGymOwnerForm() {
+export default function RegisterGymOwnerForm({ noWorkspace = false }: { noWorkspace?: boolean }) {
     const router = useRouter()
     const [name, setName] = useState('')
     const [email, setEmail] = useState('')
@@ -82,6 +82,13 @@ export default function RegisterGymOwnerForm() {
                             Create your owner account.
                         </p>
                     </div>
+
+                    {noWorkspace && !error ? (
+                        <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
+                            You&rsquo;re signed in but not attached to a gym yet. Create one below to get a
+                            workspace.
+                        </div>
+                    ) : null}
 
                     {error ? (
                         <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">

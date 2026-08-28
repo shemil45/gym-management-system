@@ -110,6 +110,12 @@ export interface OpenCheckoutArgs {
     /** Merchant name shown in the checkout header. */
     gymName: string
     planName: string
+    /**
+     * Overrides the checkout subtitle. Defaults to "<planName> membership",
+     * which is right for a member buying a gym membership but wrong for a gym
+     * paying for its own GMS Cloud subscription.
+     */
+    description?: string
     /** Signed response; the caller stores it and routes to the processing screen. */
     onSuccess: (response: RazorpaySuccessResponse) => void
     /**
@@ -134,6 +140,7 @@ export async function openRazorpayCheckout({
     order,
     gymName,
     planName,
+    description,
     onSuccess,
     onDismiss,
 }: OpenCheckoutArgs): Promise<boolean> {
@@ -148,7 +155,7 @@ export async function openRazorpayCheckout({
         amount: order.amount,
         currency: order.currency,
         name: gymName,
-        description: `${planName} membership`,
+        description: description ?? `${planName} membership`,
         order_id: order.orderId,
         prefill: order.prefills,
         notes: { invoice_number: order.invoiceNumber, plan_name: planName },

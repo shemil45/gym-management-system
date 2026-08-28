@@ -1,15 +1,13 @@
 import { Database } from './database.types'
 import type {
-    GymFeatureFlag as PlatformGymFeatureFlag,
+    FeatureFlag as PlatformFeatureFlagRecord,
+    GymFeatureOverride as GymFeatureOverrideRecord,
+    GymSubscription as GymSubscriptionRecord,
     ImpersonationSession as PlatformImpersonationSessionRecord,
-    PlatformAdmin as PlatformAdminRecord,
-    PlatformAnnouncement as PlatformAnnouncementRecord,
+    PlatformAdminRecord,
     PlatformAuditLog as PlatformAuditLogRecord,
-    SaaSInvoice as GymSubscriptionInvoiceRecord,
-    SaaSPlan as PlatformSubscriptionPlanRecord,
-    SaaSSubscription as GymSubscriptionRecord,
-    SupportTicket as SupportTicketRecord,
-    SupportTicketMessage as SupportTicketMessageRecord,
+    SubscriptionInvoice as GymSubscriptionInvoiceRecord,
+    SubscriptionPlan as PlatformSubscriptionPlanRecord,
 } from '@/lib/platform/types'
 
 // Type helpers
@@ -33,15 +31,10 @@ export type PlatformAdmin = PlatformAdminRecord
 export type PlatformSubscriptionPlan = PlatformSubscriptionPlanRecord
 export type GymSubscription = GymSubscriptionRecord
 export type GymSubscriptionInvoice = GymSubscriptionInvoiceRecord
-export type SupportTicket = SupportTicketRecord
-export type SupportTicketMessage = SupportTicketMessageRecord
-export type PlatformAnnouncement = PlatformAnnouncementRecord
 export type PlatformAuditLog = PlatformAuditLogRecord
-export type PlatformFeatureFlag = PlatformGymFeatureFlag
-export type GymFeatureOverride = PlatformGymFeatureFlag
+export type PlatformFeatureFlag = PlatformFeatureFlagRecord
+export type GymFeatureOverride = GymFeatureOverrideRecord
 export type PlatformImpersonationSession = PlatformImpersonationSessionRecord
-export type BackgroundJobRun = never
-export type SystemEvent = never
 
 // Extended types with relations
 export type MemberWithPlan = Member & {

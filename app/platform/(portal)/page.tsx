@@ -1,129 +1,296 @@
 import Link from 'next/link'
+import { IconArrowRight } from '@tabler/icons-react'
+import { getPlatformOverview } from '@/lib/platform/data'
+import { daysUntil } from '@/lib/platform/types'
+import VolumeChart from '@/components/platform/VolumeChart'
 import {
     EmptyState,
-    PlatformBadge,
-    PlatformCardHeader,
-    PlatformMetricCard,
-    PlatformShellCard,
-} from '@/components/platform/PortalUI'
-import { getPlatformDashboardData } from '@/lib/platform/server'
-import { formatCompactCurrency, formatCurrency } from '@/lib/utils/currency'
+    MetricTile,
+    Panel,
+    PanelHeader,
+    PageHeader,
+    StatusPill,
+    TableShell,
+    Td,
+    Th,
+    formatCurrency,
+    formatCurrencyCompact,
+    formatRelative,
+    tenantStatusTone,
+} from '@/components/platform/ui'
 
-function toneForTicket(status: string) {
-    if (status === 'resolved' || status === 'closed') return 'success'
-    if (status === 'waiting_on_gym') return 'warning'
-    if (status === 'open') return 'danger'
-    return 'accent'
+export const metadata = { title: 'Overview' }
+
+/** Always fresh: an operations console showing cached money is worse than slow. */
+export const dynamic = 'force-dynamic'
+
+type AlertRow = {
+    gymId: string
+    name: string
+    detail: string
+    tone: 'warn' | 'danger'
 }
 
-export default async function PlatformDashboardPage() {
-    const data = await getPlatformDashboardData()
+export default async function PlatformOverviewPage() {
+    const { metrics, alerts, revenueSeries, tenants, recentAudit } = await getPlatformOverview()
+
+    // One ranked lane instead of four separate alert panels: an operator wants
+    // "what needs me today", not a taxonomy of problem types.
+    const attention: AlertRow[] = [
+        ...alerts.suspended.map((tenant) => ({
+            gymId: tenant.id,
+            name: tenant.name,
+            detail: tenant.suspension_reason
+                ? `Suspended — ${tenant.suspension_reason}`
+                : 'Suspended',
+            tone: 'danger' as const,
+        })),
+        ...alerts.pastDue.map((tenant) => ({
+            gymId: tenant.id,
+            name: tenant.name,
+            detail: `Payment failed ${tenant.subscription?.failed_payment_count ?? 0}×`,
+            tone: 'danger' as const,
+        })),
+        ...alerts.expiringTrials.map((tenant) => {
+            const remaining = daysUntil(tenant.trial_ends_at ?? tenant.subscription?.trial_ends_at)
+            return {
+                gymId: tenant.id,
+                name: tenant.name,
+                detail:
+                    remaining !== null && remaining < 0
+                        ? `Trial ended ${Math.abs(remaining)}d ago`
+                        : `Trial ends in ${remaining ?? 0}d`,
+                tone: 'warn' as const,
+            }
+        }),
+        ...alerts.incompleteOnboarding.map((tenant) => ({
+            gymId: tenant.id,
+            name: tenant.name,
+            detail: `Onboarding ${tenant.onboarding_status.replace(/_/g, ' ')}`,
+            tone: 'warn' as const,
+        })),
+    ]
+
+    const topTenants = [...tenants].sort((a, b) => b.memberCount - a.memberCount).slice(0, 6)
 
     return (
-        <div className="space-y-6">
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-                <PlatformMetricCard label="Total gyms" value={data.metrics.totalGyms.toString()} />
-                <PlatformMetricCard label="Total members" value={data.metrics.totalMembers.toString()} />
-                <PlatformMetricCard label="MRR" value={formatCompactCurrency(Number(data.metrics.mrr || 0))} tone="positive" />
-                <PlatformMetricCard label="ARR" value={formatCompactCurrency(Number(data.metrics.arr || 0))} />
-                <PlatformMetricCard label="New gyms (30d)" value={data.metrics.newGyms.toString()} />
-                <PlatformMetricCard label="Churned gyms" value={data.metrics.churnedGyms.toString()} tone="warning" />
-            </section>
+        <div className="p-rise flex flex-col gap-5">
+            <PageHeader
+                title="Overview"
+                description="Revenue, tenant health, and everything currently asking for attention across the network."
+            />
 
-            <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-                <PlatformShellCard>
-                    <PlatformCardHeader
-                        eyebrow="Dashboard"
-                        title="Platform momentum"
-                        description="Latest snapshot of SaaS growth, billing activity, and support movement."
-                        action={<Link href="/platform/analytics" className="text-sm font-medium text-indigo-700 hover:text-indigo-600">Open analytics</Link>}
+            {/* Metric strip. Hairline-divided grid rather than six bordered
+                cards, per the density rule. */}
+            <div className="p-panel overflow-hidden">
+                <div className="grid grid-cols-2 divide-x divide-y divide-[var(--p-line-soft)] sm:grid-cols-3 lg:grid-cols-6 lg:divide-y-0">
+                    <MetricTile
+                        label="MRR"
+                        value={formatCurrencyCompact(metrics.mrr)}
+                        footnote="Billing subscriptions only"
                     />
-                    <div className="grid gap-4 p-5 md:grid-cols-2">
-                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                            <p className="text-sm font-medium text-slate-700">Revenue run-rate</p>
-                            <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">{formatCurrency(Number(data.metrics.mrr || 0))}</p>
-                            <p className="mt-2 text-sm text-slate-600">Monthly recurring revenue across active and trialing gyms.</p>
-                        </div>
-                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                            <p className="text-sm font-medium text-slate-700">Attention needed</p>
-                            <div className="mt-3 flex flex-wrap gap-2">
-                                <PlatformBadge tone="warning">{data.alerts.expiringTrials.length} trials ending soon</PlatformBadge>
-                                <PlatformBadge tone="danger">{data.alerts.failedPayments.length} overdue invoices</PlatformBadge>
-                            </div>
-                            <p className="mt-2 text-sm text-slate-600">Use billing and gyms views to intervene before revenue slips.</p>
-                        </div>
-                    </div>
-                    <div className="border-t border-slate-200 p-5">
-                        <div className="mb-4 flex items-center justify-between">
-                            <div>
-                                <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">Recent activity</h3>
-                                <p className="mt-1 text-sm text-slate-600">Latest signups, invoice state changes, and ticket updates.</p>
-                            </div>
-                            <Link href="/platform/audit" className="text-sm font-medium text-indigo-700 hover:text-indigo-600">View audit trail</Link>
-                        </div>
-                        <div className="space-y-3">
-                            {data.recentActivity.length ? data.recentActivity.map((item) => (
-                                <div key={item.id} className="flex items-start justify-between gap-4 rounded-lg border border-slate-200 px-4 py-3">
-                                    <div>
-                                        <p className="text-sm font-medium text-slate-900">{item.title}</p>
-                                        <p className="mt-1 text-xs uppercase tracking-[0.14em] text-slate-500">{item.type.replace(/_/g, ' ')}</p>
-                                    </div>
-                                    <span className="text-sm text-slate-500">{new Date(item.timestamp).toLocaleString()}</span>
-                                </div>
-                            )) : <EmptyState message="No activity has been recorded yet." />}
-                        </div>
-                    </div>
-                </PlatformShellCard>
-
-                <div className="space-y-6">
-                    <PlatformShellCard>
-                        <PlatformCardHeader
-                            eyebrow="Support"
-                            title="Open ticket queue"
-                            description="Newest platform conversations and ticket status changes."
-                            action={<Link href="/platform/support" className="text-sm font-medium text-indigo-700 hover:text-indigo-600">Open queue</Link>}
-                        />
-                        <div className="space-y-3 p-5">
-                            {data.tickets.length ? data.tickets.slice(0, 5).map((ticket) => (
-                                <div key={ticket.id} className="rounded-lg border border-slate-200 p-4">
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div>
-                                            <p className="font-medium text-slate-950">{ticket.ticket_number}</p>
-                                            <p className="mt-1 text-sm text-slate-700">{ticket.subject}</p>
-                                        </div>
-                                        <PlatformBadge tone={toneForTicket(ticket.status) as never}>
-                                            {ticket.status.replace(/_/g, ' ')}
-                                        </PlatformBadge>
-                                    </div>
-                                    <p className="mt-2 text-sm text-slate-500">Updated {new Date(ticket.updated_at).toLocaleString()}</p>
-                                </div>
-                            )) : <EmptyState message="No support tickets yet." />}
-                        </div>
-                    </PlatformShellCard>
-
-                    <PlatformShellCard>
-                        <PlatformCardHeader
-                            eyebrow="Announcements"
-                            title="Live broadcasts"
-                            description="Published messages that are currently visible in tenant portals."
-                            action={<Link href="/platform/announcements" className="text-sm font-medium text-indigo-700 hover:text-indigo-600">Manage</Link>}
-                        />
-                        <div className="space-y-3 p-5">
-                            {data.announcements.length ? data.announcements.map((announcement) => (
-                                <div key={announcement.id} className="rounded-lg border border-slate-200 p-4">
-                                    <div className="flex items-center justify-between gap-3">
-                                        <p className="font-medium text-slate-950">{announcement.title}</p>
-                                        <PlatformBadge tone={announcement.type === 'critical' ? 'danger' : announcement.type === 'warning' ? 'warning' : 'info'}>
-                                            {announcement.type}
-                                        </PlatformBadge>
-                                    </div>
-                                    <p className="mt-2 line-clamp-3 text-sm text-slate-600">{announcement.body}</p>
-                                </div>
-                            )) : <EmptyState message="No announcements are published right now." />}
-                        </div>
-                    </PlatformShellCard>
+                    <MetricTile label="ARR" value={formatCurrencyCompact(metrics.arr)} footnote="MRR × 12" />
+                    <MetricTile
+                        label="Active"
+                        value={String(metrics.activeTenants)}
+                        unit={metrics.activeTenants === 1 ? 'tenant' : 'tenants'}
+                        footnote={`${metrics.newTenants30d} joined in 30d`}
+                    />
+                    <MetricTile
+                        label="On trial"
+                        value={String(metrics.trialingTenants)}
+                        footnote="Not counted in MRR"
+                        tone={metrics.trialingTenants > 0 ? 'warn' : undefined}
+                    />
+                    <MetricTile
+                        label="Churn"
+                        value={`${metrics.churnRate.toFixed(1)}%`}
+                        footnote="Cancelled ÷ ever-billable"
+                        tone={metrics.churnRate > 5 ? 'danger' : undefined}
+                    />
+                    <MetricTile
+                        label="Members"
+                        value={metrics.totalMembers.toLocaleString('en-IN')}
+                        footnote="Across all tenants"
+                    />
                 </div>
-            </section>
+            </div>
+
+            <div className="grid gap-5 lg:grid-cols-[1.35fr_1fr]">
+                <Panel>
+                    <PanelHeader
+                        title="Platform volume"
+                        description="Payments collected by gyms on the platform over 30 days. This is tenant turnover, not platform revenue."
+                    />
+                    <p className="p-num mb-2 text-[19px] font-semibold tracking-[-0.02em] text-[var(--p-ink)]">
+                        {formatCurrency(metrics.platformVolume30d)}
+                    </p>
+                    <VolumeChart data={revenueSeries} />
+                </Panel>
+
+                <Panel padded={false}>
+                    <div className="p-4 pb-3">
+                        <PanelHeader
+                            title="Needs attention"
+                            description={
+                                attention.length > 0
+                                    ? `${attention.length} ${attention.length === 1 ? 'item' : 'items'}, most urgent first.`
+                                    : undefined
+                            }
+                        />
+                    </div>
+
+                    {attention.length === 0 ? (
+                        <EmptyState
+                            title="Nothing needs you"
+                            description="No suspended tenants, failed payments, closing trials, or stalled onboarding across the network."
+                        />
+                    ) : (
+                        <ul className="max-h-[298px] overflow-y-auto">
+                            {attention.map((row, index) => (
+                                <li key={`${row.gymId}-${index}`}>
+                                    <Link
+                                        href={`/platform/tenants/${row.gymId}`}
+                                        className="p-row flex items-center gap-3 border-t border-[var(--p-line-soft)] px-4 py-2.5"
+                                    >
+                                        <span
+                                            aria-hidden="true"
+                                            className="h-1.5 w-1.5 shrink-0 rounded-full"
+                                            style={{
+                                                background:
+                                                    row.tone === 'danger'
+                                                        ? 'var(--p-danger)'
+                                                        : 'var(--p-warn)',
+                                            }}
+                                        />
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block truncate text-[13px] font-medium text-[var(--p-ink)]">
+                                                {row.name}
+                                            </span>
+                                            <span className="block truncate text-[11.5px] text-[var(--p-ink-3)]">
+                                                {row.detail}
+                                            </span>
+                                        </span>
+                                        <IconArrowRight
+                                            size={14}
+                                            stroke={1.7}
+                                            aria-hidden="true"
+                                            className="shrink-0 text-[var(--p-ink-3)]"
+                                        />
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </Panel>
+            </div>
+
+            <div className="grid gap-5 lg:grid-cols-[1.35fr_1fr]">
+                <Panel padded={false}>
+                    <div className="p-4 pb-3">
+                        <PanelHeader
+                            title="Largest tenants"
+                            description="By member count."
+                            action={
+                                <Link
+                                    href="/platform/tenants"
+                                    className="text-[12.5px] font-medium text-[var(--p-accent-wash-ink)] hover:text-[var(--p-accent)]"
+                                >
+                                    All tenants
+                                </Link>
+                            }
+                        />
+                    </div>
+
+                    {topTenants.length === 0 ? (
+                        <EmptyState
+                            title="No tenants yet"
+                            description="Gyms appear here as soon as they sign up. The first one will show its plan and member count."
+                        />
+                    ) : (
+                        <TableShell>
+                            <thead>
+                                <tr>
+                                    <Th>Tenant</Th>
+                                    <Th>Status</Th>
+                                    <Th align="right">Members</Th>
+                                    <Th align="right">MRR</Th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {topTenants.map((tenant) => {
+                                    const status = tenantStatusTone(tenant.platform_status)
+                                    return (
+                                        <tr key={tenant.id} className="p-row">
+                                            <Td>
+                                                <Link
+                                                    href={`/platform/tenants/${tenant.id}`}
+                                                    className="font-medium text-[var(--p-ink)] hover:text-[var(--p-accent-wash-ink)]"
+                                                >
+                                                    {tenant.name}
+                                                </Link>
+                                                <span className="mt-0.5 block text-[11.5px] text-[var(--p-ink-3)]">
+                                                    {tenant.subscription?.plan?.name ?? 'No plan'}
+                                                </span>
+                                            </Td>
+                                            <Td>
+                                                <StatusPill tone={status.tone}>{status.label}</StatusPill>
+                                            </Td>
+                                            <Td align="right" numeric>
+                                                {tenant.memberCount}
+                                            </Td>
+                                            <Td align="right" numeric>
+                                                {tenant.subscription?.status === 'active'
+                                                    ? formatCurrency(tenant.mrr)
+                                                    : '—'}
+                                            </Td>
+                                        </tr>
+                                    )
+                                })}
+                            </tbody>
+                        </TableShell>
+                    )}
+                </Panel>
+
+                <Panel padded={false}>
+                    <div className="p-4 pb-3">
+                        <PanelHeader
+                            title="Recent activity"
+                            action={
+                                <Link
+                                    href="/platform/audit"
+                                    className="text-[12.5px] font-medium text-[var(--p-accent-wash-ink)] hover:text-[var(--p-accent)]"
+                                >
+                                    Full log
+                                </Link>
+                            }
+                        />
+                    </div>
+
+                    {recentAudit.length === 0 ? (
+                        <EmptyState
+                            title="No activity recorded"
+                            description="Every status change, billing edit, flag toggle, and support session appears here as it happens."
+                        />
+                    ) : (
+                        <ul>
+                            {recentAudit.map((entry) => (
+                                <li
+                                    key={entry.id}
+                                    className="flex items-baseline gap-3 border-t border-[var(--p-line-soft)] px-4 py-2.5"
+                                >
+                                    <span className="p-num min-w-0 flex-1 truncate text-[12px] text-[var(--p-ink-2)]">
+                                        {entry.action}
+                                    </span>
+                                    <span className="shrink-0 text-[11.5px] text-[var(--p-ink-3)]">
+                                        {formatRelative(entry.created_at)}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </Panel>
+            </div>
         </div>
     )
 }
