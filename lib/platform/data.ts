@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { resolveEntitlements } from '@/lib/billing/plan-entitlements'
 import {
     type FeatureFlag,
     type GymFeatureOverride,
@@ -13,6 +14,7 @@ import {
     daysUntil,
     isBillingRevenue,
     monthlyEquivalent,
+    normalizeFeatureKeys,
 } from '@/lib/platform/types'
 
 /**
@@ -341,6 +343,96 @@ export async function getBillingOverview() {
         tenants,
         invoices: (invoicesResult.data ?? []) as SubscriptionInvoice[],
     }
+}
+
+export type PlanFeature = {
+    id: string
+    key: string
+    label: string
+    description: string | null
+    sort_order: number
+    is_active: boolean
+}
+
+export type PlanWithStats = SubscriptionPlan & {
+    tenantCount: number
+    mrr: number
+    /** Subscriptions on this plan whose frozen entitlements differ from it. */
+    driftedTenantCount: number
+}
+
+export type PlanCatalog = {
+    plans: PlanWithStats[]
+    features: PlanFeature[]
+}
+
+/**
+ * The plan catalogue plus the numbers an operator needs before editing a tier:
+ * how many tenants are on it, what it earns, and how many of those tenants are
+ * still holding entitlements that no longer match the plan.
+ *
+ * Drift is not a fault - it is the snapshot doing its job. It is surfaced so
+ * that "apply to existing tenants" is a decision with a visible cost rather
+ * than a button someone presses hopefully.
+ */
+export async function getPlanCatalog(): Promise<PlanCatalog> {
+    const db = service()
+
+    const [plansResult, featuresResult, subscriptionsResult, tenants] = await Promise.all([
+        db.from('platform_subscription_plans').select('*').order('sort_order').order('price_monthly'),
+        db.from('platform_plan_features').select('*').eq('is_active', true).order('sort_order'),
+        db.from('gym_subscriptions').select('gym_id, plan_id, plan_entitlements'),
+        getTenantSummaries(),
+    ])
+
+    const plans = (plansResult.data ?? []) as SubscriptionPlan[]
+    const subscriptions = (subscriptionsResult.data ?? []) as Array<{
+        gym_id: string
+        plan_id: string | null
+        plan_entitlements: unknown
+    }>
+
+    const mrrByGym = new Map(tenants.map((tenant) => [tenant.id, tenant]))
+
+    const stats = new Map<string, { tenants: number; mrr: number; drifted: number }>()
+    for (const subscription of subscriptions) {
+        if (!subscription.plan_id) continue
+        const plan = plans.find((row) => row.id === subscription.plan_id)
+        if (!plan) continue
+
+        const current = stats.get(plan.id) ?? { tenants: 0, mrr: 0, drifted: 0 }
+        current.tenants += 1
+
+        const tenant = mrrByGym.get(subscription.gym_id)
+        if (tenant && isBillingRevenue(tenant.subscription)) current.mrr += tenant.mrr
+
+        if (entitlementsDiffer(subscription.plan_entitlements, plan)) current.drifted += 1
+
+        stats.set(plan.id, current)
+    }
+
+    return {
+        plans: plans.map((plan) => {
+            const row = stats.get(plan.id) ?? { tenants: 0, mrr: 0, drifted: 0 }
+            return { ...plan, tenantCount: row.tenants, mrr: row.mrr, driftedTenantCount: row.drifted }
+        }),
+        features: (featuresResult.data ?? []) as PlanFeature[],
+    }
+}
+
+/** True when a subscription's frozen entitlements no longer match its plan. */
+function entitlementsDiffer(snapshot: unknown, plan: SubscriptionPlan): boolean {
+    const resolved = resolveEntitlements(snapshot, plan)
+    if (!resolved.fromSnapshot) return false
+
+    if (resolved.maxMembers !== (plan.max_members ?? null)) return true
+    if (resolved.maxStaff !== (plan.max_staff ?? null)) return true
+
+    const planFeatures = normalizeFeatureKeys(plan.features)
+    if (planFeatures.length !== resolved.features.length) return true
+
+    const held = new Set(resolved.features)
+    return planFeatures.some((key) => !held.has(key))
 }
 
 export async function getAuditLog(limit = 100): Promise<Array<PlatformAuditLog & { gymName: string | null }>> {

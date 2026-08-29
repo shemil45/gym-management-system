@@ -10,6 +10,11 @@ import {
     requireCapability,
     requirePlatformSession,
 } from '@/lib/platform/auth'
+import {
+    PLAN_ENTITLEMENT_COLUMNS,
+    buildEntitlementSnapshot,
+    type PlanEntitlementSource,
+} from '@/lib/billing/plan-entitlements'
 import type { GymPlatformStatus, PlatformAdminRecord } from '@/lib/platform/types'
 
 export type ActionState = { error: string | null; success?: string | null }
@@ -306,15 +311,18 @@ export async function updateTenantSubscription(formData: FormData): Promise<void
 
     const service = getSupabaseAdmin()
 
-    // Prices are copied from the plan onto the subscription so a later plan
-    // price change does not silently re-rate every existing tenant.
+    // Prices AND entitlements are copied from the plan onto the subscription so
+    // a later plan edit does not silently re-rate or re-entitle every existing
+    // tenant. See lib/billing/plan-entitlements.ts.
     const planResult = await service
         .from('platform_subscription_plans')
-        .select('price_monthly, price_annual')
+        .select(`price_monthly, price_annual, ${PLAN_ENTITLEMENT_COLUMNS}`)
         .eq('id', planId)
         .maybeSingle()
 
-    const plan = planResult.data as { price_monthly: number; price_annual: number } | null
+    const plan = planResult.data as
+        | ({ price_monthly: number; price_annual: number } & PlanEntitlementSource)
+        | null
     if (!plan) throw new Error('That plan no longer exists.')
 
     const { error } = await service
@@ -326,6 +334,8 @@ export async function updateTenantSubscription(formData: FormData): Promise<void
             monthly_price: plan.price_monthly,
             annual_price: plan.price_annual,
             discount_percentage: discount,
+            plan_entitlements: buildEntitlementSnapshot(plan),
+            plan_entitlements_set_at: new Date().toISOString(),
         } as never)
         .eq('gym_id', gymId)
 

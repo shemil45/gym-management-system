@@ -7,6 +7,7 @@ import {
     IconAdjustmentsHorizontal,
     IconBuildingStore,
     IconCreditCard,
+    IconLayoutGrid,
     IconGauge,
     IconHistory,
     IconMenu2,
@@ -17,6 +18,7 @@ import {
 const NAV = [
     { href: '/platform', label: 'Overview', Icon: IconGauge, exact: true },
     { href: '/platform/tenants', label: 'Tenants', Icon: IconBuildingStore },
+    { href: '/platform/plans', label: 'Plans', Icon: IconLayoutGrid },
     { href: '/platform/billing', label: 'Billing', Icon: IconCreditCard },
     { href: '/platform/flags', label: 'Feature flags', Icon: IconAdjustmentsHorizontal },
     { href: '/platform/audit', label: 'Audit log', Icon: IconHistory },
@@ -67,7 +69,7 @@ function Wordmark() {
 /**
  * Fixed rail on desktop, sheet on mobile.
  *
- * The rail does not collapse to icons-only: at five destinations the labels
+ * The rail does not collapse to icons-only: at six destinations the labels
  * cost nothing, and an operator scanning for "Billing" should not have to
  * decode a glyph.
  */

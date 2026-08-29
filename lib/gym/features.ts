@@ -2,7 +2,8 @@ import 'server-only'
 
 import { cache } from 'react'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
-import { normalizeFeatureKeys } from '@/lib/platform/types'
+import type { PlanEntitlementSource } from '@/lib/billing/plan-entitlements'
+import { resolveEntitlements } from '@/lib/billing/plan-entitlements'
 
 /**
  * Feature resolution for one tenant.
@@ -12,7 +13,9 @@ import { normalizeFeatureKeys } from '@/lib/platform/types'
  *   1. Onboarding gate  - while onboarding_status != 'completed', only keys in
  *                         BASIC_TIER can resolve true, whatever the plan says.
  *   2. Gym override     - an explicit gym_feature_overrides row.
- *   3. Plan default     - key present in the plan's `features` array.
+ *   3. Plan entitlement - key present in the subscription's frozen
+ *                         entitlements, falling back to the plan's current
+ *                         `features` array when nothing was snapshotted.
  *   4. Platform default - platform_feature_flags.is_enabled.
  *   5. false
  *
@@ -46,7 +49,7 @@ export const getGymFeatureState = cache(async (gymId: string): Promise<GymFeatur
         db.from('gym_feature_overrides').select('feature_flag_id, is_enabled').eq('gym_id', gymId),
         db
             .from('gym_subscriptions')
-            .select('plan:platform_subscription_plans(features)')
+            .select('plan_entitlements, plan:platform_subscription_plans(max_members, max_staff, features)')
             .eq('gym_id', gymId)
             .maybeSingle(),
     ])
@@ -58,9 +61,15 @@ export const getGymFeatureState = cache(async (gymId: string): Promise<GymFeatur
         is_enabled: boolean
     }>
 
-    const rawPlan = subscriptionResult.data as { plan: { features: unknown } | { features: unknown }[] | null } | null
-    const plan = Array.isArray(rawPlan?.plan) ? rawPlan?.plan[0] : rawPlan?.plan
-    const planFeatures = new Set(normalizeFeatureKeys(plan?.features))
+    const rawPlan = subscriptionResult.data as {
+        plan_entitlements: unknown
+        plan: PlanEntitlementSource | PlanEntitlementSource[] | null
+    } | null
+    const plan = Array.isArray(rawPlan?.plan) ? rawPlan?.plan[0] ?? null : rawPlan?.plan ?? null
+
+    // Snapshot-first: what the tenant was entitled to when their plan was
+    // assigned, not what that plan happens to include today.
+    const planFeatures = new Set(resolveEntitlements(rawPlan?.plan_entitlements, plan).features)
 
     const overrideByFlag = new Map(overrides.map((row) => [row.feature_flag_id, row.is_enabled]))
     const onboardingComplete = gym?.onboarding_status === 'completed'

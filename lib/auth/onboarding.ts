@@ -5,6 +5,11 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/types/database.types'
 import type { InsertTables, UpdateTables } from '@/lib/types'
 import { findAuthUserByEmail, getSupabaseAdmin } from '@/lib/supabase/admin'
+import {
+    PLAN_ENTITLEMENT_COLUMNS,
+    buildEntitlementSnapshot,
+    type PlanEntitlementSource,
+} from '@/lib/billing/plan-entitlements'
 
 type SupabaseAdminClient = SupabaseClient<Database>
 
@@ -22,7 +27,7 @@ export type RegisterGymOwnerInput = {
  */
 const FALLBACK_TRIAL_DAYS = 14
 
-type DefaultPlan = {
+type DefaultPlan = PlanEntitlementSource & {
     id: string
     price_monthly: number
     price_annual: number
@@ -38,7 +43,7 @@ type DefaultPlan = {
 async function resolveDefaultPlan(admin: SupabaseAdminClient): Promise<DefaultPlan | null> {
     const result = await admin
         .from('platform_subscription_plans')
-        .select('id, price_monthly, price_annual, trial_days')
+        .select(`id, price_monthly, price_annual, trial_days, ${PLAN_ENTITLEMENT_COLUMNS}`)
         .eq('is_active', true)
         .order('price_monthly', { ascending: true })
         .limit(1)
@@ -236,6 +241,10 @@ export async function registerGymOwner(input: RegisterGymOwnerInput): Promise<Re
             billing_interval: 'monthly',
             monthly_price: plan?.price_monthly ?? 0,
             annual_price: plan?.price_annual ?? 0,
+            // Signup is an assignment too, so the trial tenant's entitlements
+            // are frozen the same way a paid assignment freezes them.
+            plan_entitlements: plan ? buildEntitlementSnapshot(plan) : null,
+            plan_entitlements_set_at: plan ? new Date().toISOString() : null,
             trial_ends_at: trialEndsAt,
             current_period_start: new Date().toISOString(),
             current_period_end: trialEndsAt,

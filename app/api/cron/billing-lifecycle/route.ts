@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { recordBackgroundJobRun, recordSystemEvent } from '@/lib/platform/auth'
+import {
+    PLAN_ENTITLEMENT_COLUMNS,
+    buildEntitlementSnapshot,
+    type PlanEntitlementSource,
+} from '@/lib/billing/plan-entitlements'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -57,11 +62,13 @@ export async function GET(request: Request) {
         }>) {
             const planResult = await db
                 .from('platform_subscription_plans')
-                .select('price_monthly, price_annual')
+                .select(`price_monthly, price_annual, ${PLAN_ENTITLEMENT_COLUMNS}`)
                 .eq('id', row.pending_plan_id)
                 .maybeSingle()
 
-            const plan = planResult.data as { price_monthly: number; price_annual: number } | null
+            const plan = planResult.data as
+                | ({ price_monthly: number; price_annual: number } & PlanEntitlementSource)
+                | null
             if (!plan) continue
 
             const interval = row.pending_billing_interval ?? 'monthly'
@@ -77,6 +84,10 @@ export async function GET(request: Request) {
                     billing_interval: interval,
                     monthly_price: plan.price_monthly,
                     annual_price: plan.price_annual,
+                    // A scheduled downgrade landing is an assignment: it takes
+                    // the plan's entitlements as they stand on the day it applies.
+                    plan_entitlements: buildEntitlementSnapshot(plan),
+                    plan_entitlements_set_at: new Date().toISOString(),
                     current_period_start: periodStart.toISOString(),
                     current_period_end: periodEnd.toISOString(),
                     next_invoice_at: periodEnd.toISOString(),
