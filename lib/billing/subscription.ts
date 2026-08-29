@@ -2,6 +2,7 @@ import 'server-only'
 
 import { cache } from 'react'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { resolveEntitlements } from '@/lib/billing/plan-entitlements'
 
 /**
  * Tenant subscription state: one derivation, used everywhere.
@@ -76,6 +77,9 @@ export type SubscriptionRecord = {
     pending_plan_id: string | null
     pending_billing_interval: 'monthly' | 'annual' | null
     pending_effective_at: string | null
+    /** Frozen entitlements copied from the plan at assignment. See plan-entitlements.ts. */
+    plan_entitlements: unknown
+    plan_entitlements_set_at: string | null
 }
 
 export type SubscriptionUsage = {
@@ -111,6 +115,10 @@ export type SubscriptionView = {
     /** Charge for the current interval, discounts applied. */
     currentPrice: number
     usage: SubscriptionUsage
+    /** Feature keys this subscription is entitled to, snapshot-first. */
+    entitledFeatures: string[]
+    /** True when entitlements are frozen rather than tracking the live plan. */
+    entitlementsFrozen: boolean
 }
 
 function daysBetween(target: string | null | undefined): number | null {
@@ -355,8 +363,14 @@ export const getSubscriptionView = cache(async (gymId: string): Promise<Subscrip
 
     const members = membersResult.count ?? 0
     const staff = staffResult.count ?? 0
-    const memberLimit = plan?.max_members ?? null
-    const staffLimit = plan?.max_staff ?? null
+
+    // Limits come from the entitlements frozen onto the subscription when the
+    // plan was assigned, not from the plan's current list values - editing a
+    // plan in the portal must not move the ceiling under a tenant already on
+    // it. Falls back to the live plan when no snapshot exists.
+    const entitlements = resolveEntitlements(subscription?.plan_entitlements, plan)
+    const memberLimit = entitlements.maxMembers
+    const staffLimit = entitlements.maxStaff
 
     const { state, effectiveUntil } = deriveState(subscription, plan)
     const presentation = PRESENTATION[state]
@@ -377,6 +391,8 @@ export const getSubscriptionView = cache(async (gymId: string): Promise<Subscrip
         effectiveUntil,
         daysRemaining,
         currentPrice: subscription ? priceForInterval(subscription) : 0,
+        entitledFeatures: entitlements.features,
+        entitlementsFrozen: entitlements.fromSnapshot,
         usage: {
             members,
             staff,

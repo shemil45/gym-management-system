@@ -3,6 +3,11 @@ import 'server-only'
 import crypto from 'node:crypto'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { planPrice, type PlanRecord } from '@/lib/billing/subscription'
+import {
+    PLAN_ENTITLEMENT_COLUMNS,
+    buildEntitlementSnapshot,
+    type PlanEntitlementSource,
+} from '@/lib/billing/plan-entitlements'
 
 /**
  * Razorpay plumbing for GMS Cloud subscription payments.
@@ -252,12 +257,14 @@ export async function settleSubscriptionPayment(input: {
     const planResult = invoice.plan_id
         ? await db
               .from('platform_subscription_plans')
-              .select('price_monthly, price_annual')
+              .select(`price_monthly, price_annual, ${PLAN_ENTITLEMENT_COLUMNS}`)
               .eq('id', invoice.plan_id)
               .maybeSingle()
         : { data: null }
 
-    const plan = planResult.data as { price_monthly: number; price_annual: number } | null
+    const plan = planResult.data as
+        | ({ price_monthly: number; price_annual: number } & PlanEntitlementSource)
+        | null
 
     await db
         .from('gym_subscriptions')
@@ -265,7 +272,16 @@ export async function settleSubscriptionPayment(input: {
             status: 'active',
             ...(invoice.plan_id ? { plan_id: invoice.plan_id } : {}),
             billing_interval: interval,
-            ...(plan ? { monthly_price: plan.price_monthly, annual_price: plan.price_annual } : {}),
+            ...(plan
+                ? {
+                      monthly_price: plan.price_monthly,
+                      annual_price: plan.price_annual,
+                      // Paying for a plan freezes its entitlements onto the
+                      // subscription, same as any other assignment.
+                      plan_entitlements: buildEntitlementSnapshot(plan),
+                      plan_entitlements_set_at: new Date().toISOString(),
+                  }
+                : {}),
             current_period_start: periodStart.toISOString(),
             current_period_end: periodEnd.toISOString(),
             next_invoice_at: periodEnd.toISOString(),

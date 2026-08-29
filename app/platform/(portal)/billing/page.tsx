@@ -71,6 +71,14 @@ export default async function BillingPage() {
                     <PanelHeader
                         title="Plans"
                         description="Prices here are the list price. A tenant's rate is copied onto its subscription when the plan is assigned, so changing a price does not re-rate existing tenants."
+                        action={
+                            <Link
+                                href="/platform/plans"
+                                className="text-[12px] font-medium text-[var(--p-accent-wash-ink)] hover:underline"
+                            >
+                                Manage plans
+                            </Link>
+                        }
                     />
                 </div>
 
