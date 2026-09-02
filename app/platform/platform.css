@@ -211,6 +211,39 @@
     background: var(--p-surface-2);
 }
 
+/* A row that has been clicked and is waiting on its destination. Dimmed and
+   inert, so the acknowledgement is visible and a second click cannot queue a
+   second navigation. */
+.p-row[data-pending='true'] {
+    background: var(--p-surface-2);
+    pointer-events: none;
+}
+
+.p-row[data-pending='true'] > td {
+    opacity: 0.6;
+}
+
+/* Reveals after a short delay, so work that finishes quickly never flashes a
+   spinner. The delay survives prefers-reduced-motion; only the fade does. */
+.p-defer-in {
+    opacity: 0;
+    animation: p-fade-in 0.16s var(--p-ease) 0.14s forwards;
+}
+
+@keyframes p-fade-in {
+    to {
+        opacity: 1;
+    }
+}
+
+/* The portal renders its own clear control on search fields, so the UA's
+   cancel button would sit on top of it and eat the padding. */
+.platform-portal input[type='search']::-webkit-search-cancel-button,
+.platform-portal input[type='search']::-webkit-search-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
 .platform-portal table {
     border-collapse: collapse;
     width: 100%;

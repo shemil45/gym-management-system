@@ -1,7 +1,8 @@
 import Link from 'next/link'
-import { IconSearch } from '@tabler/icons-react'
+import { IconSearch, IconX } from '@tabler/icons-react'
 import { getTenantSummaries } from '@/lib/platform/data'
 import { PLATFORM_STATUS_ORDER, daysUntil } from '@/lib/platform/types'
+import TenantRow from './TenantRow'
 import {
     Button,
     EmptyState,
@@ -62,15 +63,14 @@ export default async function TenantsPage({
 
     return (
         <div className="p-rise flex flex-col gap-5">
-            <PageHeader
-                title="Tenants"
-                description={`${all.length} ${all.length === 1 ? 'gym' : 'gyms'} on the platform.`}
-            />
+            {/* No subtitle: the tenant count is already the first thing in the
+                filter row, and repeating it above only pushed the table down. */}
+            <PageHeader title="Tenants" />
 
             <Panel padded={false}>
                 {/* Filters are links, not client state, so a filtered view is
                     shareable and survives a refresh. */}
-                <div className="flex flex-col gap-3 border-b border-[var(--p-line)] p-3.5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 border-b border-[var(--p-line)] p-3.5 sm:flex-row sm:items-center">
                     <div className="flex flex-wrap items-center gap-1">
                         {FILTERS.map((filter) => {
                             const active = status === filter.key
@@ -98,27 +98,46 @@ export default async function TenantsPage({
                         })}
                     </div>
 
-                    <form method="get" className="flex items-center gap-2">
+                    {/* Takes whatever width the filters leave, up to a line
+                        length where a gym name is still comfortably readable. */}
+                    <form
+                        method="get"
+                        role="search"
+                        className="relative w-full min-w-[180px] sm:ml-auto sm:w-auto sm:max-w-[340px] sm:flex-1"
+                    >
                         {status !== 'all' ? <input type="hidden" name="status" value={status} /> : null}
-                        <div className="relative">
-                            <IconSearch
-                                size={14}
-                                stroke={1.8}
-                                aria-hidden="true"
-                                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--p-ink-3)]"
-                            />
-                            <input
-                                type="search"
-                                name="q"
-                                defaultValue={q}
-                                placeholder="Name, email, subdomain"
-                                aria-label="Search tenants"
-                                className="p-input h-9 w-full pl-8 sm:w-[230px]"
-                            />
-                        </div>
-                        <Button type="submit" size="sm" tone="secondary">
+                        <IconSearch
+                            size={14}
+                            stroke={1.8}
+                            aria-hidden="true"
+                            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--p-ink-3)]"
+                        />
+                        <input
+                            type="search"
+                            name="q"
+                            defaultValue={q}
+                            placeholder="Search tenants"
+                            aria-label="Search tenants"
+                            className="p-input pl-9 pr-9"
+                        />
+                        {/* Enter submits; this keeps an explicit control for
+                            assistive tech without spending toolbar width on a
+                            visible button. */}
+                        <button type="submit" className="sr-only">
                             Search
-                        </Button>
+                        </button>
+                        {q ? (
+                            <Link
+                                href={{
+                                    pathname: '/platform/tenants',
+                                    query: status === 'all' ? {} : { status },
+                                }}
+                                aria-label="Clear search"
+                                className="absolute right-2.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-[var(--p-ink-3)] transition-colors duration-[0.14s] [transition-timing-function:var(--p-ease)] hover:bg-[var(--p-surface-3)] hover:text-[var(--p-ink)]"
+                            >
+                                <IconX size={12} stroke={2} aria-hidden="true" />
+                            </Link>
+                        ) : null}
                     </form>
                 </div>
 
@@ -127,8 +146,8 @@ export default async function TenantsPage({
                         title={query || status !== 'all' ? 'No tenants match' : 'No tenants yet'}
                         description={
                             query || status !== 'all'
-                                ? 'Try a different search term, or clear the status filter to see every gym.'
-                                : 'Gyms appear here as soon as they sign up. Each row shows plan, member count, and lifecycle state.'
+                                ? 'Try a different term, or clear the filters.'
+                                : 'Gyms appear here as soon as they sign up.'
                         }
                         action={
                             query || status !== 'all' ? (
@@ -163,20 +182,12 @@ export default async function TenantsPage({
                                 )
 
                                 return (
-                                    <tr key={tenant.id} className="p-row">
-                                        <Td>
-                                            <Link
-                                                href={`/platform/tenants/${tenant.id}`}
-                                                className="font-medium text-[var(--p-ink)] hover:text-[var(--p-accent-wash-ink)]"
-                                            >
-                                                {tenant.name}
-                                            </Link>
-                                            <span className="mt-0.5 block truncate text-[11.5px] text-[var(--p-ink-3)]">
-                                                {tenant.subdomain
-                                                    ? `${tenant.subdomain}.gmscloud.app`
-                                                    : 'No subdomain claimed'}
-                                            </span>
-                                        </Td>
+                                    <TenantRow
+                                        key={tenant.id}
+                                        href={`/platform/tenants/${tenant.id}`}
+                                        name={tenant.name}
+                                        subdomain={tenant.subdomain}
+                                    >
                                         <Td>
                                             <StatusPill tone={status.tone}>{status.label}</StatusPill>
                                             {tenant.platform_status === 'trialing' && trialLeft !== null ? (
@@ -203,7 +214,7 @@ export default async function TenantsPage({
                                         <Td align="right" numeric className="whitespace-nowrap">
                                             {formatDate(tenant.created_at)}
                                         </Td>
-                                    </tr>
+                                    </TenantRow>
                                 )
                             })}
                         </tbody>
