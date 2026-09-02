@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { cache } from 'react'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { resolveEntitlements } from '@/lib/billing/plan-entitlements'
 import {
@@ -68,7 +69,12 @@ export type PlatformOverview = {
  * id-only payload stays small well past the point where this portal would
  * need a materialized snapshot table anyway.
  */
-export async function getTenantSummaries(): Promise<TenantSummary[]> {
+/**
+ * Request-deduplicated: nearly every platform route needs this, and the
+ * global header's alert count needs it on all of them. Without `cache` the
+ * header would double every page's tenant read.
+ */
+export const getTenantSummaries = cache(async (): Promise<TenantSummary[]> => {
     const db = service()
 
     const [gymsResult, subscriptionsResult, membersResult, adminsResult] = await Promise.all([
@@ -105,6 +111,39 @@ export async function getTenantSummaries(): Promise<TenantSummary[]> {
             mrr: monthlyEquivalent(subscription),
         }
     })
+})
+
+export type PlatformAlerts = PlatformOverview['alerts']
+
+/**
+ * The four things that pull an operator's attention, derived in one place.
+ *
+ * The dashboard's alert lane and the global header's notification tray read
+ * the same function, so a tenant can never be "needs attention" in one and
+ * quiet in the other.
+ */
+export function deriveTenantAlerts(tenants: TenantSummary[]): PlatformAlerts {
+    return {
+        expiringTrials: tenants.filter((tenant) => {
+            const remaining = daysUntil(tenant.trial_ends_at ?? tenant.subscription?.trial_ends_at)
+            return (
+                tenant.platform_status !== 'suspended' &&
+                tenant.platform_status !== 'cancelled' &&
+                remaining !== null &&
+                remaining <= TRIAL_WARNING_DAYS
+            )
+        }),
+        suspended: tenants.filter((tenant) => tenant.platform_status === 'suspended'),
+        pastDue: tenants.filter((tenant) => tenant.subscription?.status === 'past_due'),
+        incompleteOnboarding: tenants.filter(
+            (tenant) => tenant.onboarding_status !== 'completed' && tenant.platform_status !== 'cancelled',
+        ),
+    }
+}
+
+/** Alert lane on its own, for chrome that must not pay for the full overview. */
+export async function getPlatformAlerts(): Promise<PlatformAlerts> {
+    return deriveTenantAlerts(await getTenantSummaries())
 }
 
 export async function getPlatformOverview(): Promise<PlatformOverview> {
@@ -173,22 +212,7 @@ export async function getPlatformOverview(): Promise<PlatformOverview> {
             churnRate,
             platformVolume30d,
         },
-        alerts: {
-            expiringTrials: tenants.filter((tenant) => {
-                const remaining = daysUntil(tenant.trial_ends_at ?? tenant.subscription?.trial_ends_at)
-                return (
-                    tenant.platform_status !== 'suspended' &&
-                    tenant.platform_status !== 'cancelled' &&
-                    remaining !== null &&
-                    remaining <= TRIAL_WARNING_DAYS
-                )
-            }),
-            suspended: tenants.filter((tenant) => tenant.platform_status === 'suspended'),
-            pastDue: tenants.filter((tenant) => tenant.subscription?.status === 'past_due'),
-            incompleteOnboarding: tenants.filter(
-                (tenant) => tenant.onboarding_status !== 'completed' && tenant.platform_status !== 'cancelled',
-            ),
-        },
+        alerts: deriveTenantAlerts(tenants),
         revenueSeries,
         recentAudit: (auditResult.data ?? []) as PlatformAuditLog[],
     }

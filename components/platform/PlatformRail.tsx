@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
 import {
     IconAdjustmentsHorizontal,
     IconBuildingStore,
@@ -10,7 +9,6 @@ import {
     IconLayoutGrid,
     IconGauge,
     IconHistory,
-    IconMenu2,
     IconShieldLock,
     IconX,
 } from '@tabler/icons-react'
@@ -72,31 +70,29 @@ function Wordmark() {
  * The rail does not collapse to icons-only: at six destinations the labels
  * cost nothing, and an operator scanning for "Billing" should not have to
  * decode a glyph.
+ *
+ * Open state is owned by the chrome rather than the rail, because the global
+ * header carries the trigger: two bars stacked above the content on mobile
+ * would cost a third of a phone viewport before any page rendered.
  */
-export default function PlatformRail({ footer }: { footer: React.ReactNode }) {
-    const [open, setOpen] = useState(false)
-
+export default function PlatformRail({
+    footer,
+    open,
+    onClose,
+}: {
+    /** Rendered in the mobile sheet only; on desktop the header carries these. */
+    footer: React.ReactNode
+    open: boolean
+    onClose: () => void
+}) {
     return (
         <>
-            {/* Mobile bar */}
-            <div className="sticky top-0 z-30 flex h-[var(--p-topbar)] items-center justify-between gap-3 border-b border-[var(--p-line)] bg-[var(--p-surface)] px-4 lg:hidden">
-                <Wordmark />
-                <button
-                    type="button"
-                    onClick={() => setOpen(true)}
-                    aria-label="Open navigation"
-                    className="flex h-9 w-9 items-center justify-center rounded-[var(--p-r-control)] text-[var(--p-ink-2)] transition-colors hover:bg-[var(--p-surface-2)]"
-                >
-                    <IconMenu2 size={18} stroke={1.7} />
-                </button>
-            </div>
-
             {open ? (
                 <div className="fixed inset-0 z-50 lg:hidden">
                     <button
                         type="button"
                         aria-label="Close navigation"
-                        onClick={() => setOpen(false)}
+                        onClick={onClose}
                         className="absolute inset-0 bg-black/45"
                     />
                     <div className="absolute inset-y-0 left-0 flex w-[264px] flex-col gap-5 border-r border-[var(--p-line)] bg-[var(--p-surface)] p-4">
@@ -104,14 +100,14 @@ export default function PlatformRail({ footer }: { footer: React.ReactNode }) {
                             <Wordmark />
                             <button
                                 type="button"
-                                onClick={() => setOpen(false)}
+                                onClick={onClose}
                                 aria-label="Close navigation"
                                 className="flex h-8 w-8 items-center justify-center rounded-[var(--p-r-control)] text-[var(--p-ink-3)] hover:bg-[var(--p-surface-2)]"
                             >
                                 <IconX size={16} stroke={1.8} />
                             </button>
                         </div>
-                        <NavLinks onNavigate={() => setOpen(false)} />
+                        <NavLinks onNavigate={onClose} />
                         <div className="mt-auto">{footer}</div>
                     </div>
                 </div>
@@ -121,7 +117,6 @@ export default function PlatformRail({ footer }: { footer: React.ReactNode }) {
             <aside className="fixed inset-y-0 left-0 hidden w-[var(--p-rail)] flex-col gap-5 border-r border-[var(--p-line)] bg-[var(--p-surface)] p-4 lg:flex">
                 <Wordmark />
                 <NavLinks />
-                <div className="mt-auto">{footer}</div>
             </aside>
         </>
     )
