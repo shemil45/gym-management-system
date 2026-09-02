@@ -211,6 +211,35 @@
     background: var(--p-surface-2);
 }
 
+/* A row or card that has been clicked and is waiting on its destination.
+   Dimmed and inert, so the acknowledgement is visible and a second click
+   cannot queue a second navigation. */
+.p-row[data-pending='true'],
+.p-tenant-card[data-pending='true'] {
+    background: var(--p-surface-2);
+    pointer-events: none;
+}
+
+/* Everything except the last cell, which is the spinner's slot: opacity
+   composites, so dimming that cell would dim the spinner inside it with no
+   way for the child to opt back out. */
+.p-row[data-pending='true'] > td:not(:last-child) {
+    opacity: 0.6;
+}
+
+/* Reveals after a short delay, so work that finishes quickly never flashes a
+   spinner. The delay survives prefers-reduced-motion; only the fade does. */
+.p-defer-in {
+    opacity: 0;
+    animation: p-fade-in 0.16s var(--p-ease) 0.14s forwards;
+}
+
+@keyframes p-fade-in {
+    to {
+        opacity: 1;
+    }
+}
+
 .platform-portal table {
     border-collapse: collapse;
     width: 100%;
@@ -242,7 +271,8 @@
 
 /* WebKit draws its own clear glyph inside a search field. Where the portal
    supplies one, two would sit on top of each other. */
-.platform-portal input[type='search']::-webkit-search-cancel-button {
+.platform-portal input[type='search']::-webkit-search-cancel-button,
+.platform-portal input[type='search']::-webkit-search-decoration {
     -webkit-appearance: none;
     appearance: none;
 }

@@ -1,9 +1,9 @@
 'use client'
 
-import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { IconChevronRight, IconSearch, IconX } from '@tabler/icons-react'
+import { IconChevronRight, IconLoader2, IconSearch, IconX } from '@tabler/icons-react'
 import {
     Button,
     EmptyState,
@@ -161,12 +161,37 @@ export default function TenantsDirectory({
         setQuery('')
     }
 
+    /*
+      Acknowledge a click before the destination has rendered.
+
+      The tenant detail route reads several tables, so a bare router.push left
+      the directory looking inert for as long as that took and invited a second
+      click on the same row. The transition gives us the exact window between
+      click and commit; `pendingId` says which row owns it.
+    */
+    const [pendingId, setPendingId] = useState<string | null>(null)
+    const [navigating, startNavigation] = useTransition()
+
+    const openTenant = (event: React.MouseEvent, id: string) => {
+        // Modified and non-primary clicks, and clicks that end a text
+        // selection, stay the browser's to handle.
+        if (event.defaultPrevented || event.button !== 0) return
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+        if (!window.getSelection()?.isCollapsed) return
+
+        event.preventDefault()
+        if (pendingId) return
+        setPendingId(id)
+        startNavigation(() => router.push(`/platform/tenants/${id}`))
+    }
+
+    const isOpening = (id: string) => navigating && pendingId === id
+
     return (
         <div className="flex flex-col gap-6">
-            <PageHeader
-                title="Tenants"
-                description="Every gym on the platform, most urgent lifecycle state first. Filtering and search run locally — the directory is already loaded."
-            />
+            {/* No subtitle: the tiles directly below already give the count
+                and the mix, and the sort order is legible from the table. */}
+            <PageHeader title="Tenants" />
 
             <div className="p-panel overflow-hidden">
                 <div className="grid grid-cols-2 gap-px bg-[var(--p-line-soft)] sm:grid-cols-3 lg:grid-cols-5">
@@ -207,7 +232,7 @@ export default function TenantsDirectory({
             </div>
 
             <div className="p-panel overflow-hidden">
-                <div className="flex flex-col gap-3 border-b border-[var(--p-line)] p-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-col gap-3 border-b border-[var(--p-line)] p-3 lg:flex-row lg:items-center">
                     {/* Recessed tray, raised selected segment: the control looks
                         like a switch rather than five tinted links. */}
                     <div
@@ -233,13 +258,15 @@ export default function TenantsDirectory({
                         ))}
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <div className="relative flex-1 lg:flex-none">
+                    {/* Takes whatever width the segments leave, up to a line
+                        length where a gym name is still comfortably readable. */}
+                    <div className="flex items-center gap-2 lg:ml-auto lg:min-w-[200px] lg:max-w-[360px] lg:flex-1">
+                        <div className="relative flex-1">
                             <IconSearch
                                 size={14}
                                 stroke={1.7}
                                 aria-hidden="true"
-                                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--p-ink-3)]"
+                                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--p-ink-3)]"
                             />
                             <input
                                 type="search"
@@ -247,14 +274,14 @@ export default function TenantsDirectory({
                                 onChange={(event) => setQuery(event.target.value)}
                                 placeholder="Name, email, subdomain, city"
                                 aria-label="Search tenants"
-                                className="p-input h-9 w-full pl-8 pr-8 lg:w-[262px]"
+                                className="p-input w-full pl-9 pr-9"
                             />
                             {query ? (
                                 <button
                                     type="button"
                                     onClick={() => setQuery('')}
                                     aria-label="Clear search"
-                                    className="absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-[var(--p-ink-3)] transition-colors duration-150 ease-[var(--p-ease)] hover:bg-[var(--p-surface-3)] hover:text-[var(--p-ink)]"
+                                    className="absolute right-2.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-[var(--p-ink-3)] transition-colors duration-150 ease-[var(--p-ease)] hover:bg-[var(--p-surface-3)] hover:text-[var(--p-ink)]"
                                 >
                                     <IconX size={12} stroke={2} />
                                 </button>
@@ -275,7 +302,7 @@ export default function TenantsDirectory({
                     aria-live="polite"
                     className="border-b border-[var(--p-line-soft)] px-4 py-2 text-[11.5px] text-[var(--p-ink-3)]"
                 >
-                    Showing <span className="p-num text-[var(--p-ink-2)]">{visible.length}</span> of{' '}
+                    <span className="p-num text-[var(--p-ink-2)]">{visible.length}</span> of{' '}
                     <span className="p-num text-[var(--p-ink-2)]">{tenants.length}</span>{' '}
                     {tenants.length === 1 ? 'tenant' : 'tenants'}
                 </p>
@@ -285,8 +312,8 @@ export default function TenantsDirectory({
                         title={filtered ? 'No tenants match' : 'No tenants yet'}
                         description={
                             filtered
-                                ? 'Try a different search term, or clear the status filter to see every gym.'
-                                : 'Gyms appear here as soon as they sign up. Each row shows plan, member count, and lifecycle state.'
+                                ? 'Try a different term, or clear the filters.'
+                                : 'Gyms appear here as soon as they sign up.'
                         }
                         action={
                             filtered ? (
@@ -308,6 +335,9 @@ export default function TenantsDirectory({
                                     <li key={tenant.id}>
                                         <Link
                                             href={`/platform/tenants/${tenant.id}`}
+                                            onClick={(event) => openTenant(event, tenant.id)}
+                                            data-pending={isOpening(tenant.id) ? 'true' : undefined}
+                                            aria-busy={isOpening(tenant.id) || undefined}
                                             className="p-tenant-card"
                                         >
                                             <div className="flex items-start gap-3">
@@ -324,7 +354,18 @@ export default function TenantsDirectory({
                                                             : 'No subdomain claimed'}
                                                     </p>
                                                 </div>
-                                                <StatusPill tone={tone.tone}>{tone.label}</StatusPill>
+                                                {isOpening(tenant.id) ? (
+                                                    <span className="p-defer-in flex shrink-0 self-center text-[var(--p-accent)]">
+                                                        <IconLoader2
+                                                            size={15}
+                                                            stroke={2}
+                                                            aria-hidden="true"
+                                                            className="animate-spin"
+                                                        />
+                                                    </span>
+                                                ) : (
+                                                    <StatusPill tone={tone.tone}>{tone.label}</StatusPill>
+                                                )}
                                             </div>
 
                                             <dl className="mt-3 grid grid-cols-4 gap-2 border-t border-[var(--p-line-soft)] pt-2.5">
@@ -387,24 +428,19 @@ export default function TenantsDirectory({
                                         const note = trialNote(tenant)
 
                                         // The chevron promises the row goes
-                                        // somewhere, so the row has to. The
-                                        // name link stays the keyboard path;
-                                        // this only widens the pointer target,
-                                        // and stands down while text is being
-                                        // selected or a link was hit directly.
-                                        const openTenant = (
-                                            event: React.MouseEvent<HTMLTableRowElement>,
-                                        ) => {
-                                            if ((event.target as HTMLElement).closest('a')) return
-                                            if (!window.getSelection()?.isCollapsed) return
-                                            router.push(`/platform/tenants/${tenant.id}`)
-                                        }
+                                        // somewhere, so the whole row opens it
+                                        // (see openTenant); its slot doubles as
+                                        // the spinner's, so acknowledging a
+                                        // click shifts nothing.
+                                        const opening = isOpening(tenant.id)
 
                                         return (
                                             <tr
                                                 key={tenant.id}
                                                 className="p-row cursor-pointer"
-                                                onClick={openTenant}
+                                                data-pending={opening ? 'true' : undefined}
+                                                aria-busy={opening || undefined}
+                                                onClick={(event) => openTenant(event, tenant.id)}
                                             >
                                                 <Td>
                                                     <div className="flex items-center gap-2.5">
@@ -455,12 +491,23 @@ export default function TenantsDirectory({
                                                     {formatDate(tenant.created_at)}
                                                 </Td>
                                                 <Td className="w-8">
-                                                    <IconChevronRight
-                                                        size={15}
-                                                        stroke={1.7}
-                                                        aria-hidden="true"
-                                                        className="p-row-go"
-                                                    />
+                                                    {opening ? (
+                                                        <span className="p-defer-in flex text-[var(--p-accent)]">
+                                                            <IconLoader2
+                                                                size={15}
+                                                                stroke={2}
+                                                                aria-hidden="true"
+                                                                className="animate-spin"
+                                                            />
+                                                        </span>
+                                                    ) : (
+                                                        <IconChevronRight
+                                                            size={15}
+                                                            stroke={1.7}
+                                                            aria-hidden="true"
+                                                            className="p-row-go"
+                                                        />
+                                                    )}
                                                 </Td>
                                             </tr>
                                         )
