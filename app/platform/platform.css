@@ -430,6 +430,191 @@
     animation: p-rise 0.28s var(--p-ease) both;
 }
 
+/* ── plan catalogue ───────────────────────────────────────────────────── */
+
+/*
+  Double-bezel plan card.
+
+  A raised content plate sitting in a recessed tray, so a tier reads as one
+  physical object rather than a cell in a mosaic. The plate carries the facts,
+  the tray carries the actions — which is why the buttons never look glued to
+  the bottom of a box. Radii are concentric: inner = outer minus tray padding,
+  or the corners visibly fight each other.
+*/
+.p-plan {
+    --p-tray: 6px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: var(--p-tray);
+    border: 1px solid var(--p-line);
+    border-radius: var(--p-r-shell);
+    background: var(--p-surface-2);
+    transition: transform 0.2s var(--p-ease), border-color 0.2s var(--p-ease),
+        box-shadow 0.2s var(--p-ease);
+}
+
+/* Lift on pointer devices only: on touch there is no hover to resolve, and a
+   sticky :hover state left behind by a tap reads as a stuck selection. */
+@media (hover: hover) {
+    .p-plan:hover {
+        transform: translateY(-2px);
+        border-color: var(--p-line-strong);
+        box-shadow: var(--p-shadow-lift);
+    }
+}
+
+.p-plan:focus-within {
+    border-color: var(--p-line-strong);
+    box-shadow: var(--p-shadow-lift);
+}
+
+/* A retired tier stays fully legible but stops competing with what can still
+   be sold: the tray drops out and the outline goes dashed. */
+.p-plan[data-retired='true'] {
+    background: transparent;
+    border-style: dashed;
+}
+
+.p-plan-core {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 13px;
+    padding: 15px;
+    border-radius: calc(var(--p-r-shell) - var(--p-tray));
+    background: var(--p-surface);
+    border: 1px solid var(--p-line-soft);
+    box-shadow: 0 1px 2px oklch(0.21 0.008 250 / 0.045);
+}
+
+.platform-portal.dark .p-plan-core {
+    /* Top highlight instead of a drop shadow: on a dark tray a shadow is
+       invisible, an inner edge light is what reads as raised. */
+    box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.045), 0 1px 2px oklch(0 0 0 / 0.32);
+}
+
+/* Entrance lives on a wrapper, never on .p-plan itself: a finished animation
+   with `both` would pin transform and kill the hover lift. */
+@keyframes p-card-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.p-plan-in > * {
+    flex: 1;
+    min-width: 0;
+}
+
+.p-plan-in {
+    display: flex;
+    animation: p-card-in 0.34s var(--p-ease) both;
+    /* Capped so a long catalogue does not take a second to finish arriving. */
+    animation-delay: calc(min(var(--p-i, 0), 7) * 42ms);
+}
+
+/* Four figures on one hairline-ruled strip, so limits compare across cards at
+   a glance instead of down a two-column definition list. */
+.p-spec {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    border-top: 1px solid var(--p-line-soft);
+    border-bottom: 1px solid var(--p-line-soft);
+}
+
+.p-spec > div {
+    padding: 9px 10px;
+    min-width: 0;
+}
+
+.p-spec > div:first-child {
+    padding-left: 0;
+}
+
+.p-spec > div + div {
+    border-left: 1px solid var(--p-line-soft);
+}
+
+.p-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 999px;
+    border: 1px solid var(--p-line);
+    background: var(--p-surface);
+    font-size: 11px;
+    line-height: 1;
+    white-space: nowrap;
+    color: var(--p-ink-2);
+}
+
+/* Feature picker tile. Included tiers fill with the accent wash so the set is
+   readable as a shape, not as a column of ticks that must each be scanned. */
+.p-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 11px 12px;
+    cursor: pointer;
+    background: var(--p-surface);
+    transition: background-color 0.16s var(--p-ease);
+}
+
+.p-check:hover {
+    background: var(--p-surface-2);
+}
+
+.p-check:has(input:checked) {
+    background: var(--p-accent-wash);
+}
+
+.p-check:has(input:checked) .p-check-title {
+    color: var(--p-accent-wash-ink);
+}
+
+.p-check:has(input:disabled) {
+    cursor: not-allowed;
+}
+
+/* Dialog. The scrim blurs rather than only dimming, which keeps the page
+   behind readable as context but unmistakably out of reach. */
+@keyframes p-scrim-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes p-dialog-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.985);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.p-scrim {
+    animation: p-scrim-in 0.2s var(--p-ease) both;
+    backdrop-filter: blur(3px);
+}
+
+.p-dialog {
+    animation: p-dialog-in 0.26s var(--p-ease) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .platform-portal *,
     .platform-portal *::before,
