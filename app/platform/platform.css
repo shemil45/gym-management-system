@@ -240,6 +240,13 @@
     transition: border-color 0.16s var(--p-ease), box-shadow 0.16s var(--p-ease);
 }
 
+/* WebKit draws its own clear glyph inside a search field. Where the portal
+   supplies one, two would sit on top of each other. */
+.platform-portal input[type='search']::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
 .p-input::placeholder {
     /* --p-ink-3 is the AA floor; placeholders must not go lighter. */
     color: var(--p-ink-3);
@@ -613,6 +620,127 @@
 
 .p-dialog {
     animation: p-dialog-in 0.26s var(--p-ease) both;
+}
+
+/* ── directory ────────────────────────────────────────────────────────── */
+
+/*
+  Segmented filter, sat in a recessed tray by the markup. The selected
+  segment is the one that looks raised — a filled plate with a hairline and
+  a one-pixel shadow — so the control reads as a physical switch rather than
+  as five links one of which happens to be tinted.
+*/
+.p-seg {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 7px 0 10px;
+    border: 1px solid transparent;
+    border-radius: calc(var(--p-r-core) - 3px);
+    font-size: 12.5px;
+    line-height: 1;
+    white-space: nowrap;
+    color: var(--p-ink-2);
+    cursor: pointer;
+    transition: background-color 0.16s var(--p-ease), color 0.16s var(--p-ease),
+        border-color 0.16s var(--p-ease);
+}
+
+.p-seg:hover {
+    color: var(--p-ink);
+}
+
+.p-seg[aria-pressed='true'] {
+    background: var(--p-surface);
+    border-color: var(--p-line);
+    color: var(--p-ink);
+    font-weight: 500;
+    box-shadow: 0 1px 2px oklch(0.21 0.008 250 / 0.07);
+}
+
+.platform-portal.dark .p-seg[aria-pressed='true'] {
+    box-shadow: 0 1px 2px oklch(0 0 0 / 0.35);
+}
+
+/* The count is part of the segment, not a suffix: it keeps its own plate so
+   a four-digit tenant count cannot shove the labels out of alignment. */
+.p-seg-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 16px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--p-surface-3);
+    color: var(--p-ink-3);
+    font-family: var(--p-font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 10px;
+    line-height: 1;
+    transition: background-color 0.16s var(--p-ease), color 0.16s var(--p-ease);
+}
+
+.p-seg[aria-pressed='true'] .p-seg-count {
+    background: var(--p-accent-wash);
+    color: var(--p-accent-wash-ink);
+}
+
+/* Monogram plate. Gives every row a fixed optical anchor on the left edge,
+   so the eye tracks down one column instead of down ragged name lengths. */
+.p-monogram {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    border: 1px solid var(--p-line-soft);
+    background: var(--p-surface-2);
+    font-family: var(--p-font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--p-ink-2);
+    transition: border-color 0.16s var(--p-ease), color 0.16s var(--p-ease);
+}
+
+.p-row:hover .p-monogram,
+.p-tenant-card:hover .p-monogram {
+    border-color: var(--p-line-strong);
+    color: var(--p-ink);
+}
+
+/* Affordance that the whole row goes somewhere. Hidden until the row is
+   hovered or focused, so eighty of these do not add eighty arrows of noise. */
+.p-row-go {
+    opacity: 0;
+    transform: translateX(-3px);
+    color: var(--p-ink-3);
+    transition: opacity 0.16s var(--p-ease), transform 0.16s var(--p-ease);
+}
+
+.p-row:hover .p-row-go,
+.p-row:focus-within .p-row-go {
+    opacity: 1;
+    transform: none;
+}
+
+/* Phone view of a row. A table with eight columns does not survive 380px, so
+   below the table breakpoint each tenant becomes a card instead of a
+   horizontally scrolling strip nobody scrolls. */
+.p-tenant-card {
+    display: block;
+    padding: 13px 14px;
+    background: var(--p-surface);
+    transition: background-color 0.16s var(--p-ease);
+}
+
+.p-tenant-card:hover {
+    background: var(--p-surface-2);
 }
 
 @media (prefers-reduced-motion: reduce) {
