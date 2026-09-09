@@ -596,7 +596,8 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                                     rows={4}
                                     defaultValue={tenant.platform_notes ?? ''}
                                     placeholder="Context the next operator will need."
-                                    className="p-input h-auto resize-y py-2 leading-[1.55]"
+                                    data-multiline="true"
+                                    className="p-input resize-y leading-[1.55]"
                                 />
                                 <Button type="submit" tone="secondary" size="sm">
                                     Save notes

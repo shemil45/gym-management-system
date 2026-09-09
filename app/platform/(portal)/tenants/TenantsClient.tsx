@@ -353,7 +353,8 @@ export default function TenantsDirectory({
                                 onChange={(event) => setQuery(event.target.value)}
                                 placeholder="Name, email, subdomain, city"
                                 aria-label="Search tenants"
-                                className="p-input w-full pl-9 pr-9"
+                                data-icon="leading trailing"
+                                className="p-input w-full"
                             />
                             {query ? (
                                 <button
@@ -514,15 +515,19 @@ export default function TenantsDirectory({
                             <TableShell>
                                 <thead>
                                     <tr>
+                                        {/* Only the tenant name is read as a
+                                            column of text. Everything else is
+                                            a short token, so it is centred
+                                            under its own heading. */}
                                         <Th>Tenant</Th>
-                                        <Th>Status</Th>
-                                        <Th>Onboarding</Th>
-                                        <Th>Plan</Th>
-                                        <Th align="right">Members</Th>
-                                        <Th align="right">Staff</Th>
-                                        <Th align="right">MRR</Th>
-                                        <Th align="right">Joined</Th>
-                                        <Th>
+                                        <Th align="center">Status</Th>
+                                        <Th align="center">Onboarding</Th>
+                                        <Th align="center">Plan</Th>
+                                        <Th align="center">Members</Th>
+                                        <Th align="center">Staff</Th>
+                                        <Th align="center">MRR</Th>
+                                        <Th align="center">Joined</Th>
+                                        <Th align="center">
                                             <span className="sr-only">Open</span>
                                         </Th>
                                     </tr>
@@ -568,7 +573,7 @@ export default function TenantsDirectory({
                                                         </span>
                                                     </div>
                                                 </Td>
-                                                <Td>
+                                                <Td align="center">
                                                     <StatusPill tone={tone.tone}>{tone.label}</StatusPill>
                                                     {note ? (
                                                         <span className="p-num mt-1 block text-[11px] text-[var(--p-ink-3)]">
@@ -576,29 +581,36 @@ export default function TenantsDirectory({
                                                         </span>
                                                     ) : null}
                                                 </Td>
-                                                <Td>
+                                                <Td align="center">
                                                     <StatusPill tone={onboarding.tone}>
                                                         {onboarding.label}
                                                     </StatusPill>
                                                 </Td>
-                                                <Td>{tenant.subscription?.plan?.name ?? '—'}</Td>
-                                                <Td align="right" numeric>
+                                                <Td align="center">
+                                                    {tenant.subscription?.plan?.name ?? '—'}
+                                                </Td>
+                                                <Td align="center" numeric>
                                                     {tenant.memberCount}
                                                 </Td>
-                                                <Td align="right" numeric>
+                                                <Td align="center" numeric>
                                                     {tenant.staffCount}
                                                 </Td>
-                                                <Td align="right" numeric>
+                                                <Td align="center" numeric>
                                                     {tenant.subscription?.status === 'active'
                                                         ? formatCurrency(tenant.mrr)
                                                         : '—'}
                                                 </Td>
-                                                <Td align="right" numeric className="whitespace-nowrap">
+                                                <Td align="center" numeric className="whitespace-nowrap">
                                                     {formatDate(tenant.created_at)}
                                                 </Td>
-                                                <Td className="w-8">
+                                                <Td align="center" className="w-8">
                                                     {opening ? (
-                                                        <span className="p-defer-in flex text-[var(--p-accent)]">
+                                                        // A flex box ignores the
+                                                        // cell's text-align, so
+                                                        // it centres itself and
+                                                        // the chevron it stands
+                                                        // in for cannot shift.
+                                                        <span className="p-defer-in flex justify-center text-[var(--p-accent)]">
                                                             <IconLoader2
                                                                 size={15}
                                                                 stroke={2}
