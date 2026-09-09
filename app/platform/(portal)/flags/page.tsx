@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { getFlagMatrix } from '@/lib/platform/data'
 import { getPlatformSession, roleCan } from '@/lib/platform/auth'
-import { setFeatureOverride, setFlagDefault } from '@/app/platform/actions'
+import { setFlagDefault } from '@/app/platform/actions'
+import FlagOverrideCell from './FlagOverrideCell'
 import {
     Button,
     EmptyState,
@@ -110,7 +111,11 @@ export default async function FlagsPage() {
                         <div className="p-4 pb-3">
                             <PanelHeader
                                 title="Per-tenant matrix"
-                                description="Inherit follows the platform default. Forced values survive a default change."
+                                description={
+                                    canWrite
+                                        ? 'Inherit follows the platform default. Forced values survive a default change. Pick a value, then press Set to save that one cell.'
+                                        : 'Inherit follows the platform default. Forced values survive a default change.'
+                                }
                             />
                         </div>
 
@@ -162,34 +167,14 @@ export default async function FlagsPage() {
 
                                                 return (
                                                     <Td key={flag.id}>
-                                                        <form
-                                                            action={setFeatureOverride}
-                                                            className="flex items-center gap-1.5"
-                                                        >
-                                                            <input type="hidden" name="gymId" value={tenant.id} />
-                                                            <input type="hidden" name="flagId" value={flag.id} />
-                                                            <label
-                                                                className="sr-only"
-                                                                htmlFor={`m-${tenant.id}-${flag.id}`}
-                                                            >
-                                                                {flag.key} for {tenant.name}
-                                                            </label>
-                                                            <select
-                                                                id={`m-${tenant.id}-${flag.id}`}
-                                                                name="value"
-                                                                defaultValue={current}
-                                                                className="p-input h-8 w-[96px] text-[12px]"
-                                                            >
-                                                                <option value="inherit">
-                                                                    Inherit ({flag.is_enabled ? 'on' : 'off'})
-                                                                </option>
-                                                                <option value="on">Force on</option>
-                                                                <option value="off">Force off</option>
-                                                            </select>
-                                                            <Button type="submit" size="sm" tone="ghost">
-                                                                Set
-                                                            </Button>
-                                                        </form>
+                                                        <FlagOverrideCell
+                                                            gymId={tenant.id}
+                                                            flagId={flag.id}
+                                                            flagKey={flag.key}
+                                                            tenantName={tenant.name}
+                                                            defaultEnabled={flag.is_enabled}
+                                                            value={current}
+                                                        />
                                                     </Td>
                                                 )
                                             })}

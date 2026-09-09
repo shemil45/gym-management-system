@@ -225,7 +225,43 @@ export async function stopImpersonation(): Promise<void> {
  */
 export async function setFeatureOverride(formData: FormData): Promise<void> {
     await requireCapability('flags:write')
+    await applyFeatureOverride(formData)
+}
 
+/**
+ * `setFeatureOverride` in the shape `useActionState` wants.
+ *
+ * The flag matrix needs to tell an operator that one specific cell saved,
+ * which a void action cannot express: the page just re-renders and the click
+ * leaves no trace. Both exports run the same core, so the two call sites can
+ * never drift apart on what "inherit" means.
+ *
+ * The capability check stays OUTSIDE the try. An expired session makes
+ * `requirePlatformSession` call `redirect()`, which works by throwing, and
+ * catching that would strand the operator on a dead page showing the
+ * redirect as if it were a validation error.
+ */
+export async function setFeatureOverrideState(
+    _prev: ActionState,
+    formData: FormData,
+): Promise<ActionState> {
+    await requireCapability('flags:write')
+
+    try {
+        return { error: null, success: await applyFeatureOverride(formData) }
+    } catch (error) {
+        return {
+            error: error instanceof Error ? error.message : 'Could not save that override.',
+            success: null,
+        }
+    }
+}
+
+/**
+ * Writes the override and returns the sentence the UI shows on success.
+ * Callers are responsible for the `flags:write` check.
+ */
+async function applyFeatureOverride(formData: FormData): Promise<string> {
     const gymId = String(formData.get('gymId') ?? '')
     const flagId = String(formData.get('flagId') ?? '')
     const value = String(formData.get('value') ?? '')
@@ -265,6 +301,9 @@ export async function setFeatureOverride(formData: FormData): Promise<void> {
 
     revalidatePath('/platform/flags')
     revalidatePath(`/platform/tenants/${gymId}`)
+
+    if (value === 'inherit') return 'Back to inheriting the platform default.'
+    return value === 'on' ? 'Forced on for this tenant.' : 'Forced off for this tenant.'
 }
 
 /** Flips the platform-wide default for a flag. Affects every tenant without an override. */
