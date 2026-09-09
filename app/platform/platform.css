@@ -262,6 +262,10 @@
     text-align: right;
 }
 
+.platform-portal th[data-align='center'] {
+    text-align: center;
+}
+
 .platform-portal td,
 .platform-portal th {
     padding: 9px 14px;

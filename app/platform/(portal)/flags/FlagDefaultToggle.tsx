@@ -63,7 +63,7 @@ export default function FlagDefaultToggle({
     const buttonState = pending ? 'pending' : flashing ? 'saved' : 'idle'
 
     return (
-        <form action={formAction} className="flex flex-col items-end gap-1">
+        <form action={formAction} className="flex flex-col items-center gap-1">
             <input type="hidden" name="flagId" value={flagId} />
             <input type="hidden" name="enabled" value={String(!enabled)} />
 
@@ -93,7 +93,7 @@ export default function FlagDefaultToggle({
                 aria-live="polite"
                 className={
                     state.error
-                        ? 'max-w-[220px] text-right text-[11px] leading-[1.35] text-[var(--p-danger-ink)]'
+                        ? 'max-w-[220px] text-center text-[11px] leading-[1.35] text-[var(--p-danger-ink)]'
                         : 'sr-only'
                 }
             >

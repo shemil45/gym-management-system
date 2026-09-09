@@ -54,8 +54,8 @@ export default async function FlagsPage() {
                                 <tr>
                                     <Th>Flag</Th>
                                     <Th>Default</Th>
-                                    <Th align="right">Overrides</Th>
-                                    {canWrite ? <Th align="right">Change</Th> : null}
+                                    <Th align="center">Overrides</Th>
+                                    {canWrite ? <Th align="center">Change</Th> : null}
                                 </tr>
                             </thead>
                             <tbody>
@@ -86,7 +86,7 @@ export default async function FlagsPage() {
                                                 from this default is a fact
                                                 worth stating, and the dash
                                                 read as missing data. */}
-                                            <Td align="right" numeric>
+                                            <Td align="center" numeric>
                                                 <span
                                                     className={
                                                         overriddenCount === 0
@@ -98,7 +98,7 @@ export default async function FlagsPage() {
                                                 </span>
                                             </Td>
                                             {canWrite ? (
-                                                <Td align="right">
+                                                <Td align="center">
                                                     <FlagDefaultToggle
                                                         flagId={flag.id}
                                                         flagKey={flag.key}

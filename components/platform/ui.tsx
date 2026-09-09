@@ -285,7 +285,7 @@ export function Th({
     className,
 }: {
     children: ReactNode
-    align?: 'left' | 'right'
+    align?: 'left' | 'right' | 'center'
     className?: string
 }) {
     return (
@@ -293,8 +293,8 @@ export function Th({
             scope="col"
             // Alignment travels as a data attribute, not a utility class: the
             // portal's base `th` rule outranks a lone utility and would swallow
-            // it. See the matching rule in platform.css.
-            data-align={align === 'right' ? 'right' : undefined}
+            // it. See the matching rules in platform.css.
+            data-align={align === 'left' ? undefined : align}
             className={cn(
                 'p-label border-b border-[var(--p-line)] bg-[var(--p-surface-2)]',
                 className,
@@ -312,7 +312,7 @@ export function Td({
     className,
 }: {
     children: ReactNode
-    align?: 'left' | 'right'
+    align?: 'left' | 'right' | 'center'
     numeric?: boolean
     className?: string
 }) {
@@ -321,6 +321,7 @@ export function Td({
             className={cn(
                 'border-b border-[var(--p-line-soft)] text-[13px] text-[var(--p-ink-2)]',
                 align === 'right' && 'text-right',
+                align === 'center' && 'text-center',
                 numeric && 'p-num',
                 className,
             )}
