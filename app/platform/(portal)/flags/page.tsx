@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import { getFlagMatrix } from '@/lib/platform/data'
 import { getPlatformSession, roleCan } from '@/lib/platform/auth'
-import { setFeatureOverride, setFlagDefault } from '@/app/platform/actions'
+import FlagOverrideCell from '@/components/platform/FlagOverrideCell'
+import FlagDefaultToggle from './FlagDefaultToggle'
 import {
-    Button,
     EmptyState,
     Panel,
     PanelHeader,
@@ -54,8 +54,8 @@ export default async function FlagsPage() {
                                 <tr>
                                     <Th>Flag</Th>
                                     <Th>Default</Th>
-                                    <Th align="right">Overridden on</Th>
-                                    {canWrite ? <Th align="right">Change</Th> : null}
+                                    <Th align="center">Overrides</Th>
+                                    {canWrite ? <Th align="center">Change</Th> : null}
                                 </tr>
                             </thead>
                             <tbody>
@@ -81,22 +81,29 @@ export default async function FlagsPage() {
                                                     {flag.is_enabled ? 'On' : 'Off'}
                                                 </StatusPill>
                                             </Td>
-                                            <Td align="right" numeric>
-                                                {overriddenCount === 0 ? '—' : `${overriddenCount} tenants`}
+                                            {/* A real 0 rather than the table's
+                                                em dash: no tenant deviating
+                                                from this default is a fact
+                                                worth stating, and the dash
+                                                read as missing data. */}
+                                            <Td align="center" numeric>
+                                                <span
+                                                    className={
+                                                        overriddenCount === 0
+                                                            ? 'text-[var(--p-ink-3)]'
+                                                            : 'font-medium text-[var(--p-ink)]'
+                                                    }
+                                                >
+                                                    {overriddenCount}
+                                                </span>
                                             </Td>
                                             {canWrite ? (
-                                                <Td align="right">
-                                                    <form action={setFlagDefault}>
-                                                        <input type="hidden" name="flagId" value={flag.id} />
-                                                        <input
-                                                            type="hidden"
-                                                            name="enabled"
-                                                            value={String(!flag.is_enabled)}
-                                                        />
-                                                        <Button type="submit" size="sm" tone="secondary">
-                                                            Turn {flag.is_enabled ? 'off' : 'on'}
-                                                        </Button>
-                                                    </form>
+                                                <Td align="center">
+                                                    <FlagDefaultToggle
+                                                        flagId={flag.id}
+                                                        flagKey={flag.key}
+                                                        enabled={flag.is_enabled}
+                                                    />
                                                 </Td>
                                             ) : null}
                                         </tr>
@@ -110,7 +117,11 @@ export default async function FlagsPage() {
                         <div className="p-4 pb-3">
                             <PanelHeader
                                 title="Per-tenant matrix"
-                                description="Inherit follows the platform default. Forced values survive a default change."
+                                description={
+                                    canWrite
+                                        ? 'Inherit follows the platform default. Forced values survive a default change. Pick a value, then press Set to save that one cell.'
+                                        : 'Inherit follows the platform default. Forced values survive a default change.'
+                                }
                             />
                         </div>
 
@@ -162,34 +173,14 @@ export default async function FlagsPage() {
 
                                                 return (
                                                     <Td key={flag.id}>
-                                                        <form
-                                                            action={setFeatureOverride}
-                                                            className="flex items-center gap-1.5"
-                                                        >
-                                                            <input type="hidden" name="gymId" value={tenant.id} />
-                                                            <input type="hidden" name="flagId" value={flag.id} />
-                                                            <label
-                                                                className="sr-only"
-                                                                htmlFor={`m-${tenant.id}-${flag.id}`}
-                                                            >
-                                                                {flag.key} for {tenant.name}
-                                                            </label>
-                                                            <select
-                                                                id={`m-${tenant.id}-${flag.id}`}
-                                                                name="value"
-                                                                defaultValue={current}
-                                                                className="p-input h-8 w-[96px] text-[12px]"
-                                                            >
-                                                                <option value="inherit">
-                                                                    Inherit ({flag.is_enabled ? 'on' : 'off'})
-                                                                </option>
-                                                                <option value="on">Force on</option>
-                                                                <option value="off">Force off</option>
-                                                            </select>
-                                                            <Button type="submit" size="sm" tone="ghost">
-                                                                Set
-                                                            </Button>
-                                                        </form>
+                                                        <FlagOverrideCell
+                                                            gymId={tenant.id}
+                                                            flagId={flag.id}
+                                                            flagKey={flag.key}
+                                                            tenantName={tenant.name}
+                                                            defaultEnabled={flag.is_enabled}
+                                                            value={current}
+                                                        />
                                                     </Td>
                                                 )
                                             })}

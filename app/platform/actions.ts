@@ -217,15 +217,39 @@ export async function stopImpersonation(): Promise<void> {
 }
 
 /**
- * Sets or clears one tenant's override for one feature flag.
+ * Sets or clears one tenant's override for one feature flag. Shared by the
+ * flags matrix and a tenant's own feature table.
  *
- * "inherit" deletes the row rather than writing `false`, because inheriting
- * the platform default and being explicitly switched off are different facts
- * and the matrix has to be able to show which one is true.
+ * The capability check stays OUTSIDE the try. An expired session makes
+ * `requirePlatformSession` call `redirect()`, which works by throwing, and
+ * catching that would strand the operator on a dead page showing the redirect
+ * as if it were a validation error.
  */
-export async function setFeatureOverride(formData: FormData): Promise<void> {
+export async function setFeatureOverrideState(
+    _prev: ActionState,
+    formData: FormData,
+): Promise<ActionState> {
     await requireCapability('flags:write')
 
+    try {
+        return { error: null, success: await applyFeatureOverride(formData) }
+    } catch (error) {
+        return {
+            error: error instanceof Error ? error.message : 'Could not save that override.',
+            success: null,
+        }
+    }
+}
+
+/**
+ * Writes the override and returns the sentence the UI shows on success.
+ * The caller is responsible for the `flags:write` check.
+ *
+ * "inherit" deletes the row rather than writing `false`, because inheriting
+ * the platform default and being explicitly switched off are different facts,
+ * and the matrix has to be able to show which one is true.
+ */
+async function applyFeatureOverride(formData: FormData): Promise<string> {
     const gymId = String(formData.get('gymId') ?? '')
     const flagId = String(formData.get('flagId') ?? '')
     const value = String(formData.get('value') ?? '')
@@ -265,33 +289,60 @@ export async function setFeatureOverride(formData: FormData): Promise<void> {
 
     revalidatePath('/platform/flags')
     revalidatePath(`/platform/tenants/${gymId}`)
+
+    if (value === 'inherit') return 'Back to inheriting the platform default.'
+    return value === 'on' ? 'Forced on for this tenant.' : 'Forced off for this tenant.'
 }
 
-/** Flips the platform-wide default for a flag. Affects every tenant without an override. */
-export async function setFlagDefault(formData: FormData): Promise<void> {
+/**
+ * Flips the platform-wide default for a flag. Affects every tenant without an
+ * override, which is the widest-reaching switch on the page, so it reports
+ * back rather than flipping in silence.
+ *
+ * The capability check stays outside the try for the same reason as
+ * `setFeatureOverrideState`: an expired session redirects by throwing.
+ */
+export async function setFlagDefault(
+    _prev: ActionState,
+    formData: FormData,
+): Promise<ActionState> {
     await requireCapability('flags:write')
 
-    const flagId = String(formData.get('flagId') ?? '')
-    const enabled = String(formData.get('enabled') ?? '') === 'true'
+    try {
+        const flagId = String(formData.get('flagId') ?? '')
+        const enabled = String(formData.get('enabled') ?? '') === 'true'
 
-    if (!flagId) throw new Error('Pick a flag.')
+        if (!flagId) throw new Error('Pick a flag.')
 
-    const service = getSupabaseAdmin()
-    const { error } = await service
-        .from('platform_feature_flags')
-        .update({ is_enabled: enabled } as never)
-        .eq('id', flagId)
+        const service = getSupabaseAdmin()
+        const { error } = await service
+            .from('platform_feature_flags')
+            .update({ is_enabled: enabled } as never)
+            .eq('id', flagId)
 
-    if (error) throw new Error(error.message)
+        if (error) throw new Error(error.message)
 
-    await recordAudit({
-        action: 'flag.default.set',
-        entityType: 'feature_flag',
-        entityId: flagId,
-        metadata: { enabled },
-    })
+        await recordAudit({
+            action: 'flag.default.set',
+            entityType: 'feature_flag',
+            entityId: flagId,
+            metadata: { enabled },
+        })
 
-    revalidatePath('/platform/flags')
+        revalidatePath('/platform/flags')
+
+        return {
+            error: null,
+            success: enabled
+                ? 'Default is on for every tenant without an override.'
+                : 'Default is off for every tenant without an override.',
+        }
+    } catch (error) {
+        return {
+            error: error instanceof Error ? error.message : 'Could not change that default.',
+            success: null,
+        }
+    }
 }
 
 /** Moves a tenant onto a different plan and/or billing interval. */

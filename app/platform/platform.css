@@ -251,6 +251,21 @@
     white-space: nowrap;
 }
 
+/* A right-aligned header has to out-specify the rule above it.
+
+   `.platform-portal th` scores one class plus one element, which quietly beats
+   a single utility class, so every <Th align="right"> in the portal was being
+   dropped: the header sat left while its numbers sat right, and the column
+   read as misaligned. Matching on the attribute the component already emits
+   keeps the win deterministic whatever order the stylesheets load in. */
+.platform-portal th[data-align='right'] {
+    text-align: right;
+}
+
+.platform-portal th[data-align='center'] {
+    text-align: center;
+}
+
 .platform-portal td,
 .platform-portal th {
     padding: 9px 14px;
@@ -377,6 +392,38 @@
     height: 30px;
     padding: 0 10px;
     font-size: 12.5px;
+}
+
+/* Apply-button states for the flag matrix.
+
+   A control that only becomes reachable once something changed still has to
+   READ as a button while it waits, or an operator scanning a wide grid sees
+   plain text and never tries it. So the resting state keeps its full border
+   and opacity, and only the label colour softens: visibly a button, visibly
+   not armed yet. The default .p-btn:disabled fade would undo that. */
+.p-btn[data-armed='false']:disabled {
+    opacity: 1;
+    background: var(--p-surface);
+    color: var(--p-ink-2);
+    border-color: var(--p-line-strong);
+}
+
+/* The saved flash reuses the "ok" wash rather than a new green, so a
+   confirmation here matches every other success surface in the portal. */
+.p-btn[data-armed='saved']:disabled {
+    opacity: 1;
+    background: var(--p-ok-wash);
+    color: var(--p-ok-ink);
+    border-color: transparent;
+}
+
+/* Fixed width across every state, for both the matrix cell and the defaults
+   toggle. Their labels run Set / Turn off -> Saving -> Saved, and a button
+   that resized mid-save would shove its neighbouring column sideways. Sized
+   for the widest state, "Saving" plus its spinner, so the narrower states pad
+   rather than the wide ones grow. */
+.p-btn[data-armed] {
+    min-width: 84px;
 }
 
 /* Status pill. Carries a dot AND a label so state never depends on hue
