@@ -39,7 +39,7 @@ export default async function AuditPage() {
                         description="Sign-ins, tenant status changes, billing edits, flag toggles, and support sessions all append here as they happen."
                     />
                 ) : (
-                    <TableShell>
+                    <TableShell minWidth={680}>
                         <thead>
                             <tr>
                                 <Th>Action</Th>

@@ -88,7 +88,7 @@ export default async function BillingPage() {
                         description="Subscription tiers live in platform_subscription_plans. Add one to start assigning tenants to it."
                     />
                 ) : (
-                    <TableShell>
+                    <TableShell minWidth={880}>
                         <thead>
                             <tr>
                                 <Th>Plan</Th>
@@ -177,7 +177,7 @@ export default async function BillingPage() {
                         description="A subscription row is created for each gym at signup. None exist yet."
                     />
                 ) : (
-                    <TableShell>
+                    <TableShell minWidth={780}>
                         <thead>
                             <tr>
                                 <Th>Tenant</Th>
@@ -242,7 +242,7 @@ export default async function BillingPage() {
                         description="Platform invoices are written by the payment-gateway webhook. Connect recurring billing to populate this."
                     />
                 ) : (
-                    <TableShell>
+                    <TableShell minWidth={600}>
                         <thead>
                             <tr>
                                 <Th>Invoice</Th>

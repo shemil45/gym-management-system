@@ -17,6 +17,7 @@ import {
     Button,
     EmptyState,
     Field,
+    MetricTile,
     Panel,
     PanelHeader,
     StatusPill,
@@ -118,9 +119,89 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                 </div>
             ) : null}
 
-            <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
+            {/* The numbers an operator opens this page to check, lifted out of
+                the detail lists into one strip. Same hairline-tile grid as the
+                tenants directory, so the two pages read as one product, and it
+                gives the page a full-width top edge to hang the columns from. */}
+            <div className="p-panel overflow-hidden">
+                <div className="grid grid-cols-2 gap-px bg-[var(--p-line-soft)] sm:grid-cols-3 lg:grid-cols-5">
+                    <div className="bg-[var(--p-surface)]">
+                        <MetricTile
+                            label="Monthly"
+                            value={formatCurrency(tenant.mrr)}
+                            footnote={
+                                tenant.subscription?.status === 'active' ? 'Billing' : 'Not billing'
+                            }
+                        />
+                    </div>
+                    <div className="bg-[var(--p-surface)]">
+                        <MetricTile
+                            label="Members"
+                            value={String(billing.usage.members)}
+                            footnote={`of ${billing.usage.memberLimit ?? '∞'}`}
+                        />
+                    </div>
+                    <div className="bg-[var(--p-surface)]">
+                        <MetricTile
+                            label="Staff"
+                            value={String(billing.usage.staff)}
+                            footnote={`of ${billing.usage.staffLimit ?? '∞'}`}
+                        />
+                    </div>
+                    <div className="bg-[var(--p-surface)]">
+                        <MetricTile
+                            label="Trial"
+                            value={
+                                trialLeft === null
+                                    ? '—'
+                                    : trialLeft < 0
+                                      ? `${Math.abs(trialLeft)}d`
+                                      : `${trialLeft}d`
+                            }
+                            tone={trialLeft !== null && trialLeft <= 3 ? 'warn' : undefined}
+                            footnote={
+                                trialLeft === null
+                                    ? 'No trial'
+                                    : trialLeft < 0
+                                      ? 'Over'
+                                      : `Ends ${formatDate(
+                                            tenant.trial_ends_at ?? tenant.subscription?.trial_ends_at,
+                                        )}`
+                            }
+                        />
+                    </div>
+                    <div className="col-span-2 bg-[var(--p-surface)] sm:col-span-1">
+                        <MetricTile
+                            label="Failed payments"
+                            value={String(tenant.subscription?.failed_payment_count ?? 0)}
+                            tone={
+                                Number(tenant.subscription?.failed_payment_count ?? 0) > 0
+                                    ? 'danger'
+                                    : undefined
+                            }
+                            footnote={
+                                Number(tenant.subscription?.failed_payment_count ?? 0) > 0
+                                    ? 'Needs attention'
+                                    : 'None recorded'
+                            }
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {/* items-start keeps each panel at its natural height: without it
+                the grid stretches the shorter column's last panel to match the
+                taller one, which is the empty box this layout used to show.
+
+                Both tracks are minmax(0,...) and both columns carry min-w-0,
+                including the single stacked column on phones. A grid item
+                defaults to min-width:auto, which means it refuses to shrink
+                below its widest content: the tables inside then widened this
+                grid past the viewport and took the page background with them,
+                rather than scrolling inside their own wrapper. */}
+            <div className="grid items-start gap-5 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_340px]">
                 {/* ── main column ───────────────────────────────────────── */}
-                <div className="flex flex-col gap-5">
+                <div className="flex min-w-0 flex-col gap-5">
                     <Panel>
                         <PanelHeader title="Subscription" />
 
@@ -145,60 +226,41 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                                     {billing.label}
                                 </StatusPill>
                             </DetailRow>
-                            <DetailRow label="Stored status">
-                                {tenant.subscription ? (
-                                    <StatusPill tone={tenantStatusTone(tenant.subscription.status).tone}>
-                                        {tenantStatusTone(tenant.subscription.status).label}
-                                    </StatusPill>
-                                ) : (
-                                    '—'
-                                )}
-                            </DetailRow>
-                            <DetailRow label="Usage vs plan">
-                                <span className="p-num">
-                                    {billing.usage.members}/
-                                    {billing.usage.memberLimit ?? '∞'} members
-                                </span>
-                                <span className="p-num ml-2 text-[var(--p-ink-3)]">
-                                    {billing.usage.staff}/{billing.usage.staffLimit ?? '∞'} staff
-                                </span>
-                            </DetailRow>
-                            <DetailRow label="Interval">
-                                {tenant.subscription?.billing_interval ?? '—'}
-                            </DetailRow>
-                            <DetailRow label="Monthly equivalent">
-                                <span className="p-num">{formatCurrency(tenant.mrr)}</span>
-                                {tenant.subscription?.status !== 'active' ? (
-                                    <span className="ml-1.5 text-[11.5px] text-[var(--p-ink-3)]">
-                                        not billing
-                                    </span>
-                                ) : null}
-                            </DetailRow>
-                            {Number(tenant.subscription?.discount_percentage ?? 0) > 0 ? (
-                                <DetailRow label="Discount">
-                                    <span className="p-num">{tenant.subscription?.discount_percentage}%</span>
-                                </DetailRow>
-                            ) : null}
-                            <DetailRow label="Trial ends">
-                                {tenant.subscription?.trial_ends_at || tenant.trial_ends_at ? (
-                                    <>
-                                        <span className="p-num">
-                                            {formatDate(tenant.trial_ends_at ?? tenant.subscription?.trial_ends_at)}
-                                        </span>
-                                        {trialLeft !== null ? (
-                                            <span className="ml-1.5 text-[11.5px] text-[var(--p-ink-3)]">
-                                                {trialLeft < 0 ? `${Math.abs(trialLeft)}d over` : `${trialLeft}d left`}
+                            {/* Rows that only exist when there is a subscription
+                                row to read them from. Printing "—" for each was
+                                three dead lines in a list of nine, which made
+                                the panel look broken rather than empty. The
+                                figures that used to sit here (usage, monthly,
+                                trial, failed payments) are in the strip above. */}
+                            {tenant.subscription ? (
+                                <>
+                                    <DetailRow label="Stored status">
+                                        <StatusPill
+                                            tone={tenantStatusTone(tenant.subscription.status).tone}
+                                        >
+                                            {tenantStatusTone(tenant.subscription.status).label}
+                                        </StatusPill>
+                                    </DetailRow>
+                                    <DetailRow label="Interval">
+                                        {tenant.subscription.billing_interval}
+                                    </DetailRow>
+                                    {Number(tenant.subscription.discount_percentage ?? 0) > 0 ? (
+                                        <DetailRow label="Discount">
+                                            <span className="p-num">
+                                                {tenant.subscription.discount_percentage}%
                                             </span>
-                                        ) : null}
-                                    </>
-                                ) : (
-                                    '—'
-                                )}
-                            </DetailRow>
-                            <DetailRow label="Failed payments">
-                                <span className="p-num">{tenant.subscription?.failed_payment_count ?? 0}</span>
-                            </DetailRow>
+                                        </DetailRow>
+                                    ) : null}
+                                </>
+                            ) : null}
                         </dl>
+
+                        {tenant.subscription ? null : (
+                            <p className="mb-4 text-[12.5px] leading-[1.55] text-[var(--p-ink-3)]">
+                                No subscription record yet. The lifecycle above is derived from the
+                                trial dates on the gym itself.
+                            </p>
+                        )}
 
                         {canBill && tenant.subscription ? (
                             <details className="group border-t border-[var(--p-line)] pt-3">
@@ -287,7 +349,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                             />
                         </div>
 
-                        <TableShell>
+                        <TableShell minWidth={680}>
                             <thead>
                                 <tr>
                                     <Th>Feature</Th>
@@ -356,7 +418,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                                 description="Subscription invoices appear here once recurring billing is connected to the payment gateway."
                             />
                         ) : (
-                            <TableShell>
+                            <TableShell minWidth={600}>
                                 <thead>
                                     <tr>
                                         <Th>Invoice</Th>
@@ -398,10 +460,49 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                             </TableShell>
                         )}
                     </Panel>
+
+                    {/* Activity sits in the main column, not the rail.
+
+                        It is the one panel here that grows without bound, and
+                        in a fixed-width rail it made that column run roughly a
+                        third longer than this one, which is what left the large
+                        blank under the invoices table. Moved across, the two
+                        columns land within a panel's height of each other, and
+                        a full-width audit line stops truncating action names. */}
+                    <Panel padded={false}>
+                        <div className="p-4 pb-2">
+                            <PanelHeader
+                                title="Activity"
+                                description="Every platform action recorded against this tenant."
+                            />
+                        </div>
+                        {audit.length === 0 ? (
+                            <EmptyState
+                                title="Nothing recorded yet"
+                                description="Status changes, billing edits, and support sessions for this tenant will appear here."
+                            />
+                        ) : (
+                            <ul>
+                                {audit.map((entry) => (
+                                    <li
+                                        key={entry.id}
+                                        className="flex items-baseline gap-3 border-t border-[var(--p-line-soft)] px-4 py-2"
+                                    >
+                                        <span className="p-num min-w-0 flex-1 truncate text-[11.5px] text-[var(--p-ink-2)]">
+                                            {entry.action}
+                                        </span>
+                                        <span className="shrink-0 text-[11px] text-[var(--p-ink-3)]">
+                                            {formatRelative(entry.created_at)}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </Panel>
                 </div>
 
                 {/* ── side column ───────────────────────────────────────── */}
-                <div className="flex flex-col gap-5">
+                <div className="flex min-w-0 flex-col gap-5">
                     <Panel>
                         <PanelHeader title="Onboarding" />
                         <div className="mb-3 flex items-center gap-2">
@@ -466,13 +567,40 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                             <DetailRow label="Phone">
                                 <span className="p-num">{tenant.contact_phone ?? 'Not provided'}</span>
                             </DetailRow>
-                            <DetailRow label="Members">
-                                <span className="p-num">{tenant.memberCount}</span>
-                            </DetailRow>
-                            <DetailRow label="Staff">
-                                <span className="p-num">{tenant.staffCount}</span>
-                            </DetailRow>
+                            {/* Member and staff counts live in the strip at the
+                                top. Carrying them here too meant the same two
+                                numbers appeared three times on one page. */}
                         </dl>
+
+                        {/* Who to contact and who can sign in are the same
+                            question, so they share a panel rather than two
+                            bordered boxes stacked against each other. A
+                            hairline separates them; a second card would have
+                            said they were unrelated. */}
+                        <div className="mt-3 border-t border-[var(--p-line)] pt-3">
+                            <p className="p-label mb-2">Staff accounts</p>
+                            {staff.length === 0 ? (
+                                <p className="text-[12.5px] text-[var(--p-ink-3)]">
+                                    No staff accounts on this gym yet.
+                                </p>
+                            ) : (
+                                <ul className="flex flex-col">
+                                    {staff.map((member) => (
+                                        <li
+                                            key={member.id}
+                                            className="flex items-baseline justify-between gap-3 border-b border-[var(--p-line-soft)] py-2 last:border-b-0"
+                                        >
+                                            <span className="truncate text-[12.5px] text-[var(--p-ink)]">
+                                                {member.full_name ?? 'Unnamed'}
+                                            </span>
+                                            <span className="shrink-0 text-[11.5px] text-[var(--p-ink-3)]">
+                                                {formatPlatformRole(member.role as never)}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
                     </Panel>
 
                     {canImpersonate ? (
@@ -557,31 +685,6 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                         </Panel>
                     ) : null}
 
-                    <Panel>
-                        <PanelHeader title="Staff" />
-                        {staff.length === 0 ? (
-                            <p className="text-[12.5px] text-[var(--p-ink-3)]">
-                                No staff accounts on this gym yet.
-                            </p>
-                        ) : (
-                            <ul className="flex flex-col">
-                                {staff.map((member) => (
-                                    <li
-                                        key={member.id}
-                                        className="flex items-baseline justify-between gap-3 border-b border-[var(--p-line-soft)] py-2 last:border-b-0"
-                                    >
-                                        <span className="truncate text-[12.5px] text-[var(--p-ink)]">
-                                            {member.full_name ?? 'Unnamed'}
-                                        </span>
-                                        <span className="shrink-0 text-[11.5px] text-[var(--p-ink-3)]">
-                                            {formatPlatformRole(member.role as never)}
-                                        </span>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </Panel>
-
                     {canWriteTenant ? (
                         <Panel>
                             <PanelHeader title="Operator notes" description="Visible to platform staff only." />
@@ -606,33 +709,6 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                         </Panel>
                     ) : null}
 
-                    <Panel padded={false}>
-                        <div className="p-4 pb-2">
-                            <PanelHeader title="Activity" />
-                        </div>
-                        {audit.length === 0 ? (
-                            <EmptyState
-                                title="Nothing recorded yet"
-                                description="Status changes, billing edits, and support sessions for this tenant will appear here."
-                            />
-                        ) : (
-                            <ul>
-                                {audit.map((entry) => (
-                                    <li
-                                        key={entry.id}
-                                        className="flex items-baseline gap-3 border-t border-[var(--p-line-soft)] px-4 py-2"
-                                    >
-                                        <span className="p-num min-w-0 flex-1 truncate text-[11.5px] text-[var(--p-ink-2)]">
-                                            {entry.action}
-                                        </span>
-                                        <span className="shrink-0 text-[11px] text-[var(--p-ink-3)]">
-                                            {formatRelative(entry.created_at)}
-                                        </span>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </Panel>
                 </div>
             </div>
         </div>

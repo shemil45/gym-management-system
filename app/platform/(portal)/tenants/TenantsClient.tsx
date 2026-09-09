@@ -475,7 +475,11 @@ export default function TenantsDirectory({
                                                 )}
                                             </div>
 
-                                            <dl className="mt-3 grid grid-cols-4 gap-2 border-t border-[var(--p-line-soft)] pt-2.5">
+                                            {/* Four columns is about 80px each
+                                                on a 360px phone, which a plan
+                                                name cannot survive. Pairs up
+                                                until there is room. */}
+                                            <dl className="mt-3 grid grid-cols-2 gap-2 border-t border-[var(--p-line-soft)] pt-2.5 min-[420px]:grid-cols-4">
                                                 <div>
                                                     <dt className="p-label">Plan</dt>
                                                     <dd className="mt-1 truncate text-[12px] text-[var(--p-ink-2)]">
@@ -512,7 +516,7 @@ export default function TenantsDirectory({
                         </ul>
 
                         <div className="hidden md:block">
-                            <TableShell>
+                            <TableShell minWidth={820}>
                                 <thead>
                                     <tr>
                                         {/* Only the tenant name is read as a
@@ -644,7 +648,10 @@ export default function TenantsDirectory({
                                     <span className="p-num">{pageCount}</span>
                                 </p>
 
-                                <div className="flex items-center gap-1">
+                                {/* Wraps rather than overflows: Prev, Next and
+                                    up to seven numbers do not fit on one line
+                                    at 360px. */}
+                                <div className="flex flex-wrap items-center justify-center gap-1">
                                     <button
                                         type="button"
                                         className="p-page"
