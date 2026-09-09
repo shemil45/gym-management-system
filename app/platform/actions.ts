@@ -217,29 +217,13 @@ export async function stopImpersonation(): Promise<void> {
 }
 
 /**
- * Sets or clears one tenant's override for one feature flag.
- *
- * "inherit" deletes the row rather than writing `false`, because inheriting
- * the platform default and being explicitly switched off are different facts
- * and the matrix has to be able to show which one is true.
- */
-export async function setFeatureOverride(formData: FormData): Promise<void> {
-    await requireCapability('flags:write')
-    await applyFeatureOverride(formData)
-}
-
-/**
- * `setFeatureOverride` in the shape `useActionState` wants.
- *
- * The flag matrix needs to tell an operator that one specific cell saved,
- * which a void action cannot express: the page just re-renders and the click
- * leaves no trace. Both exports run the same core, so the two call sites can
- * never drift apart on what "inherit" means.
+ * Sets or clears one tenant's override for one feature flag. Shared by the
+ * flags matrix and a tenant's own feature table.
  *
  * The capability check stays OUTSIDE the try. An expired session makes
  * `requirePlatformSession` call `redirect()`, which works by throwing, and
- * catching that would strand the operator on a dead page showing the
- * redirect as if it were a validation error.
+ * catching that would strand the operator on a dead page showing the redirect
+ * as if it were a validation error.
  */
 export async function setFeatureOverrideState(
     _prev: ActionState,
@@ -259,7 +243,11 @@ export async function setFeatureOverrideState(
 
 /**
  * Writes the override and returns the sentence the UI shows on success.
- * Callers are responsible for the `flags:write` check.
+ * The caller is responsible for the `flags:write` check.
+ *
+ * "inherit" deletes the row rather than writing `false`, because inheriting
+ * the platform default and being explicitly switched off are different facts,
+ * and the matrix has to be able to show which one is true.
  */
 async function applyFeatureOverride(formData: FormData): Promise<string> {
     const gymId = String(formData.get('gymId') ?? '')

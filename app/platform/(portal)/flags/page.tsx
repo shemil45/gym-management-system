@@ -1,8 +1,8 @@
 import Link from 'next/link'
 import { getFlagMatrix } from '@/lib/platform/data'
 import { getPlatformSession, roleCan } from '@/lib/platform/auth'
+import FlagOverrideCell from '@/components/platform/FlagOverrideCell'
 import FlagDefaultToggle from './FlagDefaultToggle'
-import FlagOverrideCell from './FlagOverrideCell'
 import {
     EmptyState,
     Panel,

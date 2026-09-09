@@ -14,7 +14,11 @@ const INITIAL: ActionState = { error: null, success: null }
 const FLASH_MS = 2000
 
 /**
- * One cell of the per-tenant flag matrix.
+ * Sets one tenant's override for one flag.
+ *
+ * Used by the per-tenant matrix on the flags page and by the feature table on
+ * a tenant's own page, so the two cannot drift on what the control does or on
+ * what "inherit" is called.
  *
  * The matrix is a grid of near-identical controls, so feedback has to be
  * local: a page-level toast would tell an operator that *something* saved

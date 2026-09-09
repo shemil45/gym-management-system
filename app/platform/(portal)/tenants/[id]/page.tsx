@@ -8,11 +8,11 @@ import { getPlatformSession, roleCan } from '@/lib/platform/auth'
 import {
     completeTenantOnboarding,
     saveTenantNotes,
-    setFeatureOverride,
     setTenantStatus,
     startImpersonation,
     updateTenantSubscription,
 } from '@/app/platform/actions'
+import FlagOverrideCell from '@/components/platform/FlagOverrideCell'
 import {
     Button,
     EmptyState,
@@ -293,7 +293,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                                     <Th>Feature</Th>
                                     <Th>Platform default</Th>
                                     <Th>This tenant</Th>
-                                    {canFlags ? <Th align="right">Set</Th> : null}
+                                    {canFlags ? <Th align="center">Set</Th> : null}
                                 </tr>
                             </thead>
                             <tbody>
@@ -321,39 +321,23 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                                             ) : null}
                                         </Td>
                                         {canFlags ? (
-                                            <Td align="right">
-                                                <form
-                                                    action={setFeatureOverride}
-                                                    className="flex items-center justify-end gap-1.5"
-                                                >
-                                                    <input type="hidden" name="gymId" value={tenant.id} />
-                                                    <input type="hidden" name="flagId" value={flag.id} />
-                                                    <label
-                                                        className="sr-only"
-                                                        htmlFor={`value-${flag.id}`}
-                                                    >
-                                                        Override for {flag.key}
-                                                    </label>
-                                                    <select
-                                                        id={`value-${flag.id}`}
-                                                        name="value"
-                                                        defaultValue={
+                                            <Td align="center">
+                                                <div className="flex justify-center">
+                                                    <FlagOverrideCell
+                                                        gymId={tenant.id}
+                                                        flagId={flag.id}
+                                                        flagKey={flag.key}
+                                                        tenantName={tenant.name}
+                                                        defaultEnabled={flag.is_enabled}
+                                                        value={
                                                             flag.override
                                                                 ? flag.override.is_enabled
                                                                     ? 'on'
                                                                     : 'off'
                                                                 : 'inherit'
                                                         }
-                                                        className="p-input h-8 w-[104px] text-[12px]"
-                                                    >
-                                                        <option value="inherit">Inherit</option>
-                                                        <option value="on">Force on</option>
-                                                        <option value="off">Force off</option>
-                                                    </select>
-                                                    <Button type="submit" size="sm" tone="secondary">
-                                                        Apply
-                                                    </Button>
-                                                </form>
+                                                    />
+                                                </div>
                                             </Td>
                                         ) : null}
                                     </tr>
