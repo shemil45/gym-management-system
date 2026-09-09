@@ -764,6 +764,69 @@
     color: var(--p-accent-wash-ink);
 }
 
+/* Pager.
+
+   Square targets rather than the standard button height: a row of them is
+   read as one control, and 30px keeps that row from outweighing the table it
+   belongs to. Digits are monospaced so the boxes stop resizing as the page
+   number climbs into double figures. */
+.p-page {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    height: 30px;
+    padding: 0 8px;
+    border: 1px solid transparent;
+    border-radius: var(--p-r-control);
+    background: transparent;
+    color: var(--p-ink-2);
+    font-family: var(--p-font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 12.5px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.16s var(--p-ease), color 0.16s var(--p-ease),
+        border-color 0.16s var(--p-ease);
+}
+
+.p-page:hover:not(:disabled) {
+    background: var(--p-surface-2);
+    color: var(--p-ink);
+}
+
+.p-page:disabled {
+    color: var(--p-ink-3);
+    cursor: not-allowed;
+}
+
+/* The current page is a destination, not a button: it reads as pressed and
+   stops responding to hover, so the row shows position rather than offering
+   the same place twice. */
+.p-page[aria-current='page'] {
+    background: var(--p-surface);
+    border-color: var(--p-line);
+    color: var(--p-ink);
+    font-weight: 500;
+    cursor: default;
+}
+
+.platform-portal.dark .p-page[aria-current='page'] {
+    background: var(--p-surface-3);
+}
+
+/* The gap marker is not interactive and must not look it. */
+.p-page-gap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 30px;
+    color: var(--p-ink-3);
+    font-size: 12.5px;
+    user-select: none;
+}
+
 /* Monogram plate. Gives every row a fixed optical anchor on the left edge,
    so the eye tracks down one column instead of down ragged name lengths. */
 .p-monogram {
