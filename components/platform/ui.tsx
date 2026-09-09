@@ -269,12 +269,40 @@ export function TableSkeleton({ rows = 5, columns = 4 }: { rows?: number; column
 
 /* ── table ────────────────────────────────────────────────────────────── */
 
-export function TableShell({ children, className }: { children: ReactNode; className?: string }) {
-    // The wrapper owns horizontal overflow so a wide table scrolls inside its
-    // own panel instead of pushing the page sideways.
+export function TableShell({
+    children,
+    className,
+    minWidth = 560,
+}: {
+    children: ReactNode
+    className?: string
+    /**
+     * Width the table refuses to go below, in px, or 'content' to let the
+     * columns decide.
+     *
+     * The wrapper has always owned horizontal overflow, but nothing ever
+     * overflowed: `.platform-portal table` sets `width: 100%`, so on a narrow
+     * screen the table dutifully shrank to fit and squeezed eight columns into
+     * 380px instead of scrolling. A floor makes the overflow real, and the
+     * scroll stays inside the panel rather than moving the page sideways.
+     *
+     * Pass a value roughly matching the column count; 'content' suits a table
+     * whose column count is driven by data, like the flag matrix.
+     */
+    minWidth?: number | 'content'
+}) {
     return (
-        <div className={cn('overflow-x-auto', className)}>
-            <table>{children}</table>
+        // `relative` is load-bearing, not decoration. Without it the table's
+        // width still reached the document's scrollable overflow even though
+        // this element clips and scrolls correctly, so the page itself gained
+        // a horizontal scrollbar and the background stopped short of the right
+        // edge on a phone. Positioning the scroller keeps the overflow its own
+        // business. Measured on the real page at 390px: 492px of page scroll
+        // before, 386 after, with the table still scrolling inside.
+        <div className={cn('relative overflow-x-auto', className)}>
+            <table style={{ minWidth: minWidth === 'content' ? 'max-content' : minWidth }}>
+                {children}
+            </table>
         </div>
     )
 }

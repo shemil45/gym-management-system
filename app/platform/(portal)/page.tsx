@@ -116,7 +116,7 @@ export default async function PlatformOverviewPage() {
                 </div>
             </div>
 
-            <div className="grid gap-5 lg:grid-cols-[1.35fr_1fr]">
+            <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
                 <Panel>
                     <PanelHeader
                         title="Platform volume"
@@ -185,7 +185,7 @@ export default async function PlatformOverviewPage() {
                 </Panel>
             </div>
 
-            <div className="grid gap-5 lg:grid-cols-[1.35fr_1fr]">
+            <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
                 <Panel padded={false}>
                     <div className="p-4 pb-3">
                         <PanelHeader
@@ -208,7 +208,7 @@ export default async function PlatformOverviewPage() {
                             description="Gyms appear here as soon as they sign up. The first one will show its plan and member count."
                         />
                     ) : (
-                        <TableShell>
+                        <TableShell minWidth={520}>
                             <thead>
                                 <tr>
                                     <Th>Tenant</Th>

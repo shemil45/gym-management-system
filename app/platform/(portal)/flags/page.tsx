@@ -49,7 +49,7 @@ export default async function FlagsPage() {
                                 description="Applies to every tenant that has no override."
                             />
                         </div>
-                        <TableShell>
+                        <TableShell minWidth={560}>
                             <thead>
                                 <tr>
                                     <Th>Flag</Th>
@@ -131,7 +131,7 @@ export default async function FlagsPage() {
                                 description="Once a gym signs up it appears here with a column per feature flag."
                             />
                         ) : (
-                            <TableShell>
+                            <TableShell minWidth="content">
                                 <thead>
                                     <tr>
                                         <Th className="sticky left-0 z-10">Tenant</Th>

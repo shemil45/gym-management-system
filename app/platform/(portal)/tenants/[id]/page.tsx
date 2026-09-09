@@ -191,10 +191,17 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
 
             {/* items-start keeps each panel at its natural height: without it
                 the grid stretches the shorter column's last panel to match the
-                taller one, which is the empty box this layout used to show. */}
-            <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+                taller one, which is the empty box this layout used to show.
+
+                Both tracks are minmax(0,...) and both columns carry min-w-0,
+                including the single stacked column on phones. A grid item
+                defaults to min-width:auto, which means it refuses to shrink
+                below its widest content: the tables inside then widened this
+                grid past the viewport and took the page background with them,
+                rather than scrolling inside their own wrapper. */}
+            <div className="grid items-start gap-5 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_340px]">
                 {/* ── main column ───────────────────────────────────────── */}
-                <div className="flex flex-col gap-5">
+                <div className="flex min-w-0 flex-col gap-5">
                     <Panel>
                         <PanelHeader title="Subscription" />
 
@@ -342,7 +349,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                             />
                         </div>
 
-                        <TableShell>
+                        <TableShell minWidth={680}>
                             <thead>
                                 <tr>
                                     <Th>Feature</Th>
@@ -411,7 +418,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                                 description="Subscription invoices appear here once recurring billing is connected to the payment gateway."
                             />
                         ) : (
-                            <TableShell>
+                            <TableShell minWidth={600}>
                                 <thead>
                                     <tr>
                                         <Th>Invoice</Th>
@@ -495,7 +502,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                 </div>
 
                 {/* ── side column ───────────────────────────────────────── */}
-                <div className="flex flex-col gap-5">
+                <div className="flex min-w-0 flex-col gap-5">
                     <Panel>
                         <PanelHeader title="Onboarding" />
                         <div className="mb-3 flex items-center gap-2">

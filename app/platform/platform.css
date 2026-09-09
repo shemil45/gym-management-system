@@ -162,6 +162,16 @@
     background: var(--p-surface);
     border: 1px solid var(--p-line);
     border-radius: var(--p-r-shell);
+
+    /* A panel must always be allowed to be narrower than its contents.
+
+       Grid and flex items default to min-width:auto, which means they refuse
+       to shrink below their widest child. A panel holding a wide table then
+       pushes its whole column past the viewport and drags the page background
+       with it, instead of letting the table scroll inside its own wrapper.
+       Set here rather than per usage: every panel is a layout child, and the
+       failure is invisible until someone opens a phone. */
+    min-width: 0;
 }
 
 /* Rail navigation item. Active state is a filled wash plus a left marker,
