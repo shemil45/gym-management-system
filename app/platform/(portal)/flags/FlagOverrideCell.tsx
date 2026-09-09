@@ -32,7 +32,7 @@ export default function FlagOverrideCell({
     flagKey,
     tenantName,
     defaultEnabled,
-    value: initialValue,
+    value: savedValue,
 }: {
     gymId: string
     flagId: string
@@ -43,30 +43,28 @@ export default function FlagOverrideCell({
 }) {
     const [state, formAction, pending] = useActionState(setFeatureOverrideState, INITIAL)
 
-    // `saved` is what the database holds, `value` is what the select shows.
-    // The gap between the two is the whole interaction.
-    const [saved, setSaved] = useState<OverrideValue>(initialValue)
-    const [value, setValue] = useState<OverrideValue>(initialValue)
-    const [flashing, setFlashing] = useState(false)
+    // Only the operator's pending selection is local state. What is *stored*
+    // stays the server's `value` prop: the action revalidates this route, so
+    // after a save the prop arrives already updated and the two agree without
+    // this component having to assume the write landed. It also keeps the cell
+    // honest when a different cell's save revalidates the page.
+    const [choice, setChoice] = useState<OverrideValue>(savedValue)
+
+    // The flash is derived, not stored, so nothing has to set state while
+    // rendering. The timer only records which result has been shown.
+    const [dismissed, setDismissed] = useState<ActionState | null>(null)
+    const flashing = Boolean(state.success) && state !== dismissed
+
+    useEffect(() => {
+        if (!flashing) return
+        const timer = window.setTimeout(() => setDismissed(state), FLASH_MS)
+        return () => window.clearTimeout(timer)
+    }, [flashing, state])
 
     const selectId = `flag-${gymId}-${flagId}`
     const statusId = `${selectId}-status`
 
-    useEffect(() => {
-        if (!state.success) return
-
-        // The select is locked while the request is in flight, so the value
-        // sitting here now is the one that was submitted.
-        setSaved(value)
-        setFlashing(true)
-        const timer = window.setTimeout(() => setFlashing(false), FLASH_MS)
-        return () => window.clearTimeout(timer)
-        // `value` is deliberately not a dependency: this runs when a
-        // submission resolves, not when someone edits the select afterwards.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [state])
-
-    const dirty = value !== saved
+    const dirty = choice !== savedValue
     const armed = dirty && !pending
 
     // Rest -> armed -> saving -> saved. Every state names itself in words, not
@@ -88,7 +86,7 @@ export default function FlagOverrideCell({
         <form action={formAction} className="flex flex-col gap-1">
             <input type="hidden" name="gymId" value={gymId} />
             <input type="hidden" name="flagId" value={flagId} />
-            <input type="hidden" name="value" value={value} />
+            <input type="hidden" name="value" value={choice} />
 
             <div className="flex items-center gap-1.5">
                 <label className="sr-only" htmlFor={selectId}>
@@ -96,10 +94,10 @@ export default function FlagOverrideCell({
                 </label>
                 <select
                     id={selectId}
-                    value={value}
+                    value={choice}
                     disabled={pending}
                     aria-describedby={statusId}
-                    onChange={(event) => setValue(event.target.value as OverrideValue)}
+                    onChange={(event) => setChoice(event.target.value as OverrideValue)}
                     className="p-input h-8 w-[104px] text-[12px]"
                 >
                     <option value="inherit">Inherit ({defaultEnabled ? 'on' : 'off'})</option>

@@ -251,6 +251,17 @@
     white-space: nowrap;
 }
 
+/* A right-aligned header has to out-specify the rule above it.
+
+   `.platform-portal th` scores one class plus one element, which quietly beats
+   a single utility class, so every <Th align="right"> in the portal was being
+   dropped: the header sat left while its numbers sat right, and the column
+   read as misaligned. Matching on the attribute the component already emits
+   keeps the win deterministic whatever order the stylesheets load in. */
+.platform-portal th[data-align='right'] {
+    text-align: right;
+}
+
 .platform-portal td,
 .platform-portal th {
     padding: 9px 14px;
@@ -402,10 +413,11 @@
     border-color: transparent;
 }
 
-/* Fixed width across every state. The label runs Set -> Saving -> Saved, and
-   a button that resized mid-save would shove the neighbouring flag column
-   sideways on a grid this dense. Sized for the widest state, "Saving" plus
-   its spinner, so the narrower states pad rather than the wide ones grow. */
+/* Fixed width across every state, for both the matrix cell and the defaults
+   toggle. Their labels run Set / Turn off -> Saving -> Saved, and a button
+   that resized mid-save would shove its neighbouring column sideways. Sized
+   for the widest state, "Saving" plus its spinner, so the narrower states pad
+   rather than the wide ones grow. */
 .p-btn[data-armed] {
     min-width: 84px;
 }

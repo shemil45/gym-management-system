@@ -291,9 +291,12 @@ export function Th({
     return (
         <th
             scope="col"
+            // Alignment travels as a data attribute, not a utility class: the
+            // portal's base `th` rule outranks a lone utility and would swallow
+            // it. See the matching rule in platform.css.
+            data-align={align === 'right' ? 'right' : undefined}
             className={cn(
                 'p-label border-b border-[var(--p-line)] bg-[var(--p-surface-2)]',
-                align === 'right' && 'text-right',
                 className,
             )}
         >

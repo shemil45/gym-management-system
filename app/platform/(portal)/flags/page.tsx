@@ -1,10 +1,9 @@
 import Link from 'next/link'
 import { getFlagMatrix } from '@/lib/platform/data'
 import { getPlatformSession, roleCan } from '@/lib/platform/auth'
-import { setFlagDefault } from '@/app/platform/actions'
+import FlagDefaultToggle from './FlagDefaultToggle'
 import FlagOverrideCell from './FlagOverrideCell'
 import {
-    Button,
     EmptyState,
     Panel,
     PanelHeader,
@@ -55,7 +54,7 @@ export default async function FlagsPage() {
                                 <tr>
                                     <Th>Flag</Th>
                                     <Th>Default</Th>
-                                    <Th align="right">Overridden on</Th>
+                                    <Th align="right">Overrides</Th>
                                     {canWrite ? <Th align="right">Change</Th> : null}
                                 </tr>
                             </thead>
@@ -82,22 +81,29 @@ export default async function FlagsPage() {
                                                     {flag.is_enabled ? 'On' : 'Off'}
                                                 </StatusPill>
                                             </Td>
+                                            {/* A real 0 rather than the table's
+                                                em dash: no tenant deviating
+                                                from this default is a fact
+                                                worth stating, and the dash
+                                                read as missing data. */}
                                             <Td align="right" numeric>
-                                                {overriddenCount === 0 ? '—' : `${overriddenCount} tenants`}
+                                                <span
+                                                    className={
+                                                        overriddenCount === 0
+                                                            ? 'text-[var(--p-ink-3)]'
+                                                            : 'font-medium text-[var(--p-ink)]'
+                                                    }
+                                                >
+                                                    {overriddenCount}
+                                                </span>
                                             </Td>
                                             {canWrite ? (
                                                 <Td align="right">
-                                                    <form action={setFlagDefault}>
-                                                        <input type="hidden" name="flagId" value={flag.id} />
-                                                        <input
-                                                            type="hidden"
-                                                            name="enabled"
-                                                            value={String(!flag.is_enabled)}
-                                                        />
-                                                        <Button type="submit" size="sm" tone="secondary">
-                                                            Turn {flag.is_enabled ? 'off' : 'on'}
-                                                        </Button>
-                                                    </form>
+                                                    <FlagDefaultToggle
+                                                        flagId={flag.id}
+                                                        flagKey={flag.key}
+                                                        enabled={flag.is_enabled}
+                                                    />
                                                 </Td>
                                             ) : null}
                                         </tr>
