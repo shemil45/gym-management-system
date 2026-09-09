@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
 /**
@@ -273,6 +273,7 @@ export function TableShell({
     children,
     className,
     minWidth = 560,
+    dense,
 }: {
     children: ReactNode
     className?: string
@@ -290,6 +291,16 @@ export function TableShell({
      * whose column count is driven by data, like the flag matrix.
      */
     minWidth?: number | 'content'
+    /**
+     * Trades cell gutter for column count.
+     *
+     * The default 14px side padding spends 28px per column on nothing, which
+     * a four-column table inside the 1fr half of a detail page cannot afford:
+     * the feature matrix was overflowing its panel on a desktop, not just a
+     * phone. 10px still separates the columns without the table reaching for
+     * width it does not have.
+     */
+    dense?: boolean
 }) {
     return (
         // `relative` is load-bearing, not decoration. Without it the table's
@@ -299,8 +310,28 @@ export function TableShell({
         // edge on a phone. Positioning the scroller keeps the overflow its own
         // business. Measured on the real page at 390px: 492px of page scroll
         // before, 386 after, with the table still scrolling inside.
-        <div className={cn('relative overflow-x-auto', className)}>
-            <table style={{ minWidth: minWidth === 'content' ? 'max-content' : minWidth }}>
+        <div
+            className={cn('relative overflow-x-auto', className)}
+            // The floor is handed down as a custom property on the wrapper
+            // rather than set as min-width on the table itself, and the
+            // difference is load-bearing. An inline style beats a stylesheet
+            // on the same element no matter what the media query says, so a
+            // floor written onto the table could never be relaxed for one
+            // viewport range. Declared here it merely inherits, and a rule on
+            // the table wins over inheritance without needing !important.
+            style={
+                {
+                    '--p-table-min': minWidth === 'content' ? 'max-content' : `${minWidth}px`,
+                } as CSSProperties
+            }
+        >
+            <table
+                // Padding travels as a data attribute rather than a utility
+                // class for the usual reason: platform.css is unlayered, so
+                // its `.platform-portal td` padding outranks any Tailwind
+                // `px-*` put here and would silently drop it.
+                data-dense={dense ? 'true' : undefined}
+            >
                 {children}
             </table>
         </div>
@@ -311,14 +342,18 @@ export function Th({
     children,
     align = 'left',
     className,
+    hideInSqueeze,
 }: {
     children: ReactNode
     align?: 'left' | 'right' | 'center'
     className?: string
+    /** See the note on Td. Set it on the header and every cell of a column. */
+    hideInSqueeze?: boolean
 }) {
     return (
         <th
             scope="col"
+            data-squeeze-hide={hideInSqueeze ? 'true' : undefined}
             // Alignment travels as a data attribute, not a utility class: the
             // portal's base `th` rule outranks a lone utility and would swallow
             // it. See the matching rules in platform.css.
@@ -338,14 +373,25 @@ export function Td({
     align = 'left',
     numeric,
     className,
+    hideInSqueeze,
 }: {
     children: ReactNode
     align?: 'left' | 'right' | 'center'
     numeric?: boolean
     className?: string
+    /**
+     * Drops this cell in the detail grid's narrowest window. Marks a column
+     * the table can give up before it gives up on fitting; see the media
+     * query in platform.css for the arithmetic and the range.
+     *
+     * A table column is all-or-nothing, so this has to be set on the header
+     * and on every body cell of the same column or the rows go out of step.
+     */
+    hideInSqueeze?: boolean
 }) {
     return (
         <td
+            data-squeeze-hide={hideInSqueeze ? 'true' : undefined}
             className={cn(
                 'border-b border-[var(--p-line-soft)] text-[13px] text-[var(--p-ink-2)]',
                 align === 'right' && 'text-right',
