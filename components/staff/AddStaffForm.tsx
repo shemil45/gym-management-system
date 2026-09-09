@@ -68,6 +68,9 @@ export default function AddStaffForm() {
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
+        // Build the payload while the fields are still enabled: `disabled` inputs are
+        // not successful controls, so they are omitted from FormData entirely.
+        const formData = new FormData(event.currentTarget)
 
         if (password !== confirmPassword) {
             toast.error('Passwords do not match.')
@@ -82,7 +85,6 @@ export default function AddStaffForm() {
         await waitForNextPaint()
         let uploadedPhotoPath: string | null = null
         try {
-            const formData = new FormData(event.currentTarget)
             formData.delete('photo')
             formData.set('role', role)
 
