@@ -253,6 +253,10 @@
 .platform-portal table {
     border-collapse: collapse;
     width: 100%;
+    /* Set by TableShell's wrapper; 0 for any table that never asked for a
+       floor. Reading it here rather than inline on the table is what lets the
+       squeeze window below lift it. */
+    min-width: var(--p-table-min, 0px);
 }
 
 .platform-portal th {
@@ -279,6 +283,47 @@
 .platform-portal td,
 .platform-portal th {
     padding: 9px 14px;
+}
+
+/* Dense table. See TableShell's `dense` prop for why a table would want this.
+
+   `:is(td, th)` keeps the selector at one class plus the attribute rather than
+   two separate rules, and still outscores the padding above, which the
+   unlayered sheet would otherwise apply last. */
+.platform-portal table[data-dense='true'] :is(td, th) {
+    padding: 9px 10px;
+}
+
+/* The squeeze: the one window where a detail page's main column is at its
+   narrowest.
+
+   It is narrowest at 1024 rather than at 320 because two things happen at
+   that breakpoint at once — the 236px rail appears, and the detail grid takes
+   its 340px sidebar — and the main column pays for both:
+
+     1024px - 236 rail - 64 page padding - 340 sidebar - 20 gap = 364px
+     1199px - 236      - 64              - 340         - 20     = 539px
+
+   Below 1024 the rail is hidden and the grid collapses to one column, so the
+   table gets nearly the whole viewport and is comfortable again. Above 1199
+   the column has grown past what the feature matrix needs. Only in between is
+   a column worth dropping, so the rule is bounded on both sides rather than
+   left open as a max-width.
+
+   The cells opt in through Td/Th's `hideInSqueeze`. */
+@media (min-width: 1024px) and (max-width: 1199px) {
+    .platform-portal [data-squeeze-hide='true'] {
+        display: none;
+    }
+
+    /* Dropping a column buys nothing while a floor holds the table wider than
+       the column it dropped it for. A table that gave something up here has
+       already said it would rather fit than keep its shape, so it spends the
+       window at its own min-content and the floor goes back to guarding the
+       phone, which is what it was for. */
+    .platform-portal table:has([data-squeeze-hide='true']) {
+        --p-table-min: 0px;
+    }
 }
 
 /* Controls */
@@ -327,12 +372,18 @@
 
    Width goes back to auto because the 100% above is meant for a form column,
    not a table cell; the floor keeps a grid of these from going ragged as the
-   selected option changes length. */
+   selected option changes length.
+
+   The floor sits under the widest option one of these actually carries
+   ("Force off"), so it steadies a ragged column without padding every one of
+   them. That also means the floor is not what sets the width in practice: a
+   native select is as wide as its text plus the arrow the browser draws, so
+   narrowing one is a matter of its padding, not its min-width. */
 .p-input[data-size='sm'] {
     width: auto;
-    min-width: 104px;
+    min-width: 84px;
     height: 30px;
-    padding: 0 9px;
+    padding: 0 7px;
     font-size: 12.5px;
 }
 
@@ -470,11 +521,20 @@
 
 /* Fixed width across every state, for both the matrix cell and the defaults
    toggle. Their labels run Set / Turn off -> Saving -> Saved, and a button
-   that resized mid-save would shove its neighbouring column sideways. Sized
-   for the widest state, "Saving" plus its spinner, so the narrower states pad
-   rather than the wide ones grow. */
+   that resized mid-save would shove its neighbouring column sideways.
+
+   The floor has to clear the widest state or it stops doing its job: min-width
+   is a floor, not a cap, so a label that outgrows it makes that one state wider
+   than its neighbours — the exact jitter this prevents. Widest is "Saving"
+   plus its 13px spinner and 7px gap, which is why the pair moves together:
+   the padding below comes off first, and the floor follows it down.
+
+   It overrides the padding from [data-size='sm'] by sitting later in this
+   file at equal specificity, and applies only to these two controls rather
+   than to every small button in the portal. */
 .p-btn[data-armed] {
-    min-width: 84px;
+    min-width: 78px;
+    padding: 0 8px;
 }
 
 /* Status pill. Carries a dot AND a label so state never depends on hue

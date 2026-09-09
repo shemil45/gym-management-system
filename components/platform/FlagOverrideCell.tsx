@@ -37,6 +37,7 @@ export default function FlagOverrideCell({
     tenantName,
     defaultEnabled,
     value: savedValue,
+    showDefaultHint = true,
 }: {
     gymId: string
     flagId: string
@@ -44,6 +45,16 @@ export default function FlagOverrideCell({
     tenantName: string
     defaultEnabled: boolean
     value: OverrideValue
+    /**
+     * Whether the inherit option spells out what it currently inherits.
+     *
+     * A select is as wide as its widest option, and "Inherit (on)" is that
+     * option, so the hint costs the column about 20px in every cell. On the
+     * flags matrix that is worth paying: the platform default appears nowhere
+     * else in the grid. A table that already carries a default column pays for
+     * the same fact twice, so it turns the hint off and gets the width back.
+     */
+    showDefaultHint?: boolean
 }) {
     const [state, formAction, pending] = useActionState(setFeatureOverrideState, INITIAL)
 
@@ -108,7 +119,9 @@ export default function FlagOverrideCell({
                     data-size="sm"
                     className="p-input"
                 >
-                    <option value="inherit">Inherit ({defaultEnabled ? 'on' : 'off'})</option>
+                    <option value="inherit">
+                        {showDefaultHint ? `Inherit (${defaultEnabled ? 'on' : 'off'})` : 'Inherit'}
+                    </option>
                     <option value="on">Force on</option>
                     <option value="off">Force off</option>
                 </select>

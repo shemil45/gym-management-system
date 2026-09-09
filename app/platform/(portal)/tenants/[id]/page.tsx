@@ -349,19 +349,35 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                             />
                         </div>
 
-                        <TableShell minWidth={680}>
+                        {/* This table lives in the 1fr half of the detail grid,
+                            so it has roughly 640px, not the full page. Four
+                            columns fit that only if none of them is paying for
+                            width it does not use: hence dense gutters, headers
+                            short enough not to set a column's floor on their
+                            own ("Platform default" was 112px of nowrap header
+                            over a two-character value), and a select that stops
+                            repeating the default column next to it. The floor
+                            drops to the point where the columns genuinely stop
+                            fitting, so the scrollbar is a phone affordance
+                            again rather than a permanent fixture. */}
+                        <TableShell minWidth={520} dense>
                             <thead>
                                 <tr>
                                     <Th>Feature</Th>
-                                    <Th>Platform default</Th>
-                                    <Th>This tenant</Th>
+                                    <Th hideInSqueeze>Default</Th>
+                                    <Th>Status</Th>
                                     {canFlags ? <Th align="center">Set</Th> : null}
                                 </tr>
                             </thead>
                             <tbody>
                                 {flags.map((flag) => (
                                     <tr key={flag.id} className="p-row">
-                                        <Td>
+                                        {/* The one column that may wrap takes
+                                            whatever the other three leave, so
+                                            a long description reflows instead
+                                            of pushing the table past the
+                                            panel. */}
+                                        <Td className="w-full">
                                             <span className="p-num text-[12.5px] font-medium text-[var(--p-ink)]">
                                                 {flag.key}
                                             </span>
@@ -371,8 +387,16 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                                                 </span>
                                             ) : null}
                                         </Td>
-                                        <Td>{flag.is_enabled ? 'On' : 'Off'}</Td>
-                                        <Td>
+                                        {/* First column to go when the main
+                                            column is at its narrowest: it
+                                            carries the least per pixel, and
+                                            the Status column beside it still
+                                            says what the tenant actually
+                                            gets. */}
+                                        <Td hideInSqueeze className="whitespace-nowrap">
+                                            {flag.is_enabled ? 'On' : 'Off'}
+                                        </Td>
+                                        <Td className="whitespace-nowrap">
                                             <StatusPill tone={flag.effective ? 'ok' : 'idle'}>
                                                 {flag.effective ? 'Enabled' : 'Disabled'}
                                             </StatusPill>
@@ -383,7 +407,11 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                                             ) : null}
                                         </Td>
                                         {canFlags ? (
-                                            <Td align="center">
+                                            <Td align="center" className="whitespace-nowrap">
+                                                {/* text-align does not move a
+                                                    block-level form, so the
+                                                    centring the header implies
+                                                    still needs a flex row. */}
                                                 <div className="flex justify-center">
                                                     <FlagOverrideCell
                                                         gymId={tenant.id}
@@ -391,6 +419,10 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                                                         flagKey={flag.key}
                                                         tenantName={tenant.name}
                                                         defaultEnabled={flag.is_enabled}
+                                                        // The Default column
+                                                        // one over already says
+                                                        // what inherit follows.
+                                                        showDefaultHint={false}
                                                         value={
                                                             flag.override
                                                                 ? flag.override.is_enabled
