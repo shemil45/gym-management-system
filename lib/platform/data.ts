@@ -77,37 +77,52 @@ export type PlatformOverview = {
 export const getTenantSummaries = cache(async (): Promise<TenantSummary[]> => {
     const db = service()
 
-    const [gymsResult, subscriptionsResult, membersResult, adminsResult] = await Promise.all([
+    /*
+      The counts come from a view, not from the rows.
+
+      This used to select every members row and every admins row on the
+      platform and tally them here. That is one row over the wire per member
+      of every gym, on a page that wants a single integer per gym, and it runs
+      on the directory, the dashboard, the billing overview and the alert
+      tray. It was also quietly unsafe: PostgREST caps an unbounded select, so
+      past that cap the tallies would have come back wrong rather than failed.
+
+      public.gym_directory_counts does the counting in Postgres against
+      indexes that already lead with gym_id.
+    */
+    const [gymsResult, subscriptionsResult, countsResult] = await Promise.all([
         db.from('gyms').select('*').order('created_at', { ascending: false }),
         db.from('gym_subscriptions').select('*, plan:platform_subscription_plans(*)'),
-        db.from('members').select('id, gym_id'),
-        db.from('admins').select('id, gym_id'),
+        db.from('gym_directory_counts').select('gym_id, member_count, staff_count'),
     ])
 
     const gyms = (gymsResult.data ?? []) as PlatformGym[]
     const subscriptions = (subscriptionsResult.data ?? []) as SubscriptionWithPlan[]
-    const members = (membersResult.data ?? []) as Array<{ id: string; gym_id: string }>
-    const staff = (adminsResult.data ?? []) as Array<{ id: string; gym_id: string }>
+    const counts = (countsResult.data ?? []) as Array<{
+        gym_id: string
+        member_count: number | string
+        staff_count: number | string
+    }>
 
     const subscriptionByGym = new Map(subscriptions.map((row) => [row.gym_id, row]))
 
-    const memberCounts = new Map<string, number>()
-    for (const member of members) {
-        memberCounts.set(member.gym_id, (memberCounts.get(member.gym_id) ?? 0) + 1)
-    }
-
-    const staffCounts = new Map<string, number>()
-    for (const entry of staff) {
-        staffCounts.set(entry.gym_id, (staffCounts.get(entry.gym_id) ?? 0) + 1)
-    }
+    // count(*) is a bigint, which PostgREST is free to hand back as a string.
+    // Coercing here keeps that detail out of every consumer of TenantSummary.
+    const countsByGym = new Map(
+        counts.map((row) => [
+            row.gym_id,
+            { members: Number(row.member_count) || 0, staff: Number(row.staff_count) || 0 },
+        ]),
+    )
 
     return gyms.map((gym) => {
         const subscription = subscriptionByGym.get(gym.id) ?? null
+        const tallies = countsByGym.get(gym.id)
         return {
             ...gym,
             subscription,
-            memberCount: memberCounts.get(gym.id) ?? 0,
-            staffCount: staffCounts.get(gym.id) ?? 0,
+            memberCount: tallies?.members ?? 0,
+            staffCount: tallies?.staff ?? 0,
             mrr: monthlyEquivalent(subscription),
         }
     })

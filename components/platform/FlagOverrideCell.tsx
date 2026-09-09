@@ -102,7 +102,11 @@ export default function FlagOverrideCell({
                     disabled={pending}
                     aria-describedby={statusId}
                     onChange={(event) => setChoice(event.target.value as OverrideValue)}
-                    className="p-input h-8 w-[104px] text-[12px]"
+                    // Sizing lives in the stylesheet, not in utilities:
+                    // platform.css is unlayered, so .p-input beats any
+                    // Tailwind height, width or font-size put here.
+                    data-size="sm"
+                    className="p-input"
                 >
                     <option value="inherit">Inherit ({defaultEnabled ? 'on' : 'off'})</option>
                     <option value="on">Force on</option>

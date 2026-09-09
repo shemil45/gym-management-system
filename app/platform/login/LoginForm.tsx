@@ -54,7 +54,8 @@ export default function PlatformLoginForm() {
                         required
                         disabled={pending}
                         aria-invalid={state.error ? true : undefined}
-                        className="p-input pr-10"
+                        data-icon="trailing"
+                        className="p-input"
                     />
                     <button
                         type="button"

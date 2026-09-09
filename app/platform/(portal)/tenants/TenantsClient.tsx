@@ -43,6 +43,46 @@ function monogram(name: string): string {
     return words[0][0] + words[1][0]
 }
 
+/**
+ * Rows per page.
+ *
+ * The whole directory still arrives in one payload and is still filtered in
+ * memory, so this is about what gets *rendered*: eight columns plus a
+ * monogram per row is enough DOM that a few hundred tenants make filtering
+ * visibly stutter, which is the one thing this page was built not to do.
+ * Twenty-five fills a laptop viewport without asking anyone to scroll to find
+ * the pager.
+ */
+const PAGE_SIZE = 25
+
+/**
+ * Which page numbers to draw: always the first and last, always the current
+ * and its neighbours, with a gap marker standing in for whatever that skips.
+ * Keeps the pager one line wide at 3 pages and at 300.
+ */
+function pageWindow(current: number, total: number): Array<number | 'gap'> {
+    if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1)
+
+    const pages = new Set([1, total, current, current - 1, current + 1])
+    // Anchor the ends so the row does not change width as the current page
+    // walks past the second or second-to-last position.
+    if (current <= 3) [2, 3, 4].forEach((page) => pages.add(page))
+    if (current >= total - 2) [total - 3, total - 2, total - 1].forEach((page) => pages.add(page))
+
+    const shown = [...pages].filter((page) => page >= 1 && page <= total).sort((a, b) => a - b)
+
+    return shown.flatMap((page, index) => {
+        if (index === 0) return [page]
+
+        const skipped = page - shown[index - 1] - 1
+        if (skipped === 0) return [page]
+        // A gap hiding a single page takes as much room as the page would and
+        // tells you less, so draw the page instead.
+        if (skipped === 1) return [page - 1, page]
+        return ['gap' as const, page]
+    })
+}
+
 /** The trial countdown, or null when this tenant has no trial to count. */
 function trialNote(tenant: TenantSummary): string | null {
     if (tenant.platform_status !== 'trialing') return null
@@ -55,16 +95,34 @@ export default function TenantsDirectory({
     tenants,
     initialStatus,
     initialQuery,
+    initialPage,
 }: {
     tenants: TenantSummary[]
     initialStatus: string
     initialQuery: string
+    initialPage: number
 }) {
-    const [status, setStatus] = useState<FilterKey>(
+    const [status, setStatusRaw] = useState<FilterKey>(
         isFilterKey(initialStatus) ? initialStatus : 'all',
     )
-    const [query, setQuery] = useState(initialQuery)
+    const [query, setQueryRaw] = useState(initialQuery)
+    const [page, setPage] = useState(initialPage)
     const router = useRouter()
+
+    // Narrowing the list has to send you back to its first page, or a search
+    // from page 9 lands on an empty page 9 of 2. Done in the setters rather
+    // than in an effect watching the filters: an effect would reset the page
+    // on its own schedule, including on mount, which would throw away the
+    // page a shared link asked for.
+    const setStatus = (next: FilterKey) => {
+        setStatusRaw(next)
+        setPage(1)
+    }
+
+    const setQuery = (next: string) => {
+        setQueryRaw(next)
+        setPage(1)
+    }
 
     // Typing stays responsive on a large directory: the input updates on every
     // keystroke, the list is allowed to lag a frame behind it.
@@ -137,6 +195,19 @@ export default function TenantsDirectory({
             })
     }, [indexed, status, deferredQuery])
 
+    const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE))
+
+    // Clamped rather than corrected in state. A filter that shrinks the list
+    // under the current page, or a hand-typed ?page=99, should show the last
+    // real page instead of an empty one, and deriving it means no write-back
+    // during render.
+    const safePage = Math.min(Math.max(page, 1), pageCount)
+    const firstOnPage = (safePage - 1) * PAGE_SIZE
+    const pageItems = useMemo(
+        () => visible.slice(firstOnPage, firstOnPage + PAGE_SIZE),
+        [visible, firstOnPage],
+    )
+
     /*
       Keep the address bar in step without navigating.
 
@@ -149,10 +220,18 @@ export default function TenantsDirectory({
         const params = new URLSearchParams()
         if (deferredQuery.trim()) params.set('q', deferredQuery.trim())
         if (status !== 'all') params.set('status', status)
+        if (safePage > 1) params.set('page', String(safePage))
 
         const search = params.toString()
         window.history.replaceState(null, '', search ? `?${search}` : window.location.pathname)
-    }, [status, deferredQuery])
+    }, [status, deferredQuery, safePage])
+
+    const goToPage = (next: number) => {
+        setPage(Math.min(Math.max(next, 1), pageCount))
+        // The pager sits below the fold on a full page of rows, so paging
+        // without this leaves you looking at the middle of the new page.
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
 
     const filtered = status !== 'all' || query.trim().length > 0
 
@@ -274,7 +353,8 @@ export default function TenantsDirectory({
                                 onChange={(event) => setQuery(event.target.value)}
                                 placeholder="Name, email, subdomain, city"
                                 aria-label="Search tenants"
-                                className="p-input w-full pl-9 pr-9"
+                                data-icon="leading trailing"
+                                className="p-input w-full"
                             />
                             {query ? (
                                 <button
@@ -302,9 +382,36 @@ export default function TenantsDirectory({
                     aria-live="polite"
                     className="border-b border-[var(--p-line-soft)] px-4 py-2 text-[11.5px] text-[var(--p-ink-3)]"
                 >
-                    <span className="p-num text-[var(--p-ink-2)]">{visible.length}</span> of{' '}
-                    <span className="p-num text-[var(--p-ink-2)]">{tenants.length}</span>{' '}
-                    {tenants.length === 1 ? 'tenant' : 'tenants'}
+                    {visible.length === 0 ? (
+                        <>
+                            <span className="p-num text-[var(--p-ink-2)]">0</span> of{' '}
+                            <span className="p-num text-[var(--p-ink-2)]">{tenants.length}</span>{' '}
+                            {tenants.length === 1 ? 'tenant' : 'tenants'}
+                        </>
+                    ) : (
+                        <>
+                            {/* The range, not just the count: on page 4 of a
+                                filtered directory "25 of 312" cannot tell you
+                                where in the list you are standing. */}
+                            <span className="p-num text-[var(--p-ink-2)]">
+                                {firstOnPage + 1}-{firstOnPage + pageItems.length}
+                            </span>{' '}
+                            of <span className="p-num text-[var(--p-ink-2)]">{visible.length}</span>
+                            {visible.length === tenants.length ? null : (
+                                <>
+                                    {' '}
+                                    matching
+                                </>
+                            )}{' '}
+                            {visible.length === 1 ? 'tenant' : 'tenants'}
+                            {visible.length === tenants.length ? null : (
+                                <span className="text-[var(--p-ink-3)]">
+                                    {' '}
+                                    (of {tenants.length})
+                                </span>
+                            )}
+                        </>
+                    )}
                 </p>
 
                 {visible.length === 0 ? (
@@ -327,7 +434,7 @@ export default function TenantsDirectory({
                     <>
                         {/* Phone: cards. Eight columns do not survive 380px. */}
                         <ul className="flex flex-col gap-px bg-[var(--p-line-soft)] md:hidden">
-                            {visible.map((tenant) => {
+                            {pageItems.map((tenant) => {
                                 const tone = tenantStatusTone(tenant.platform_status)
                                 const note = trialNote(tenant)
 
@@ -408,21 +515,25 @@ export default function TenantsDirectory({
                             <TableShell>
                                 <thead>
                                     <tr>
+                                        {/* Only the tenant name is read as a
+                                            column of text. Everything else is
+                                            a short token, so it is centred
+                                            under its own heading. */}
                                         <Th>Tenant</Th>
-                                        <Th>Status</Th>
-                                        <Th>Onboarding</Th>
-                                        <Th>Plan</Th>
-                                        <Th align="right">Members</Th>
-                                        <Th align="right">Staff</Th>
-                                        <Th align="right">MRR</Th>
-                                        <Th align="right">Joined</Th>
-                                        <Th>
+                                        <Th align="center">Status</Th>
+                                        <Th align="center">Onboarding</Th>
+                                        <Th align="center">Plan</Th>
+                                        <Th align="center">Members</Th>
+                                        <Th align="center">Staff</Th>
+                                        <Th align="center">MRR</Th>
+                                        <Th align="center">Joined</Th>
+                                        <Th align="center">
                                             <span className="sr-only">Open</span>
                                         </Th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {visible.map((tenant) => {
+                                    {pageItems.map((tenant) => {
                                         const tone = tenantStatusTone(tenant.platform_status)
                                         const onboarding = tenantStatusTone(tenant.onboarding_status)
                                         const note = trialNote(tenant)
@@ -462,7 +573,7 @@ export default function TenantsDirectory({
                                                         </span>
                                                     </div>
                                                 </Td>
-                                                <Td>
+                                                <Td align="center">
                                                     <StatusPill tone={tone.tone}>{tone.label}</StatusPill>
                                                     {note ? (
                                                         <span className="p-num mt-1 block text-[11px] text-[var(--p-ink-3)]">
@@ -470,29 +581,36 @@ export default function TenantsDirectory({
                                                         </span>
                                                     ) : null}
                                                 </Td>
-                                                <Td>
+                                                <Td align="center">
                                                     <StatusPill tone={onboarding.tone}>
                                                         {onboarding.label}
                                                     </StatusPill>
                                                 </Td>
-                                                <Td>{tenant.subscription?.plan?.name ?? '—'}</Td>
-                                                <Td align="right" numeric>
+                                                <Td align="center">
+                                                    {tenant.subscription?.plan?.name ?? '—'}
+                                                </Td>
+                                                <Td align="center" numeric>
                                                     {tenant.memberCount}
                                                 </Td>
-                                                <Td align="right" numeric>
+                                                <Td align="center" numeric>
                                                     {tenant.staffCount}
                                                 </Td>
-                                                <Td align="right" numeric>
+                                                <Td align="center" numeric>
                                                     {tenant.subscription?.status === 'active'
                                                         ? formatCurrency(tenant.mrr)
                                                         : '—'}
                                                 </Td>
-                                                <Td align="right" numeric className="whitespace-nowrap">
+                                                <Td align="center" numeric className="whitespace-nowrap">
                                                     {formatDate(tenant.created_at)}
                                                 </Td>
-                                                <Td className="w-8">
+                                                <Td align="center" className="w-8">
                                                     {opening ? (
-                                                        <span className="p-defer-in flex text-[var(--p-accent)]">
+                                                        // A flex box ignores the
+                                                        // cell's text-align, so
+                                                        // it centres itself and
+                                                        // the chevron it stands
+                                                        // in for cannot shift.
+                                                        <span className="p-defer-in flex justify-center text-[var(--p-accent)]">
                                                             <IconLoader2
                                                                 size={15}
                                                                 stroke={2}
@@ -515,6 +633,61 @@ export default function TenantsDirectory({
                                 </tbody>
                             </TableShell>
                         </div>
+
+                        {pageCount > 1 ? (
+                            <nav
+                                aria-label="Tenant pages"
+                                className="flex flex-col items-center justify-between gap-2 border-t border-[var(--p-line-soft)] px-3 py-2.5 sm:flex-row"
+                            >
+                                <p className="text-[11.5px] text-[var(--p-ink-3)]">
+                                    Page <span className="p-num">{safePage}</span> of{' '}
+                                    <span className="p-num">{pageCount}</span>
+                                </p>
+
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        type="button"
+                                        className="p-page"
+                                        onClick={() => goToPage(safePage - 1)}
+                                        disabled={safePage === 1}
+                                    >
+                                        Prev
+                                    </button>
+
+                                    {pageWindow(safePage, pageCount).map((entry, index) =>
+                                        entry === 'gap' ? (
+                                            <span
+                                                key={`gap-${index}`}
+                                                aria-hidden="true"
+                                                className="p-page-gap"
+                                            >
+                                                ...
+                                            </span>
+                                        ) : (
+                                            <button
+                                                key={entry}
+                                                type="button"
+                                                className="p-page"
+                                                aria-label={`Page ${entry}`}
+                                                aria-current={entry === safePage ? 'page' : undefined}
+                                                onClick={() => goToPage(entry)}
+                                            >
+                                                {entry}
+                                            </button>
+                                        ),
+                                    )}
+
+                                    <button
+                                        type="button"
+                                        className="p-page"
+                                        onClick={() => goToPage(safePage + 1)}
+                                        disabled={safePage === pageCount}
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            </nav>
+                        ) : null}
                     </>
                 )}
             </div>

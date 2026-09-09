@@ -292,6 +292,47 @@
     appearance: none;
 }
 
+/* Room for something sitting inside the field.
+
+   This has to live here rather than as a `pl-9` on the input. platform.css is
+   imported by the platform layout, so it loads AFTER Tailwind's utilities,
+   and `.p-input` and `.pl-9` are both a single class: equal specificity, so
+   the later sheet wins and the utility is silently dropped. The text then
+   starts at the field's own 11px and runs underneath the icon.
+
+   The values clear the affordances actually in use: a 14px search glyph at
+   12px from the edge, and a 32px reveal button 4px from it. */
+.p-input[data-icon~='leading'] {
+    padding-left: 36px;
+}
+
+.p-input[data-icon~='trailing'] {
+    padding-right: 40px;
+}
+
+/* Compact field, for a control that sits inline with other controls rather
+   than in a form. Deliberately the same 30px and 12.5px as
+   .p-btn[data-size='sm'], so a select and the button that applies it share a
+   baseline instead of missing each other by 8px.
+
+   Width goes back to auto because the 100% above is meant for a form column,
+   not a table cell; the floor keeps a grid of these from going ragged as the
+   selected option changes length. */
+.p-input[data-size='sm'] {
+    width: auto;
+    min-width: 104px;
+    height: 30px;
+    padding: 0 9px;
+    font-size: 12.5px;
+}
+
+/* A textarea has to size to its rows. The fixed control height above is for
+   single-line fields and would otherwise crush a 4-row box into one line. */
+.p-input[data-multiline='true'] {
+    height: auto;
+    padding: 8px 11px;
+}
+
 .p-input::placeholder {
     /* --p-ink-3 is the AA floor; placeholders must not go lighter. */
     color: var(--p-ink-3);
@@ -762,6 +803,69 @@
 .p-seg[aria-pressed='true'] .p-seg-count {
     background: var(--p-accent-wash);
     color: var(--p-accent-wash-ink);
+}
+
+/* Pager.
+
+   Square targets rather than the standard button height: a row of them is
+   read as one control, and 30px keeps that row from outweighing the table it
+   belongs to. Digits are monospaced so the boxes stop resizing as the page
+   number climbs into double figures. */
+.p-page {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    height: 30px;
+    padding: 0 8px;
+    border: 1px solid transparent;
+    border-radius: var(--p-r-control);
+    background: transparent;
+    color: var(--p-ink-2);
+    font-family: var(--p-font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 12.5px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.16s var(--p-ease), color 0.16s var(--p-ease),
+        border-color 0.16s var(--p-ease);
+}
+
+.p-page:hover:not(:disabled) {
+    background: var(--p-surface-2);
+    color: var(--p-ink);
+}
+
+.p-page:disabled {
+    color: var(--p-ink-3);
+    cursor: not-allowed;
+}
+
+/* The current page is a destination, not a button: it reads as pressed and
+   stops responding to hover, so the row shows position rather than offering
+   the same place twice. */
+.p-page[aria-current='page'] {
+    background: var(--p-surface);
+    border-color: var(--p-line);
+    color: var(--p-ink);
+    font-weight: 500;
+    cursor: default;
+}
+
+.platform-portal.dark .p-page[aria-current='page'] {
+    background: var(--p-surface-3);
+}
+
+/* The gap marker is not interactive and must not look it. */
+.p-page-gap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 30px;
+    color: var(--p-ink-3);
+    font-size: 12.5px;
+    user-select: none;
 }
 
 /* Monogram plate. Gives every row a fixed optical anchor on the left edge,
