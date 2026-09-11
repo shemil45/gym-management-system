@@ -5,9 +5,10 @@ import { getPlatformAlerts } from '@/lib/platform/data'
 import { formatPlatformRole } from '@/lib/platform/types'
 import PlatformChrome from '@/components/platform/PlatformChrome'
 import { ThemeToggle } from '@/components/platform/PlatformTheme'
+import SessionCountdown from '@/components/platform/SessionCountdown'
+import { ResumeSessionButton, SessionSubmitButton } from '@/components/platform/SupportSessionControls'
 import type { PlatformNotificationItem } from '@/components/platform/PlatformNotifications'
 import { signOutOfPlatform, stopImpersonation } from '@/app/platform/actions'
-import { Button } from '@/components/platform/ui'
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
     const session = await requirePlatformSession()
@@ -80,13 +81,23 @@ export default async function PortalLayout({ children }: { children: React.React
                             <p className="text-[12.5px] leading-[1.5] text-[var(--p-warn-ink)]">
                                 <strong className="font-semibold">Support session open</strong> on{' '}
                                 {session.impersonation.gymName ?? 'a tenant'}. Your writes in the gym
-                                workspace are recorded against your platform account.
+                                workspace are recorded against your platform account. Expires in{' '}
+                                <SessionCountdown
+                                    expiresAt={session.impersonation.expires_at}
+                                    className="p-num font-semibold"
+                                />
+                                .
                             </p>
-                            <form action={stopImpersonation} className="shrink-0">
-                                <Button tone="secondary" size="sm" type="submit">
-                                    End session
-                                </Button>
-                            </form>
+                            {/* Both ways out of this state: the session is
+                                still open in the DB after any navigation
+                                back up here, so "Resume" is the missing
+                                half of "End". */}
+                            <div className="flex shrink-0 items-center gap-2">
+                                <ResumeSessionButton tone="primary">Resume</ResumeSessionButton>
+                                <form action={stopImpersonation}>
+                                    <SessionSubmitButton pendingLabel="Ending">End session</SessionSubmitButton>
+                                </form>
+                            </div>
                         </div>
                     </div>
                 ) : null}

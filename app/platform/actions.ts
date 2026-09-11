@@ -213,7 +213,10 @@ export async function stopImpersonation(): Promise<void> {
     }
 
     revalidatePath('/', 'layout')
-    redirect('/platform')
+    // Back to the tenant they were just inside: ending a session is nearly
+    // always followed by writing a note or changing something on that page.
+    const gymId = session.impersonation?.gym_id
+    redirect(gymId ? `/platform/tenants/${gymId}` : '/platform')
 }
 
 /**
