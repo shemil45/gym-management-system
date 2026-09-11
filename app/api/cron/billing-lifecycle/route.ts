@@ -120,7 +120,7 @@ export async function GET(request: Request) {
         //    else opens the grace window instead.
         const lapsed = await db
             .from('gym_subscriptions')
-            .select('id, gym_id, cancel_at_period_end, current_period_end, plan:platform_subscription_plans(grace_period_days)')
+            .select('id, gym_id, cancel_at_period_end, current_period_end, plan:platform_subscription_plans!gym_subscriptions_plan_id_fkey(grace_period_days)')
             .eq('status', 'active')
             .lt('current_period_end', nowIso)
 

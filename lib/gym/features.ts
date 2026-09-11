@@ -49,7 +49,7 @@ export const getGymFeatureState = cache(async (gymId: string): Promise<GymFeatur
         db.from('gym_feature_overrides').select('feature_flag_id, is_enabled').eq('gym_id', gymId),
         db
             .from('gym_subscriptions')
-            .select('plan_entitlements, plan:platform_subscription_plans(max_members, max_staff, features)')
+            .select('plan_entitlements, plan:platform_subscription_plans!gym_subscriptions_plan_id_fkey(max_members, max_staff, features)')
             .eq('gym_id', gymId)
             .maybeSingle(),
     ])

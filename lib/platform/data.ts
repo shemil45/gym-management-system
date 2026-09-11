@@ -92,7 +92,11 @@ export const getTenantSummaries = cache(async (): Promise<TenantSummary[]> => {
     */
     const [gymsResult, subscriptionsResult, countsResult] = await Promise.all([
         db.from('gyms').select('*').order('created_at', { ascending: false }),
-        db.from('gym_subscriptions').select('*, plan:platform_subscription_plans(*)'),
+        // The FK is named because gym_subscriptions also points at plans via
+        // pending_plan_id; an unqualified embed is ambiguous and PostgREST
+        // returns an error, which `data ?? []` would quietly turn into "no
+        // subscriptions anywhere".
+        db.from('gym_subscriptions').select('*, plan:platform_subscription_plans!gym_subscriptions_plan_id_fkey(*)'),
         db.from('gym_directory_counts').select('gym_id, member_count, staff_count'),
     ])
 
@@ -258,7 +262,7 @@ export async function getTenantDetail(gymId: string): Promise<TenantDetail> {
         membersResult,
     ] = await Promise.all([
         db.from('gyms').select('*').eq('id', gymId).maybeSingle(),
-        db.from('gym_subscriptions').select('*, plan:platform_subscription_plans(*)').eq('gym_id', gymId).maybeSingle(),
+        db.from('gym_subscriptions').select('*, plan:platform_subscription_plans!gym_subscriptions_plan_id_fkey(*)').eq('gym_id', gymId).maybeSingle(),
         db.from('platform_subscription_plans').select('*').eq('is_active', true).order('price_monthly'),
         db.from('gym_subscription_invoices').select('*').eq('gym_id', gymId).order('issued_at', { ascending: false }).limit(20),
         db.from('admins').select('id, role, created_at, profile:profiles(full_name)').eq('gym_id', gymId).order('created_at'),
@@ -363,8 +367,8 @@ export type BillingCollection = {
     tenant: TenantSummary
     /** Open invoice balance for this tenant, in rupees. */
     owed: number
-    /** Days past the earliest overdue invoice's due date; null if nothing is overdue yet. */
-    daysOverdue: number | null
+    /** Days until the grace window closes; negative once it has. Null when no grace is running. */
+    graceDaysLeft: number | null
     failedAttempts: number
 }
 
@@ -427,37 +431,39 @@ export async function getBillingOverview(statusFilter?: SubscriptionInvoice['sta
     }>
     const paidInvoices = (paidResult.data ?? []) as Array<{ amount_paid: unknown }>
 
-    // Open balance and overdue-ness per gym, so the collections list can be
-    // built from the tenant list without a second pass over invoices.
-    const openByGym = new Map<string, { owed: number; daysOverdue: number | null }>()
+    // Open balance per gym, so the collections list can be built from the
+    // tenant list without a second pass over invoices.
+    const owedByGym = new Map<string, number>()
     for (const invoice of openInvoices) {
-        const current = openByGym.get(invoice.gym_id) ?? { owed: 0, daysOverdue: null }
-        current.owed += Math.max(Number(invoice.amount_due ?? 0) - Number(invoice.amount_paid ?? 0), 0)
-        const remaining = daysUntil(invoice.due_at)
-        if (remaining !== null && remaining < 0) {
-            const overdue = -remaining
-            current.daysOverdue = current.daysOverdue === null ? overdue : Math.max(current.daysOverdue, overdue)
-        }
-        openByGym.set(invoice.gym_id, current)
+        const balance = Math.max(Number(invoice.amount_due ?? 0) - Number(invoice.amount_paid ?? 0), 0)
+        owedByGym.set(invoice.gym_id, (owedByGym.get(invoice.gym_id) ?? 0) + balance)
     }
 
+    // A tenant needs chasing when a renewal has failed and it is living on
+    // grace, or when it has an open invoice past its due date. There are no
+    // credits on the platform: the only way out is paying or lapsing.
     const collections: BillingCollection[] = tenants
         .flatMap((tenant) => {
-            const open = openByGym.get(tenant.id)
-            const failedAttempts = Number(tenant.subscription?.failed_payment_count ?? 0)
-            const pastDue = tenant.subscription?.status === 'past_due'
-            const overdue = open?.daysOverdue !== null && open?.daysOverdue !== undefined
-            if (!pastDue && failedAttempts === 0 && !overdue) return []
+            const subscription = tenant.subscription
+            const owed = owedByGym.get(tenant.id) ?? 0
+            const failedAttempts = Number(subscription?.failed_payment_count ?? 0)
+            const pastDue = subscription?.status === 'past_due'
+            const overdueInvoice = openInvoices.some((invoice) => {
+                const remaining = daysUntil(invoice.due_at)
+                return invoice.gym_id === tenant.id && remaining !== null && remaining < 0
+            })
+            if (!pastDue && !overdueInvoice) return []
             return [
                 {
                     tenant,
-                    owed: open?.owed ?? 0,
-                    daysOverdue: open?.daysOverdue ?? null,
+                    owed,
+                    graceDaysLeft: pastDue ? daysUntil(subscription?.grace_ends_at) : null,
                     failedAttempts,
                 },
             ]
         })
-        .sort((a, b) => b.owed - a.owed || (b.daysOverdue ?? 0) - (a.daysOverdue ?? 0))
+        // Least grace left first: that is the tenant about to lapse.
+        .sort((a, b) => (a.graceDaysLeft ?? Infinity) - (b.graceDaysLeft ?? Infinity) || b.owed - a.owed)
 
     const renewals: BillingRenewal[] = tenants
         .flatMap((tenant) => {

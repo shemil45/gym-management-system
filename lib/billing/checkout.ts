@@ -324,7 +324,7 @@ export async function recordFailedPayment(razorpayOrderId: string): Promise<void
 
     const subResult = await db
         .from('gym_subscriptions')
-        .select('failed_payment_count, current_period_end, plan:platform_subscription_plans(grace_period_days)')
+        .select('failed_payment_count, current_period_end, plan:platform_subscription_plans!gym_subscriptions_plan_id_fkey(grace_period_days)')
         .eq('gym_id', invoice.gym_id)
         .maybeSingle()
 
