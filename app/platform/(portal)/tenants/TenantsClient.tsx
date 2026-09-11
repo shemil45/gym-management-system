@@ -9,6 +9,7 @@ import {
     EmptyState,
     MetricTile,
     PageHeader,
+    Pager,
     StatusPill,
     TableShell,
     Td,
@@ -54,34 +55,6 @@ function monogram(name: string): string {
  * the pager.
  */
 const PAGE_SIZE = 25
-
-/**
- * Which page numbers to draw: always the first and last, always the current
- * and its neighbours, with a gap marker standing in for whatever that skips.
- * Keeps the pager one line wide at 3 pages and at 300.
- */
-function pageWindow(current: number, total: number): Array<number | 'gap'> {
-    if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1)
-
-    const pages = new Set([1, total, current, current - 1, current + 1])
-    // Anchor the ends so the row does not change width as the current page
-    // walks past the second or second-to-last position.
-    if (current <= 3) [2, 3, 4].forEach((page) => pages.add(page))
-    if (current >= total - 2) [total - 3, total - 2, total - 1].forEach((page) => pages.add(page))
-
-    const shown = [...pages].filter((page) => page >= 1 && page <= total).sort((a, b) => a - b)
-
-    return shown.flatMap((page, index) => {
-        if (index === 0) return [page]
-
-        const skipped = page - shown[index - 1] - 1
-        if (skipped === 0) return [page]
-        // A gap hiding a single page takes as much room as the page would and
-        // tells you less, so draw the page instead.
-        if (skipped === 1) return [page - 1, page]
-        return ['gap' as const, page]
-    })
-}
 
 /** The trial countdown, or null when this tenant has no trial to count. */
 function trialNote(tenant: TenantSummary): string | null {
@@ -638,63 +611,12 @@ export default function TenantsDirectory({
                             </TableShell>
                         </div>
 
-                        {pageCount > 1 ? (
-                            <nav
-                                aria-label="Tenant pages"
-                                className="flex flex-col items-center justify-between gap-2 border-t border-[var(--p-line-soft)] px-3 py-2.5 sm:flex-row"
-                            >
-                                <p className="text-[11.5px] text-[var(--p-ink-3)]">
-                                    Page <span className="p-num">{safePage}</span> of{' '}
-                                    <span className="p-num">{pageCount}</span>
-                                </p>
-
-                                {/* Wraps rather than overflows: Prev, Next and
-                                    up to seven numbers do not fit on one line
-                                    at 360px. */}
-                                <div className="flex flex-wrap items-center justify-center gap-1">
-                                    <button
-                                        type="button"
-                                        className="p-page"
-                                        onClick={() => goToPage(safePage - 1)}
-                                        disabled={safePage === 1}
-                                    >
-                                        Prev
-                                    </button>
-
-                                    {pageWindow(safePage, pageCount).map((entry, index) =>
-                                        entry === 'gap' ? (
-                                            <span
-                                                key={`gap-${index}`}
-                                                aria-hidden="true"
-                                                className="p-page-gap"
-                                            >
-                                                ...
-                                            </span>
-                                        ) : (
-                                            <button
-                                                key={entry}
-                                                type="button"
-                                                className="p-page"
-                                                aria-label={`Page ${entry}`}
-                                                aria-current={entry === safePage ? 'page' : undefined}
-                                                onClick={() => goToPage(entry)}
-                                            >
-                                                {entry}
-                                            </button>
-                                        ),
-                                    )}
-
-                                    <button
-                                        type="button"
-                                        className="p-page"
-                                        onClick={() => goToPage(safePage + 1)}
-                                        disabled={safePage === pageCount}
-                                    >
-                                        Next
-                                    </button>
-                                </div>
-                            </nav>
-                        ) : null}
+                        <Pager
+                            page={safePage}
+                            pageCount={pageCount}
+                            label="Tenant pages"
+                            onSelect={goToPage}
+                        />
                     </>
                 )}
             </div>

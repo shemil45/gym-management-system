@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
+import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
 /**
@@ -402,6 +403,135 @@ export function Td({
         >
             {children}
         </td>
+    )
+}
+
+/* ── pagination ───────────────────────────────────────────────────────── */
+
+/**
+ * Which page numbers to draw: always the first and last, always the current
+ * and its neighbours, with a gap marker standing in for whatever that skips.
+ * Keeps the pager one line wide at 3 pages and at 300.
+ */
+export function pageWindow(current: number, total: number): Array<number | 'gap'> {
+    if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1)
+
+    const pages = new Set([1, total, current, current - 1, current + 1])
+    // Anchor the ends so the row does not change width as the current page
+    // walks past the second or second-to-last position.
+    if (current <= 3) [2, 3, 4].forEach((page) => pages.add(page))
+    if (current >= total - 2) [total - 3, total - 2, total - 1].forEach((page) => pages.add(page))
+
+    const shown = [...pages].filter((page) => page >= 1 && page <= total).sort((a, b) => a - b)
+
+    return shown.flatMap((page, index) => {
+        if (index === 0) return [page]
+
+        const skipped = page - shown[index - 1] - 1
+        if (skipped === 0) return [page]
+        // A gap hiding a single page takes as much room as the page would and
+        // tells you less, so draw the page instead.
+        if (skipped === 1) return [page - 1, page]
+        return ['gap' as const, page]
+    })
+}
+
+/**
+ * Prev / numbered / Next row for the foot of a table.
+ *
+ * Two shapes, because paging means two different things on this portal.
+ * Pass `href` when a page is a URL - the server re-queries and the browser
+ * gets a real link to open in a new tab. Pass `onSelect` when the rows are
+ * already in memory and a page is just a slice of them. Never draws when
+ * there is only one page: a "Page 1 of 1" is noise under a short table.
+ */
+export function Pager({
+    page,
+    pageCount,
+    label,
+    href,
+    onSelect,
+}: {
+    page: number
+    pageCount: number
+    /** Accessible name for the nav, e.g. "Audit log pages". */
+    label: string
+    href?: (page: number) => string
+    onSelect?: (page: number) => void
+}) {
+    if (pageCount <= 1) return null
+
+    // In link mode this may be rendered by a server component, where a native
+    // element cannot carry an event handler, so onClick is only ever attached
+    // when there is an onSelect to call.
+    const step = (target: number, text: string) => {
+        const disabled = target < 1 || target > pageCount
+        if (href && !disabled) {
+            return (
+                <Link href={href(target)} className="p-page">
+                    {text}
+                </Link>
+            )
+        }
+        return (
+            <button
+                type="button"
+                className="p-page"
+                onClick={onSelect ? () => onSelect(target) : undefined}
+                disabled={disabled}
+            >
+                {text}
+            </button>
+        )
+    }
+
+    return (
+        <nav
+            aria-label={label}
+            className="flex flex-col items-center justify-between gap-2 border-t border-[var(--p-line-soft)] px-3 py-2.5 sm:flex-row"
+        >
+            <p className="text-[11.5px] text-[var(--p-ink-3)]">
+                Page <span className="p-num">{page}</span> of <span className="p-num">{pageCount}</span>
+            </p>
+
+            {/* Wraps rather than overflows: Prev, Next and up to seven numbers
+                do not fit on one line at 360px. */}
+            <div className="flex flex-wrap items-center justify-center gap-1">
+                {step(page - 1, 'Prev')}
+
+                {pageWindow(page, pageCount).map((entry, index) => {
+                    if (entry === 'gap') {
+                        return (
+                            <span key={`gap-${index}`} aria-hidden="true" className="p-page-gap">
+                                ...
+                            </span>
+                        )
+                    }
+                    const current = entry === page
+                    if (href && !current) {
+                        return (
+                            <Link key={entry} href={href(entry)} className="p-page" aria-label={`Page ${entry}`}>
+                                {entry}
+                            </Link>
+                        )
+                    }
+                    return (
+                        <button
+                            key={entry}
+                            type="button"
+                            className="p-page"
+                            aria-label={`Page ${entry}`}
+                            aria-current={current ? 'page' : undefined}
+                            onClick={onSelect ? () => onSelect(entry) : undefined}
+                        >
+                            {entry}
+                        </button>
+                    )
+                })}
+
+                {step(page + 1, 'Next')}
+            </div>
+        </nav>
     )
 }
 
