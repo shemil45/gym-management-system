@@ -10,9 +10,12 @@ import {
     saveTenantNotes,
     setTenantStatus,
     startImpersonation,
+    stopImpersonation,
     updateTenantSubscription,
 } from '@/app/platform/actions'
 import FlagOverrideCell from '@/components/platform/FlagOverrideCell'
+import SessionCountdown from '@/components/platform/SessionCountdown'
+import { ResumeSessionButton, SessionSubmitButton } from '@/components/platform/SupportSessionControls'
 import {
     Button,
     EmptyState,
@@ -69,6 +72,9 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
     const canImpersonate = roleCan(session.admin.role, 'impersonate')
     const canBill = roleCan(session.admin.role, 'billing:write')
     const canFlags = roleCan(session.admin.role, 'flags:write')
+
+    const openSession = session.impersonation
+    const openSessionIsHere = openSession?.gym_id === tenant.id
 
     // The onboarding gate from the architecture plan: contact route plus a
     // claimed subdomain. Everything else stays optional.
@@ -637,31 +643,86 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
 
                     {canImpersonate ? (
                         <Panel>
-                            <PanelHeader
-                                title="Support session"
-                                description="Opens the gym workspace as support. Time-boxed to 2 hours and fully audited."
-                            />
-                            <form action={startImpersonation} className="flex flex-col gap-3">
-                                <input type="hidden" name="gymId" value={tenant.id} />
-                                <Field
-                                    label="Reason"
-                                    name="reason"
-                                    hint="Recorded against your account. Minimum 8 characters."
-                                >
-                                    <input
-                                        id="reason"
-                                        name="reason"
-                                        type="text"
-                                        required
-                                        minLength={8}
-                                        placeholder="Ticket 412: payments not saving"
-                                        className="p-input"
+                            {/* One session per admin at a time, and the DB row
+                                outlives the tab: leaving the gym workspace by
+                                any route other than End session keeps it open.
+                                So while one exists this panel is about that
+                                session (get back in, or close it), never a
+                                form that would silently replace it. */}
+                            {openSession && openSessionIsHere ? (
+                                <>
+                                    <PanelHeader
+                                        title="Support session"
+                                        description={
+                                            <>
+                                                Opened {formatRelative(openSession.started_at)}
+                                                {openSession.reason ? ` — ${openSession.reason}` : ''}. Expires
+                                                in{' '}
+                                                <SessionCountdown
+                                                    expiresAt={openSession.expires_at}
+                                                    className="p-num"
+                                                />
+                                                .
+                                            </>
+                                        }
                                     />
-                                </Field>
-                                <Button type="submit" tone="secondary" size="sm" disabled={isDark}>
-                                    {isDark ? 'Tenant is not active' : 'Open support session'}
-                                </Button>
-                            </form>
+                                    <div className="flex flex-wrap gap-2">
+                                        <ResumeSessionButton tone="primary">Resume session</ResumeSessionButton>
+                                        <form action={stopImpersonation}>
+                                            <SessionSubmitButton pendingLabel="Ending">
+                                                End session
+                                            </SessionSubmitButton>
+                                        </form>
+                                    </div>
+                                </>
+                            ) : openSession ? (
+                                <>
+                                    <PanelHeader
+                                        title="Support session"
+                                        description={`You already have a session open on ${
+                                            openSession.gymName ?? 'another tenant'
+                                        }. End it before opening one here.`}
+                                    />
+                                    <div className="flex flex-wrap gap-2">
+                                        <ResumeSessionButton tone="secondary">
+                                            Resume that session
+                                        </ResumeSessionButton>
+                                        <form action={stopImpersonation}>
+                                            <SessionSubmitButton pendingLabel="Ending">
+                                                End session
+                                            </SessionSubmitButton>
+                                        </form>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <PanelHeader
+                                        title="Support session"
+                                        description="Opens the gym workspace as support. Time-boxed to 2 hours and fully audited."
+                                    />
+                                    <form action={startImpersonation} className="flex flex-col gap-3">
+                                        <input type="hidden" name="gymId" value={tenant.id} />
+                                        <Field
+                                            label="Reason"
+                                            name="reason"
+                                            hint="Recorded against your account. Minimum 8 characters."
+                                        >
+                                            <input
+                                                id="reason"
+                                                name="reason"
+                                                type="text"
+                                                required
+                                                minLength={8}
+                                                placeholder="Ticket 412: payments not saving"
+                                                className="p-input"
+                                            />
+                                        </Field>
+                                        <SessionSubmitButton pendingLabel="Opening" disabled={isDark}>
+                                            {isDark ? 'Tenant is not active' : 'Open support session'}
+                                        </SessionSubmitButton>
+                                    </form>
+                                </>
+                            )}
                         </Panel>
                     ) : null}
 

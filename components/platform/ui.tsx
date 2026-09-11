@@ -69,7 +69,7 @@ export function PanelHeader({
     action,
 }: {
     title: string
-    description?: string
+    description?: ReactNode
     action?: ReactNode
 }) {
     return (

@@ -5,6 +5,7 @@ import { getCurrentAdminContext } from '@/lib/auth/admin-server'
 import { isStaffRole } from '@/lib/auth/roles'
 import { getPlatformSession } from '@/lib/platform/auth'
 import AccountNotice from '@/components/layout/AccountNotice'
+import ImpersonationBanner from '@/components/layout/ImpersonationBanner'
 import { stopImpersonation } from '@/app/platform/actions'
 
 export default async function AdminLayout({
@@ -20,7 +21,11 @@ export default async function AdminLayout({
     }
 
     if (!gym) {
-        redirect('/admin/login')
+        // A platform admin lands here with no gym exactly when their support
+        // session has ended (expired, or closed from another tab): they hold
+        // no tenant membership by design. The tenant login form is the wrong
+        // door for someone still signed in to the platform.
+        redirect(platformSession.admin ? '/platform' : '/admin/login')
     }
 
     if (!profile || !isStaffRole(profile.role) || !isStaff) {
@@ -31,21 +36,11 @@ export default async function AdminLayout({
         <AdminThemeProvider>
             <AdminShell user={{ ...user, ...profile, gym_name: gym.name }}>
                 {platformSession.impersonation ? (
-                    <div className="mb-5 rounded-3xl border border-amber-300/20 bg-amber-300/10 p-4 text-amber-50">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <p className="text-sm font-semibold">Platform impersonation mode is active.</p>
-                                <p className="text-sm text-amber-100/75">
-                                    You are viewing {gym.name} with elevated support access. All actions are audited.
-                                </p>
-                            </div>
-                            <form action={stopImpersonation}>
-                                <button className="rounded-full border border-amber-200/20 bg-amber-50/10 px-4 py-2 text-sm font-medium text-amber-50 transition hover:bg-amber-50/20">
-                                    Exit impersonation
-                                </button>
-                            </form>
-                        </div>
-                    </div>
+                    <ImpersonationBanner
+                        gymName={gym.name}
+                        expiresAt={platformSession.impersonation.expires_at}
+                        stopAction={stopImpersonation}
+                    />
                 ) : null}
 
                 <AccountNotice gymId={gym.id} />
