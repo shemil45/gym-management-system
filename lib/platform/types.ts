@@ -74,6 +74,8 @@ export type GymSubscription = {
     current_period_end: string | null
     next_invoice_at: string | null
     cancelled_at: string | null
+    /** Set when a renewal fails; the subscription cancels once this passes. */
+    grace_ends_at: string | null
     failed_payment_count: number
     notes: string | null
     created_at: string

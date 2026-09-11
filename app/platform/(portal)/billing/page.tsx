@@ -31,6 +31,18 @@ function isInvoiceStatus(value: string | undefined): value is PlatformInvoiceSta
     return INVOICE_FILTERS.some((filter) => filter.key !== 'all' && filter.key === value)
 }
 
+/**
+ * Grace is the countdown that matters on this list: when it hits zero the
+ * subscription lapses on its own, so the last couple of days read as urgent.
+ */
+function describeGrace(daysLeft: number | null): { label: string; tone?: 'danger' } {
+    if (daysLeft === null) return { label: '—' }
+    if (daysLeft < 0) return { label: 'expired', tone: 'danger' }
+    if (daysLeft === 0) return { label: 'ends today', tone: 'danger' }
+    if (daysLeft <= 2) return { label: `${daysLeft}d left`, tone: 'danger' }
+    return { label: `${daysLeft}d left` }
+}
+
 function invoiceTone(status: PlatformInvoiceStatus) {
     if (status === 'paid') return 'ok' as const
     if (status === 'failed') return 'danger' as const
@@ -102,7 +114,7 @@ export default async function BillingPage({
                 <div className="p-4 pb-3">
                     <PanelHeader
                         title="Needs collection"
-                        description="Tenants with a failed charge, a past-due subscription, or an invoice past its due date. Fix the subscription from the tenant page."
+                        description="Renewals that failed and are running on grace, plus any invoice past its due date. Once grace runs out the subscription lapses."
                     />
                 </div>
                 {collections.length === 0 ? (
@@ -118,13 +130,14 @@ export default async function BillingPage({
                                 <Th>Plan</Th>
                                 <Th>State</Th>
                                 <Th align="right">Owed</Th>
-                                <Th align="right">Overdue</Th>
+                                <Th align="right">Grace</Th>
                                 <Th align="right">Failed attempts</Th>
                             </tr>
                         </thead>
                         <tbody>
-                            {collections.map(({ tenant, owed, daysOverdue, failedAttempts }) => {
+                            {collections.map(({ tenant, owed, graceDaysLeft, failedAttempts }) => {
                                 const state = tenantStatusTone(tenant.subscription?.status ?? 'unknown')
+                                const grace = describeGrace(graceDaysLeft)
                                 return (
                                     <tr key={tenant.id} className="p-row">
                                         <Td>
@@ -143,7 +156,9 @@ export default async function BillingPage({
                                             {owed > 0 ? formatCurrency(owed) : '—'}
                                         </Td>
                                         <Td align="right" numeric>
-                                            {daysOverdue === null ? '—' : `${daysOverdue}d`}
+                                            <span className={grace.tone === 'danger' ? 'text-[var(--p-danger-ink)]' : undefined}>
+                                                {grace.label}
+                                            </span>
                                         </Td>
                                         <Td align="right" numeric>
                                             {failedAttempts > 0 ? failedAttempts : '—'}
