@@ -354,33 +354,147 @@ export async function getFlagMatrix(): Promise<FlagMatrix> {
     return { flags: (flagsResult.data ?? []) as FeatureFlag[], tenants, overrides }
 }
 
-export async function getBillingOverview() {
+/** How far ahead the billing page looks for upcoming renewals. */
+const RENEWAL_WINDOW_DAYS = 14
+
+export type BillingInvoice = SubscriptionInvoice & { tenantName: string }
+
+export type BillingCollection = {
+    tenant: TenantSummary
+    /** Open invoice balance for this tenant, in rupees. */
+    owed: number
+    /** Days past the earliest overdue invoice's due date; null if nothing is overdue yet. */
+    daysOverdue: number | null
+    failedAttempts: number
+}
+
+export type BillingRenewal = {
+    tenant: TenantSummary
+    /** What the next charge will be for, after discounts. */
+    amount: number
+    daysUntilRenewal: number
+}
+
+export type BillingOverview = {
+    metrics: {
+        collectedThisMonth: number
+        collectedCount: number
+        outstanding: number
+        outstandingCount: number
+        failedInvoices: number
+        pastDueTenants: number
+        pipeline: number
+        trialing: number
+    }
+    collections: BillingCollection[]
+    renewals: BillingRenewal[]
+    invoices: BillingInvoice[]
+}
+
+/**
+ * Money moving and money at risk, network-wide.
+ *
+ * Deliberately not the plan catalogue (that is /platform/plans) and not the
+ * tenant roster (that is /platform/tenants). Everything here is derived
+ * from invoices and the subscription lifecycle fields, so a fresh install
+ * with no gateway connected shows honest empty states rather than padding.
+ */
+export async function getBillingOverview(statusFilter?: SubscriptionInvoice['status']): Promise<BillingOverview> {
     const db = service()
-    const [plansResult, invoicesResult, tenants] = await Promise.all([
-        db.from('platform_subscription_plans').select('*').order('price_monthly'),
-        db.from('gym_subscription_invoices').select('*').order('issued_at', { ascending: false }).limit(50),
+    const now = new Date()
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+
+    let recentQuery = db
+        .from('gym_subscription_invoices')
+        .select('*, gym:gyms(name)')
+        .order('issued_at', { ascending: false })
+        .limit(50)
+    if (statusFilter) recentQuery = recentQuery.eq('status', statusFilter)
+
+    const [tenants, openResult, paidResult, failedResult, recentResult] = await Promise.all([
         getTenantSummaries(),
+        db.from('gym_subscription_invoices').select('gym_id, amount_due, amount_paid, due_at').eq('status', 'open'),
+        db.from('gym_subscription_invoices').select('amount_paid').eq('status', 'paid').gte('paid_at', monthStart),
+        db.from('gym_subscription_invoices').select('id', { count: 'exact', head: true }).eq('status', 'failed'),
+        recentQuery,
     ])
 
-    const plans = (plansResult.data ?? []) as SubscriptionPlan[]
+    const openInvoices = (openResult.data ?? []) as Array<{
+        gym_id: string
+        amount_due: unknown
+        amount_paid: unknown
+        due_at: string | null
+    }>
+    const paidInvoices = (paidResult.data ?? []) as Array<{ amount_paid: unknown }>
 
-    // Tenants-per-plan and revenue-per-plan, so the plans table answers
-    // "which tier is actually carrying the business".
-    const planStats = new Map<string, { tenants: number; mrr: number }>()
-    for (const tenant of tenants) {
-        const planId = tenant.subscription?.plan_id
-        if (!planId) continue
-        const current = planStats.get(planId) ?? { tenants: 0, mrr: 0 }
-        current.tenants += 1
-        if (isBillingRevenue(tenant.subscription)) current.mrr += tenant.mrr
-        planStats.set(planId, current)
+    // Open balance and overdue-ness per gym, so the collections list can be
+    // built from the tenant list without a second pass over invoices.
+    const openByGym = new Map<string, { owed: number; daysOverdue: number | null }>()
+    for (const invoice of openInvoices) {
+        const current = openByGym.get(invoice.gym_id) ?? { owed: 0, daysOverdue: null }
+        current.owed += Math.max(Number(invoice.amount_due ?? 0) - Number(invoice.amount_paid ?? 0), 0)
+        const remaining = daysUntil(invoice.due_at)
+        if (remaining !== null && remaining < 0) {
+            const overdue = -remaining
+            current.daysOverdue = current.daysOverdue === null ? overdue : Math.max(current.daysOverdue, overdue)
+        }
+        openByGym.set(invoice.gym_id, current)
     }
 
+    const collections: BillingCollection[] = tenants
+        .flatMap((tenant) => {
+            const open = openByGym.get(tenant.id)
+            const failedAttempts = Number(tenant.subscription?.failed_payment_count ?? 0)
+            const pastDue = tenant.subscription?.status === 'past_due'
+            const overdue = open?.daysOverdue !== null && open?.daysOverdue !== undefined
+            if (!pastDue && failedAttempts === 0 && !overdue) return []
+            return [
+                {
+                    tenant,
+                    owed: open?.owed ?? 0,
+                    daysOverdue: open?.daysOverdue ?? null,
+                    failedAttempts,
+                },
+            ]
+        })
+        .sort((a, b) => b.owed - a.owed || (b.daysOverdue ?? 0) - (a.daysOverdue ?? 0))
+
+    const renewals: BillingRenewal[] = tenants
+        .flatMap((tenant) => {
+            const subscription = tenant.subscription
+            if (!isBillingRevenue(subscription)) return []
+            const remaining = daysUntil(subscription?.current_period_end)
+            if (remaining === null || remaining < 0 || remaining > RENEWAL_WINDOW_DAYS) return []
+            const months = subscription?.billing_interval === 'annual' ? 12 : 1
+            return [{ tenant, amount: tenant.mrr * months, daysUntilRenewal: remaining }]
+        })
+        .sort((a, b) => a.daysUntilRenewal - b.daysUntilRenewal)
+
+    const trialing = tenants.filter((tenant) => tenant.subscription?.status === 'trialing')
+
+    const invoices = ((recentResult.data ?? []) as Array<SubscriptionInvoice & { gym: { name: string } | null }>).map(
+        ({ gym, ...invoice }) => ({ ...invoice, tenantName: gym?.name ?? 'Unknown tenant' }),
+    )
+
     return {
-        plans,
-        planStats,
-        tenants,
-        invoices: (invoicesResult.data ?? []) as SubscriptionInvoice[],
+        metrics: {
+            collectedThisMonth: paidInvoices.reduce((total, row) => total + Number(row.amount_paid ?? 0), 0),
+            collectedCount: paidInvoices.length,
+            outstanding: openInvoices.reduce(
+                (total, row) => total + Math.max(Number(row.amount_due ?? 0) - Number(row.amount_paid ?? 0), 0),
+                0,
+            ),
+            outstandingCount: openInvoices.length,
+            failedInvoices: failedResult.count ?? 0,
+            pastDueTenants: tenants.filter((tenant) => tenant.subscription?.status === 'past_due').length,
+            // What MRR would become if every current trial converted at its
+            // current plan price. Kept visibly separate from real revenue.
+            pipeline: trialing.reduce((total, tenant) => total + tenant.mrr, 0),
+            trialing: trialing.length,
+        },
+        collections,
+        renewals,
+        invoices,
     }
 }
 

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getBillingOverview } from '@/lib/platform/data'
-import { normalizeFeatureKeys } from '@/lib/platform/types'
+import type { PlatformInvoiceStatus } from '@/lib/platform/types'
 import {
     EmptyState,
     MetricTile,
@@ -20,140 +20,133 @@ import {
 export const metadata = { title: 'Billing' }
 export const dynamic = 'force-dynamic'
 
-export default async function BillingPage() {
-    const { plans, planStats, tenants, invoices } = await getBillingOverview()
+const INVOICE_FILTERS: Array<{ key: PlatformInvoiceStatus | 'all'; label: string }> = [
+    { key: 'all', label: 'All' },
+    { key: 'open', label: 'Open' },
+    { key: 'paid', label: 'Paid' },
+    { key: 'failed', label: 'Failed' },
+]
 
-    const billing = tenants.filter((tenant) => tenant.subscription?.status === 'active')
-    const trialing = tenants.filter((tenant) => tenant.subscription?.status === 'trialing')
-    const pastDue = tenants.filter((tenant) => tenant.subscription?.status === 'past_due')
-    const mrr = billing.reduce((total, tenant) => total + tenant.mrr, 0)
+function isInvoiceStatus(value: string | undefined): value is PlatformInvoiceStatus {
+    return INVOICE_FILTERS.some((filter) => filter.key !== 'all' && filter.key === value)
+}
 
-    // Pipeline is what MRR would become if every current trial converted at
-    // its current plan price. Kept visibly separate from MRR.
-    const pipeline = trialing.reduce((total, tenant) => total + tenant.mrr, 0)
+function invoiceTone(status: PlatformInvoiceStatus) {
+    if (status === 'paid') return 'ok' as const
+    if (status === 'failed') return 'danger' as const
+    return 'idle' as const
+}
+
+export default async function BillingPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ status?: string }>
+}) {
+    const { status } = await searchParams
+    const invoiceFilter = isInvoiceStatus(status) ? status : undefined
+    const { metrics, collections, renewals, invoices } = await getBillingOverview(invoiceFilter)
+
+    const atRisk = metrics.failedInvoices + metrics.pastDueTenants
 
     return (
         <div className="p-rise flex flex-col gap-5">
             <PageHeader
                 title="Billing"
-                description="Subscription pricing across the network, and which tier is carrying the business."
+                description="Cash collected, cash outstanding, and which tenants need chasing. Pricing lives under Plans; the full roster under Tenants."
+                action={
+                    <Link
+                        href="/platform/plans"
+                        className="text-[12px] font-medium text-[var(--p-accent-wash-ink)] hover:underline"
+                    >
+                        Manage plans
+                    </Link>
+                }
             />
 
             <div className="p-panel overflow-hidden">
-                <div className="grid grid-cols-2 divide-x divide-y divide-[var(--p-line-soft)] lg:grid-cols-4 lg:divide-y-0">
-                    <MetricTile
-                        label="MRR"
-                        value={formatCurrencyCompact(mrr)}
-                        footnote={`${billing.length} billing ${billing.length === 1 ? 'tenant' : 'tenants'}`}
-                    />
-                    <MetricTile
-                        label="Trial pipeline"
-                        value={formatCurrencyCompact(pipeline)}
-                        footnote={`${trialing.length} on trial, not yet billing`}
-                        tone={trialing.length > 0 ? 'warn' : undefined}
-                    />
-                    <MetricTile
-                        label="Past due"
-                        value={String(pastDue.length)}
-                        footnote="Failed recurring charges"
-                        tone={pastDue.length > 0 ? 'danger' : undefined}
-                    />
-                    <MetricTile
-                        label="Avg revenue"
-                        value={billing.length > 0 ? formatCurrencyCompact(mrr / billing.length) : '₹0'}
-                        footnote="Per billing tenant, monthly"
-                    />
+                <div className="grid grid-cols-2 gap-px bg-[var(--p-line-soft)] lg:grid-cols-4">
+                    <div className="bg-[var(--p-surface)]">
+                        <MetricTile
+                            label="Collected this month"
+                            value={formatCurrencyCompact(metrics.collectedThisMonth)}
+                            footnote={`${metrics.collectedCount} ${metrics.collectedCount === 1 ? 'invoice' : 'invoices'} paid`}
+                        />
+                    </div>
+                    <div className="bg-[var(--p-surface)]">
+                        <MetricTile
+                            label="Outstanding"
+                            value={formatCurrencyCompact(metrics.outstanding)}
+                            footnote={`${metrics.outstandingCount} open ${metrics.outstandingCount === 1 ? 'invoice' : 'invoices'}`}
+                            tone={metrics.outstanding > 0 ? 'warn' : undefined}
+                        />
+                    </div>
+                    <div className="bg-[var(--p-surface)]">
+                        <MetricTile
+                            label="At risk"
+                            value={String(atRisk)}
+                            footnote={`${metrics.failedInvoices} failed, ${metrics.pastDueTenants} past due`}
+                            tone={atRisk > 0 ? 'danger' : undefined}
+                        />
+                    </div>
+                    <div className="bg-[var(--p-surface)]">
+                        <MetricTile
+                            label="Trial pipeline"
+                            value={formatCurrencyCompact(metrics.pipeline)}
+                            footnote={`${metrics.trialing} on trial, not yet billing`}
+                        />
+                    </div>
                 </div>
             </div>
 
             <Panel padded={false}>
                 <div className="p-4 pb-3">
                     <PanelHeader
-                        title="Plans"
-                        description="Prices here are the list price. A tenant's rate is copied onto its subscription when the plan is assigned, so changing a price does not re-rate existing tenants."
-                        action={
-                            <Link
-                                href="/platform/plans"
-                                className="text-[12px] font-medium text-[var(--p-accent-wash-ink)] hover:underline"
-                            >
-                                Manage plans
-                            </Link>
-                        }
+                        title="Needs collection"
+                        description="Tenants with a failed charge, a past-due subscription, or an invoice past its due date. Fix the subscription from the tenant page."
                     />
                 </div>
-
-                {plans.length === 0 ? (
+                {collections.length === 0 ? (
                     <EmptyState
-                        title="No plans defined"
-                        description="Subscription tiers live in platform_subscription_plans. Add one to start assigning tenants to it."
+                        title="Nothing to chase"
+                        description="No tenant is past due, has a failed charge, or is sitting on an overdue invoice."
                     />
                 ) : (
-                    <TableShell minWidth={880}>
+                    <TableShell minWidth={720}>
                         <thead>
                             <tr>
+                                <Th>Tenant</Th>
                                 <Th>Plan</Th>
-                                <Th>Entitlements</Th>
-                                <Th align="right">Monthly</Th>
-                                <Th align="right">Annual</Th>
-                                <Th align="right">Trial</Th>
-                                <Th align="right">Grace</Th>
-                                <Th align="right">Tenants</Th>
-                                <Th align="right">MRR</Th>
+                                <Th>State</Th>
+                                <Th align="right">Owed</Th>
+                                <Th align="right">Overdue</Th>
+                                <Th align="right">Failed attempts</Th>
                             </tr>
                         </thead>
                         <tbody>
-                            {plans.map((plan) => {
-                                const stats = planStats.get(plan.id) ?? { tenants: 0, mrr: 0 }
-                                const features = normalizeFeatureKeys(plan.features)
-
+                            {collections.map(({ tenant, owed, daysOverdue, failedAttempts }) => {
+                                const state = tenantStatusTone(tenant.subscription?.status ?? 'unknown')
                                 return (
-                                    <tr key={plan.id} className="p-row">
+                                    <tr key={tenant.id} className="p-row">
                                         <Td>
-                                            <span className="font-medium text-[var(--p-ink)]">{plan.name}</span>
-                                            <span className="p-num mt-0.5 block text-[11.5px] text-[var(--p-ink-3)]">
-                                                {plan.code}
-                                            </span>
+                                            <Link
+                                                href={`/platform/tenants/${tenant.id}`}
+                                                className="font-medium text-[var(--p-ink)] hover:text-[var(--p-accent-wash-ink)]"
+                                            >
+                                                {tenant.name}
+                                            </Link>
                                         </Td>
+                                        <Td>{tenant.subscription?.plan?.name ?? '—'}</Td>
                                         <Td>
-                                            <span className="p-num block text-[11.5px] text-[var(--p-ink-2)]">
-                                                {plan.max_members === null ? '∞' : plan.max_members} members
-                                                {' · '}
-                                                {plan.max_staff === null ? '∞' : plan.max_staff} staff
-                                            </span>
-                                            <span className="mt-1 flex flex-wrap gap-1">
-                                                {features.length === 0 ? (
-                                                    <span className="text-[11px] text-[var(--p-ink-3)]">
-                                                        No feature keys
-                                                    </span>
-                                                ) : (
-                                                    features.map((feature) => (
-                                                        <span
-                                                            key={feature}
-                                                            className="p-num rounded-full bg-[var(--p-surface-2)] px-2 py-0.5 text-[10.5px] text-[var(--p-ink-2)]"
-                                                        >
-                                                            {feature}
-                                                        </span>
-                                                    ))
-                                                )}
-                                            </span>
+                                            <StatusPill tone={state.tone}>{state.label}</StatusPill>
                                         </Td>
                                         <Td align="right" numeric>
-                                            {formatCurrency(plan.price_monthly)}
+                                            {owed > 0 ? formatCurrency(owed) : '—'}
                                         </Td>
                                         <Td align="right" numeric>
-                                            {formatCurrency(plan.price_annual)}
+                                            {daysOverdue === null ? '—' : `${daysOverdue}d`}
                                         </Td>
                                         <Td align="right" numeric>
-                                            {plan.trial_days}d
-                                        </Td>
-                                        <Td align="right" numeric>
-                                            {plan.grace_period_days}d
-                                        </Td>
-                                        <Td align="right" numeric>
-                                            {stats.tenants}
-                                        </Td>
-                                        <Td align="right" numeric>
-                                            {stats.mrr > 0 ? formatCurrency(stats.mrr) : '—'}
+                                            {failedAttempts > 0 ? failedAttempts : '—'}
                                         </Td>
                                     </tr>
                                 )
@@ -166,34 +159,31 @@ export default async function BillingPage() {
             <Panel padded={false}>
                 <div className="p-4 pb-3">
                     <PanelHeader
-                        title="Subscriptions"
-                        description="Every tenant's current billing state. Edit a subscription from its tenant page."
+                        title="Renewing in the next 14 days"
+                        description="Active subscriptions about to be charged again, and for how much."
                     />
                 </div>
-
-                {tenants.length === 0 ? (
+                {renewals.length === 0 ? (
                     <EmptyState
-                        title="No subscriptions"
-                        description="A subscription row is created for each gym at signup. None exist yet."
+                        title="No renewals due"
+                        description="No active subscription reaches the end of its billing period in the next two weeks."
                     />
                 ) : (
-                    <TableShell minWidth={780}>
+                    <TableShell minWidth={680}>
                         <thead>
                             <tr>
                                 <Th>Tenant</Th>
                                 <Th>Plan</Th>
-                                <Th>State</Th>
                                 <Th>Interval</Th>
                                 <Th align="right">Discount</Th>
-                                <Th align="right">Monthly</Th>
+                                <Th align="right">Amount</Th>
                                 <Th align="right">Renews</Th>
                             </tr>
                         </thead>
                         <tbody>
-                            {tenants.map((tenant) => {
+                            {renewals.map(({ tenant, amount, daysUntilRenewal }) => {
                                 const subscription = tenant.subscription
-                                const state = tenantStatusTone(subscription?.status ?? 'unknown')
-
+                                const discount = Number(subscription?.discount_percentage ?? 0)
                                 return (
                                     <tr key={tenant.id} className="p-row">
                                         <Td>
@@ -205,24 +195,18 @@ export default async function BillingPage() {
                                             </Link>
                                         </Td>
                                         <Td>{subscription?.plan?.name ?? '—'}</Td>
-                                        <Td>
-                                            {subscription ? (
-                                                <StatusPill tone={state.tone}>{state.label}</StatusPill>
-                                            ) : (
-                                                <span className="text-[var(--p-ink-3)]">No subscription</span>
-                                            )}
-                                        </Td>
                                         <Td>{subscription?.billing_interval ?? '—'}</Td>
                                         <Td align="right" numeric>
-                                            {Number(subscription?.discount_percentage ?? 0) > 0
-                                                ? `${subscription?.discount_percentage}%`
-                                                : '—'}
+                                            {discount > 0 ? `${discount}%` : '—'}
                                         </Td>
                                         <Td align="right" numeric>
-                                            {subscription?.status === 'active' ? formatCurrency(tenant.mrr) : '—'}
+                                            {formatCurrency(amount)}
                                         </Td>
                                         <Td align="right" numeric>
                                             {formatDate(subscription?.current_period_end)}
+                                            <span className="ml-1.5 text-[11px] text-[var(--p-ink-3)]">
+                                                {daysUntilRenewal === 0 ? 'today' : `in ${daysUntilRenewal}d`}
+                                            </span>
                                         </Td>
                                     </tr>
                                 )
@@ -233,19 +217,47 @@ export default async function BillingPage() {
             </Panel>
 
             <Panel padded={false}>
-                <div className="p-4 pb-3">
-                    <PanelHeader title="Recent invoices" />
+                <div className="flex flex-col gap-3 p-4 pb-3 sm:flex-row sm:items-start sm:justify-between">
+                    <PanelHeader title="Invoices" description="The 50 most recent platform invoices across every tenant." />
+                    <div
+                        role="group"
+                        aria-label="Filter invoices by status"
+                        className="flex shrink-0 flex-wrap items-center gap-1 self-start rounded-[var(--p-r-core)] bg-[var(--p-surface-2)] p-1"
+                    >
+                        {INVOICE_FILTERS.map((filter) => {
+                            const selected = filter.key === 'all' ? !invoiceFilter : invoiceFilter === filter.key
+                            return (
+                                <Link
+                                    key={filter.key}
+                                    href={filter.key === 'all' ? '/platform/billing' : `/platform/billing?status=${filter.key}`}
+                                    aria-pressed={selected}
+                                    // The filter only swaps the table under it; jumping
+                                    // back to the top of the page on every click would
+                                    // make the operator scroll down again each time.
+                                    scroll={false}
+                                    className="p-seg"
+                                >
+                                    {filter.label}
+                                </Link>
+                            )
+                        })}
+                    </div>
                 </div>
                 {invoices.length === 0 ? (
                     <EmptyState
-                        title="No invoices issued"
-                        description="Platform invoices are written by the payment-gateway webhook. Connect recurring billing to populate this."
+                        title={invoiceFilter ? `No ${invoiceFilter} invoices` : 'No invoices issued'}
+                        description={
+                            invoiceFilter
+                                ? 'Nothing matches this filter among the most recent invoices.'
+                                : 'Platform invoices are written by the payment-gateway webhook. Connect recurring billing to populate this.'
+                        }
                     />
                 ) : (
-                    <TableShell minWidth={600}>
+                    <TableShell minWidth={760}>
                         <thead>
                             <tr>
                                 <Th>Invoice</Th>
+                                <Th>Tenant</Th>
                                 <Th>Status</Th>
                                 <Th align="right">Due</Th>
                                 <Th align="right">Paid</Th>
@@ -257,17 +269,15 @@ export default async function BillingPage() {
                                 <tr key={invoice.id} className="p-row">
                                     <Td numeric>{invoice.invoice_number}</Td>
                                     <Td>
-                                        <StatusPill
-                                            tone={
-                                                invoice.status === 'paid'
-                                                    ? 'ok'
-                                                    : invoice.status === 'failed'
-                                                      ? 'danger'
-                                                      : 'idle'
-                                            }
+                                        <Link
+                                            href={`/platform/tenants/${invoice.gym_id}`}
+                                            className="font-medium text-[var(--p-ink)] hover:text-[var(--p-accent-wash-ink)]"
                                         >
-                                            {invoice.status}
-                                        </StatusPill>
+                                            {invoice.tenantName}
+                                        </Link>
+                                    </Td>
+                                    <Td>
+                                        <StatusPill tone={invoiceTone(invoice.status)}>{invoice.status}</StatusPill>
                                     </Td>
                                     <Td align="right" numeric>
                                         {formatCurrency(invoice.amount_due)}
