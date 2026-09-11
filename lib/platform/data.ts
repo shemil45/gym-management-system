@@ -594,19 +594,145 @@ function entitlementsDiffer(snapshot: unknown, plan: SubscriptionPlan): boolean 
     return planFeatures.some((key) => !held.has(key))
 }
 
-export async function getAuditLog(limit = 100): Promise<Array<PlatformAuditLog & { gymName: string | null }>> {
+export type AuditLogFilters = {
+    /** Free text, matched case-insensitively against action, entity type and the metadata reason. */
+    q?: string
+    /** Exact action string, e.g. `tenant.suspend`. */
+    action?: string
+    /** Exact gym id. */
+    gymId?: string
+    /** Inclusive `YYYY-MM-DD` day bounds, in UTC. */
+    from?: string
+    to?: string
+    /** 1-based. */
+    page?: number
+    pageSize?: number
+}
+
+export type AuditLogEntry = PlatformAuditLog & { gymName: string | null }
+
+export type AuditLogPage = {
+    entries: AuditLogEntry[]
+    /** Rows matching the filters across every page. */
+    total: number
+    page: number
+    pageSize: number
+    pageCount: number
+    /** Every distinct action ever logged, for the filter dropdown. */
+    actions: string[]
+    /** Every gym, for the tenant dropdown. */
+    gyms: Array<{ id: string; name: string }>
+}
+
+export const AUDIT_PAGE_SIZE = 50
+const AUDIT_MAX_PAGE_SIZE = 200
+
+const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+
+/**
+ * A `%term%` ILIKE pattern safe to drop into a PostgREST `or()` filter.
+ *
+ * Two layers, in this order. Postgres first: `%`, `_` and `\` are LIKE
+ * syntax, so they are backslash-escaped or a search for `%` matches every
+ * row. Then PostgREST: the whole value is double-quoted, which is how its
+ * filter grammar carries commas, parens and dots without reading them as
+ * structure, with `"` and `\` inside the quotes escaped again.
+ */
+function likePattern(value: string): string {
+    const wildcardsEscaped = value.replace(/[\\%_]/g, (char) => `\\${char}`)
+    const quoted = wildcardsEscaped.replace(/["\\]/g, (char) => `\\${char}`)
+    return `"%${quoted}%"`
+}
+
+/** `YYYY-MM-DD` plus one calendar day, in UTC. */
+function nextDay(day: string): string {
+    const date = new Date(`${day}T00:00:00Z`)
+    date.setUTCDate(date.getUTCDate() + 1)
+    return date.toISOString().slice(0, 10)
+}
+
+/**
+ * One page of the platform audit log, filtered and paginated in the database.
+ *
+ * The log is append-only and only grows, so nothing here fetches it whole:
+ * every filter is a WHERE clause and the count comes back from the same
+ * filters. A page past the end is clamped to the last real page rather than
+ * returned empty, so a stale shared link still shows something.
+ */
+export async function getAuditLog(filters: AuditLogFilters = {}): Promise<AuditLogPage> {
     const db = service()
-    const [logsResult, gymsResult] = await Promise.all([
-        db.from('platform_audit_logs').select('*').order('created_at', { ascending: false }).limit(limit),
-        db.from('gyms').select('id, name'),
+
+    const pageSize = Math.min(Math.max(filters.pageSize ?? AUDIT_PAGE_SIZE, 1), AUDIT_MAX_PAGE_SIZE)
+    const q = filters.q?.trim() ?? ''
+    const from = filters.from && DAY_PATTERN.test(filters.from) ? filters.from : null
+    const to = filters.to && DAY_PATTERN.test(filters.to) ? filters.to : null
+
+    // Both the count and the row query need the same WHERE clauses. The
+    // builder goes in and out as the same type so the head-only count and the
+    // `*` select keep their own result shapes; inside, it is handled through
+    // a minimal structural view because constraining T against Supabase's
+    // real builder generics sends the checker into "excessively deep" errors.
+    type Filterable = {
+        eq: (column: string, value: string) => Filterable
+        gte: (column: string, value: string) => Filterable
+        lt: (column: string, value: string) => Filterable
+        or: (filters: string) => Filterable
+    }
+    const applyFilters = <T,>(query: T): T => {
+        let next = query as unknown as Filterable
+        if (filters.action) next = next.eq('action', filters.action)
+        if (filters.gymId) next = next.eq('gym_id', filters.gymId)
+        if (from) next = next.gte('created_at', `${from}T00:00:00Z`)
+        // Exclusive bound at the start of the following day: `to` names a
+        // whole day, and `lte` on its midnight would drop everything on it.
+        if (to) next = next.lt('created_at', `${nextDay(to)}T00:00:00Z`)
+        if (q) {
+            const needle = likePattern(q)
+            next = next.or(
+                `action.ilike.${needle},entity_type.ilike.${needle},metadata->>reason.ilike.${needle}`,
+            )
+        }
+        return next as unknown as T
+    }
+
+    // The count is fetched on its own, head-only, so the page can be clamped
+    // against it before the row query picks a range. One round trip more than
+    // a combined query, but a combined query cannot clamp: it would already
+    // have asked for the out-of-range rows.
+    const [countResult, actionsResult, gymsResult] = await Promise.all([
+        applyFilters(db.from('platform_audit_logs').select('id', { count: 'exact', head: true })),
+        db.from('platform_audit_logs').select('action').order('action'),
+        db.from('gyms').select('id, name').order('name'),
     ])
 
-    const gymNames = new Map(
-        ((gymsResult.data ?? []) as Array<{ id: string; name: string }>).map((row) => [row.id, row.name]),
-    )
+    const total = countResult.count ?? 0
+    const pageCount = Math.max(1, Math.ceil(total / pageSize))
+    const page = Math.min(Math.max(filters.page ?? 1, 1), pageCount)
+    const offset = (page - 1) * pageSize
 
-    return ((logsResult.data ?? []) as PlatformAuditLog[]).map((log) => ({
+    const logsResult =
+        total === 0
+            ? { data: [] as PlatformAuditLog[] }
+            : await applyFilters(db.from('platform_audit_logs').select('*'))
+                  .order('created_at', { ascending: false })
+                  // Tie-break so two entries written in the same millisecond
+                  // cannot swap sides of a page boundary between requests.
+                  .order('id', { ascending: false })
+                  .range(offset, offset + pageSize - 1)
+
+    const gyms = (gymsResult.data ?? []) as Array<{ id: string; name: string }>
+    const gymNames = new Map(gyms.map((row) => [row.id, row.name]))
+
+    // Distinct-in-code: PostgREST has no DISTINCT, and the action column is a
+    // short dotted string, so pulling the whole column is cheap.
+    const actions = [
+        ...new Set(((actionsResult.data ?? []) as Array<{ action: string }>).map((row) => row.action)),
+    ]
+
+    const entries = ((logsResult.data ?? []) as PlatformAuditLog[]).map((log) => ({
         ...log,
         gymName: log.gym_id ? gymNames.get(log.gym_id) ?? null : null,
     }))
+
+    return { entries, total, page, pageSize, pageCount, actions, gyms }
 }
