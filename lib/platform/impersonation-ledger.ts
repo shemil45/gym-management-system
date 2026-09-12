@@ -74,7 +74,8 @@ export async function isImpersonationOwned(
         .is('reverted_at', null)
         .limit(1)
         .maybeSingle()
-    const { data } = result as unknown as QueryResult<{ session_id: string } | null>
+    const { data, error } = result as unknown as QueryResult<{ session_id: string } | null>
+    if (error) throw new Error(`Could not read impersonation ledger: ${(error as { message: string }).message}`)
     return data ? { sessionId: data.session_id } : null
 }
 
@@ -89,7 +90,8 @@ export async function getImpersonationOwnedIds(
         .eq('gym_id', gymId)
         .eq('entity_type', entityType)
         .is('reverted_at', null)
-    const { data } = result as unknown as QueryResult<{ entity_id: string }[] | null>
+    const { data, error } = result as unknown as QueryResult<{ entity_id: string }[] | null>
+    if (error) throw new Error(`Could not read impersonation ledger: ${(error as { message: string }).message}`)
     return new Set((data ?? []).map((row) => row.entity_id))
 }
 
@@ -131,9 +133,10 @@ export async function revertImpersonationSession(
         .select('id, gym_id, ended_at, reverted_at')
         .eq('id', sessionId)
         .maybeSingle()
-    const { data: session } = sessionResult as unknown as QueryResult<
+    const { data: session, error: sessionError } = sessionResult as unknown as QueryResult<
         Pick<Tables<'platform_impersonation_sessions'>, 'id' | 'gym_id' | 'ended_at' | 'reverted_at'> | null
     >
+    if (sessionError) return await fail(sessionId, `Could not load session: ${(sessionError as { message: string }).message}`)
     if (!session) return { ok: false, error: 'Impersonation session not found.' }
     if (session.reverted_at) return { ok: true, counts }
 
@@ -275,7 +278,8 @@ export async function sweepExpiredImpersonations(): Promise<number> {
         .is('reverted_at', null)
         .or(`expires_at.lt.${nowIso},ended_at.not.is.null`)
         .limit(20)
-    const { data } = result as unknown as QueryResult<{ id: string }[] | null>
+    const { data, error } = result as unknown as QueryResult<{ id: string }[] | null>
+    if (error) throw new Error(`Could not read impersonation sessions: ${(error as { message: string }).message}`)
     let processed = 0
     for (const session of data ?? []) {
         await revertImpersonationSession(session.id)
