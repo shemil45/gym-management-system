@@ -57,36 +57,49 @@ export async function addExpense(formData: FormData) {
         expense_date,
     }
 
-    const insertResult = await supabase.from('expenses').insert(expensePayload as never).select('id').single()
-    const { data: inserted, error } = insertResult as unknown as QueryResult<{ id: string } | null>
+    let createdExpenseId: string | null = null
 
-    if (error) return { error: (error as { message: string }).message }
+    try {
+        const insertResult = await supabase.from('expenses').insert(expensePayload as never).select('id').single()
+        const { data: inserted, error } = insertResult as unknown as QueryResult<{ id: string } | null>
 
-    const impersonation = await getActiveImpersonation()
-    if (impersonation && inserted) {
-        await recordImpersonationWrite(impersonation.sessionId, gated.gymId, 'expense', inserted.id)
+        if (error) return { error: (error as { message: string }).message }
+
+        createdExpenseId = inserted?.id ?? null
+
+        const impersonation = await getActiveImpersonation()
+        if (impersonation && inserted) {
+            await recordImpersonationWrite(impersonation.sessionId, gated.gymId, 'expense', inserted.id)
+        }
+
+        revalidatePath('/admin/finances/expenses')
+        return { success: true }
+    } catch (err: unknown) {
+        if (createdExpenseId) await supabase.from('expenses').delete().eq('id', createdExpenseId)
+        return { error: err instanceof Error ? err.message : 'Failed to add expense' }
     }
-
-    revalidatePath('/admin/finances/expenses')
-    return { success: true }
 }
 
 export async function deleteExpense(id: string) {
     const gated = await gate()
     if ('error' in gated) return { error: gated.error }
 
-    const impersonation = await getActiveImpersonation()
-    const owner = await isImpersonationOwned(gated.gymId, 'expense', id)
-    if (impersonation) {
-        if (!owner || owner.sessionId !== impersonation.sessionId) return { error: IMPERSONATION_READONLY_MESSAGE }
-    } else if (owner) {
-        return { error: DEMO_READONLY_MESSAGE }
-    }
+    try {
+        const impersonation = await getActiveImpersonation()
+        const owner = await isImpersonationOwned(gated.gymId, 'expense', id)
+        if (impersonation) {
+            if (!owner || owner.sessionId !== impersonation.sessionId) return { error: IMPERSONATION_READONLY_MESSAGE }
+        } else if (owner) {
+            return { error: DEMO_READONLY_MESSAGE }
+        }
 
-    const supabase = await createClient()
-    const { error } = await supabase.from('expenses').delete().eq('id', id)
-    if (error) return { error: error.message }
-    if (owner) await releaseImpersonationWrite(gated.gymId, 'expense', id)
-    revalidatePath('/admin/finances/expenses')
-    return { success: true }
+        const supabase = await createClient()
+        const { error } = await supabase.from('expenses').delete().eq('id', id)
+        if (error) return { error: (error as { message: string }).message }
+        if (owner) await releaseImpersonationWrite(gated.gymId, 'expense', id)
+        revalidatePath('/admin/finances/expenses')
+        return { success: true }
+    } catch (err: unknown) {
+        return { error: err instanceof Error ? err.message : 'Failed to delete expense' }
+    }
 }
