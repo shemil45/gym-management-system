@@ -16,6 +16,7 @@ import {
     getActiveImpersonation,
     recordImpersonationWrite,
     releaseImpersonationWrite,
+    IMPERSONATION_EMAIL_IN_USE_MESSAGE,
 } from '@/lib/platform/impersonation-ledger'
 
 type PlanLookup = Pick<InsertTables<'membership_plans'>, 'duration_days' | 'price'>
@@ -63,7 +64,7 @@ export async function createMember(formData: FormData) {
             return { error: entitlement.reason }
         }
 
-        const impersonation = await getActiveImpersonation()
+        const impersonation = await getActiveImpersonation(viewer.gym.id)
         const ledger = impersonation
             ? (type: Parameters<typeof recordImpersonationWrite>[2], id: string) =>
                   recordImpersonationWrite(impersonation.sessionId, viewer.gym!.id, type, id)
@@ -164,6 +165,10 @@ export async function createMember(formData: FormData) {
         const photoUrl = (formData.get('photo_url') as string | null)?.trim() || null
 
         const existingAuthUser = await findAuthUserByEmail(email)
+
+        if (impersonation && existingAuthUser) {
+            return { error: IMPERSONATION_EMAIL_IN_USE_MESSAGE }
+        }
 
         if (existingAuthUser) {
             createdUserId = existingAuthUser.id
@@ -557,13 +562,19 @@ export async function deleteMember(memberId: string) {
 
         const photoPath = getAvatarStoragePath(member.photo_url)
 
-        const { error: deleteError } = await supabase
+        const deleteResult = await supabase
             .from('members')
             .delete()
             .eq('id', memberId)
+            .select('id')
+        const { data: deletedRows, error: deleteError } = deleteResult as unknown as QueryResult<{ id: string }[] | null>
 
         if (deleteError) {
             return { error: getErrorMessage(deleteError, 'Failed to delete member') }
+        }
+
+        if (!deletedRows || deletedRows.length === 0) {
+            return { error: 'Nothing was deleted.' }
         }
 
         if (photoPath) {

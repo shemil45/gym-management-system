@@ -104,7 +104,7 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
     const email = authUserResult.error ? null : authUserResult.data.user?.email ?? null
 
     const { gym } = await getCurrentGymContext()
-    const impersonation = await getActiveImpersonation()
+    const impersonation = await getActiveImpersonation(gym?.id)
     const isDemo = gym ? Boolean(await isImpersonationOwned(gym.id, 'admin', staff.user_id)) : false
     const locked = impersonation ? !isDemo : isDemo
     const lockTitle = impersonation ? 'Read-only while impersonating' : DEMO_READONLY_MESSAGE

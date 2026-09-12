@@ -114,7 +114,7 @@ export default async function FinancesExpensesPage({ searchParams }: FinancesExp
     }))
 
     const { gym } = await getCurrentGymContext()
-    const impersonation = await getActiveImpersonation()
+    const impersonation = await getActiveImpersonation(gym?.id)
     const demoIds = gym ? Array.from(await getImpersonationOwnedIds(gym.id, 'expense')) : []
 
     return (

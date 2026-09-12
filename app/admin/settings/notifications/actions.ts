@@ -34,7 +34,7 @@ export async function updateNotificationSettings(formData: FormData) {
     if (lapsed) return { error: lapsed.error }
 
     // Edits the gym row itself; there is no demo version of that.
-    if (await getActiveImpersonation()) return { error: IMPERSONATION_READONLY_MESSAGE }
+    if (await getActiveImpersonation(viewer.gym.id)) return { error: IMPERSONATION_READONLY_MESSAGE }
 
     let payload: UpdateTables<'gyms'>
 

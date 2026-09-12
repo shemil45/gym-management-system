@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { getCurrentGymContext } from '@/lib/auth/gym-context'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { getAvatarStoragePath } from '@/lib/utils/storage'
+import { getActiveImpersonation, IMPERSONATION_READONLY_MESSAGE } from '@/lib/platform/impersonation-ledger'
 
 function getErrorMessage(error: unknown, fallback: string) {
     return error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
@@ -23,6 +24,9 @@ export async function updateGymProfile(formData: FormData) {
     if (!viewer.user || !viewer.isStaff || !viewer.gym) {
         return { error: 'You do not have permission to change these settings.' }
     }
+
+    // Edits the gym row itself; there is no demo version of that.
+    if (await getActiveImpersonation(viewer.gym.id)) return { error: IMPERSONATION_READONLY_MESSAGE }
 
     const name = (formData.get('name') as string | null)?.trim()
     if (!name) {

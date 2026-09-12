@@ -20,7 +20,12 @@ import { DEMO_READONLY_MESSAGE, IMPERSONATION_READONLY_MESSAGE } from './imperso
 
 export type ImpersonationEntityType = Tables<'platform_impersonation_writes'>['entity_type']
 
-export { IMPERSONATION_READONLY_MESSAGE, IMPERSONATION_PAYMENT_MESSAGE, DEMO_READONLY_MESSAGE } from './impersonation-messages'
+export {
+    IMPERSONATION_READONLY_MESSAGE,
+    IMPERSONATION_PAYMENT_MESSAGE,
+    IMPERSONATION_EMAIL_IN_USE_MESSAGE,
+    DEMO_READONLY_MESSAGE,
+} from './impersonation-messages'
 
 const ENTITY_TYPES: ImpersonationEntityType[] = [
     'auth_user',
@@ -34,10 +39,18 @@ const ENTITY_TYPES: ImpersonationEntityType[] = [
 
 type LedgerRow = Pick<Tables<'platform_impersonation_writes'>, 'id' | 'gym_id' | 'entity_type' | 'entity_id'>
 
-/** The caller's active impersonation session, if any. Request-cached. */
-export const getActiveImpersonation = cache(async (): Promise<{ sessionId: string; gymId: string } | null> => {
+/**
+ * The caller's active impersonation session, if any. Request-cached.
+ *
+ * When `gymId` is given, the session is only returned if it belongs to that
+ * gym - a platform operator impersonating gym A must not read as
+ * "impersonating" while a request happens to concern gym B (e.g. a stale
+ * session cookie, or a tenant with access to more than one gym).
+ */
+export const getActiveImpersonation = cache(async (gymId?: string): Promise<{ sessionId: string; gymId: string } | null> => {
     const { activeImpersonation } = await getCurrentAuthResolution()
     if (!activeImpersonation) return null
+    if (gymId && activeImpersonation.gym_id !== gymId) return null
     return { sessionId: activeImpersonation.id, gymId: activeImpersonation.gym_id }
 })
 
@@ -264,7 +277,12 @@ async function fail(sessionId: string, error: string): Promise<{ ok: false; erro
 /**
  * Reverts every session that has timed out or was ended without a successful
  * revert. Returns how many sessions it processed. Safe to call on every
- * request: when nothing is pending it is one indexed query.
+ * request: when nothing is pending it is one indexed query. Sessions with a
+ * recorded `revert_error` are skipped - a permanently failing session would
+ * otherwise re-run its revert on every single page load - and are left for
+ * the portal's manual Retry instead. Oldest-expiring sessions go first so a
+ * backlog drains in order rather than starving whichever session happens to
+ * sort last.
  */
 export async function sweepExpiredImpersonations(): Promise<number> {
     const db = getSupabaseAdmin()
@@ -273,7 +291,9 @@ export async function sweepExpiredImpersonations(): Promise<number> {
         .from('platform_impersonation_sessions')
         .select('id')
         .is('reverted_at', null)
+        .is('revert_error', null)
         .or(`expires_at.lt.${nowIso},ended_at.not.is.null`)
+        .order('expires_at', { ascending: true })
         .limit(20)
     const { data, error } = result as unknown as QueryResult<{ id: string }[] | null>
     if (error) throw new Error(`Could not read impersonation sessions: ${(error as { message: string }).message}`)
@@ -297,7 +317,7 @@ export async function checkMutationAllowed(
     entityId: string,
 ): Promise<{ error: string; owned: boolean } | { error: null; owned: boolean }> {
     const [impersonation, owner] = await Promise.all([
-        getActiveImpersonation(),
+        getActiveImpersonation(gymId),
         isImpersonationOwned(gymId, entityType, entityId),
     ])
     if (impersonation) {

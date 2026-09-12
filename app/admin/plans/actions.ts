@@ -3,8 +3,16 @@
 import { createClient } from '@/lib/supabase/server'
 import type { InsertTables, UpdateTables } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
+import { getCurrentGymContext } from '@/lib/auth/gym-context'
+import { getActiveImpersonation, IMPERSONATION_READONLY_MESSAGE } from '@/lib/platform/impersonation-ledger'
 
 export async function createPlan(formData: FormData) {
+    const { gym } = await getCurrentGymContext()
+    if (!gym) return { error: 'You do not have permission to change plans.' }
+
+    // Plans are shared, real gym config; there is no demo version of them.
+    if (await getActiveImpersonation(gym.id)) return { error: IMPERSONATION_READONLY_MESSAGE }
+
     const supabase = await createClient()
 
     const name = (formData.get('name') as string).trim()
@@ -33,6 +41,11 @@ export async function createPlan(formData: FormData) {
 }
 
 export async function updatePlan(formData: FormData) {
+    const { gym } = await getCurrentGymContext()
+    if (!gym) return { error: 'You do not have permission to change plans.' }
+
+    if (await getActiveImpersonation(gym.id)) return { error: IMPERSONATION_READONLY_MESSAGE }
+
     const supabase = await createClient()
 
     const id = formData.get('id') as string
@@ -61,6 +74,11 @@ export async function updatePlan(formData: FormData) {
 }
 
 export async function togglePlanStatus(id: string, isActive: boolean) {
+    const { gym } = await getCurrentGymContext()
+    if (!gym) return { error: 'You do not have permission to change plans.' }
+
+    if (await getActiveImpersonation(gym.id)) return { error: IMPERSONATION_READONLY_MESSAGE }
+
     const supabase = await createClient()
     const { error } = await supabase
         .from('membership_plans')
@@ -74,6 +92,11 @@ export async function togglePlanStatus(id: string, isActive: boolean) {
 }
 
 export async function deletePlan(id: string) {
+    const { gym } = await getCurrentGymContext()
+    if (!gym) return { error: 'You do not have permission to change plans.' }
+
+    if (await getActiveImpersonation(gym.id)) return { error: IMPERSONATION_READONLY_MESSAGE }
+
     const supabase = await createClient()
     const { error } = await supabase.from('membership_plans').delete().eq('id', id)
     if (error) return { error: error.message }

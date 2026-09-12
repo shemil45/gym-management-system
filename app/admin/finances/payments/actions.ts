@@ -58,7 +58,7 @@ export async function recordPayment(formData: FormData) {
         // Demo members belong to the session that made them: the operator may
         // pay against those and nothing else; the tenant may not pay against
         // them at all (it would move a row that is about to be deleted).
-        const impersonation = await getActiveImpersonation()
+        const impersonation = await getActiveImpersonation(memberGymRow.gym_id)
         const owner = await isImpersonationOwned(memberGymRow.gym_id, 'member', memberId)
         if (impersonation) {
             if (!owner || owner.sessionId !== impersonation.sessionId) {

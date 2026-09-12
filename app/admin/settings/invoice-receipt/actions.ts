@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { UpdateTables } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 import { getCurrentGymContext } from '@/lib/auth/gym-context'
+import { getActiveImpersonation, IMPERSONATION_READONLY_MESSAGE } from '@/lib/platform/impersonation-ledger'
 
 function getErrorMessage(error: unknown, fallback: string) {
     return error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
@@ -21,6 +22,9 @@ export async function updateReceiptSettings(formData: FormData) {
     if (!viewer.user || !viewer.isStaff || !viewer.gym) {
         return { error: 'You do not have permission to change these settings.' }
     }
+
+    // Edits the gym row itself; there is no demo version of that.
+    if (await getActiveImpersonation(viewer.gym.id)) return { error: IMPERSONATION_READONLY_MESSAGE }
 
     const receiptPrefix = (formData.get('receipt_prefix') as string | null)?.trim()
     if (!receiptPrefix) {

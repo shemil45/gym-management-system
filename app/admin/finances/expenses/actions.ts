@@ -67,7 +67,7 @@ export async function addExpense(formData: FormData) {
 
         createdExpenseId = inserted?.id ?? null
 
-        const impersonation = await getActiveImpersonation()
+        const impersonation = await getActiveImpersonation(gated.gymId)
         if (impersonation && inserted) {
             await recordImpersonationWrite(impersonation.sessionId, gated.gymId, 'expense', inserted.id)
         }
@@ -85,7 +85,7 @@ export async function deleteExpense(id: string) {
     if ('error' in gated) return { error: gated.error }
 
     try {
-        const impersonation = await getActiveImpersonation()
+        const impersonation = await getActiveImpersonation(gated.gymId)
         const owner = await isImpersonationOwned(gated.gymId, 'expense', id)
         if (impersonation) {
             if (!owner || owner.sessionId !== impersonation.sessionId) return { error: IMPERSONATION_READONLY_MESSAGE }
@@ -94,8 +94,12 @@ export async function deleteExpense(id: string) {
         }
 
         const supabase = await createClient()
-        const { error } = await supabase.from('expenses').delete().eq('id', id)
+        const deleteResult = await supabase.from('expenses').delete().eq('id', id).select('id')
+        const { data: deletedRows, error } = deleteResult as unknown as QueryResult<{ id: string }[] | null>
         if (error) return { error: (error as { message: string }).message }
+        if (!deletedRows || deletedRows.length === 0) {
+            return { error: 'Nothing was deleted.' }
+        }
         if (owner) await releaseImpersonationWrite(gated.gymId, 'expense', id)
         revalidatePath('/admin/finances/expenses')
         return { success: true }

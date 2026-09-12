@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { UpdateTables } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 import { getCurrentGymContext } from '@/lib/auth/gym-context'
+import { getActiveImpersonation, IMPERSONATION_READONLY_MESSAGE } from '@/lib/platform/impersonation-ledger'
 
 const PAYMENT_METHODS = ['cash', 'upi', 'card', 'bank_transfer'] as const
 type PaymentMethod = (typeof PAYMENT_METHODS)[number]
@@ -19,6 +20,9 @@ export async function updatePaymentSettings(formData: FormData) {
     if (!viewer.user || !viewer.isStaff || !viewer.gym) {
         return { error: 'You do not have permission to change these settings.' }
     }
+
+    // Edits the gym row itself; there is no demo version of that.
+    if (await getActiveImpersonation(viewer.gym.id)) return { error: IMPERSONATION_READONLY_MESSAGE }
 
     const enabled: Record<PaymentMethod, boolean> = {
         cash: formData.get('payment_method_cash_enabled') === 'true',

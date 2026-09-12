@@ -106,7 +106,7 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
     if (!member) notFound()
 
     const { gym } = await getCurrentGymContext()
-    const impersonation = await getActiveImpersonation()
+    const impersonation = await getActiveImpersonation(gym?.id)
     const isDemo = gym ? Boolean(await isImpersonationOwned(gym.id, 'member', member.id)) : false
     const locked = impersonation ? !isDemo : isDemo
     const lockTitle = impersonation ? 'Read-only while impersonating' : DEMO_READONLY_MESSAGE

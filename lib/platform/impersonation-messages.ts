@@ -10,3 +10,5 @@ export const IMPERSONATION_PAYMENT_MESSAGE =
     'While impersonating you can only record payments for members created in this session.'
 export const DEMO_READONLY_MESSAGE =
     'This record was created by GMS Cloud support for a demo and is read-only. It will be removed automatically when their session ends.'
+export const IMPERSONATION_EMAIL_IN_USE_MESSAGE =
+    'While impersonating, use an email that is not already registered.'

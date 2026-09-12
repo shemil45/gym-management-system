@@ -11,6 +11,7 @@ import {
     requirePlatformSession,
 } from '@/lib/platform/auth'
 import { revertImpersonationSession } from '@/lib/platform/impersonation-ledger'
+import type { QueryResult, Tables } from '@/lib/types'
 import {
     PLAN_ENTITLEMENT_COLUMNS,
     buildEntitlementSnapshot,
@@ -505,6 +506,26 @@ export async function ensurePlatformSession() {
  */
 export async function retryImpersonationCleanup(sessionId: string): Promise<void> {
     await requireCapability('impersonate')
+
+    const sessionResult = await getSupabaseAdmin()
+        .from('platform_impersonation_sessions')
+        .select('id, ended_at, expires_at, revert_error')
+        .eq('id', sessionId)
+        .maybeSingle()
+    const { data: session, error } = sessionResult as unknown as QueryResult<
+        Pick<Tables<'platform_impersonation_sessions'>, 'id' | 'ended_at' | 'expires_at' | 'revert_error'> | null
+    >
+    if (error) throw new Error(`Could not load impersonation session: ${(error as { message: string }).message}`)
+    if (!session) throw new Error('Impersonation session not found.')
+
+    const isCleanable =
+        session.revert_error !== null ||
+        session.ended_at !== null ||
+        new Date(session.expires_at).getTime() < Date.now()
+    if (!isCleanable) {
+        throw new Error('Only ended or failed sessions can be cleaned up.')
+    }
+
     await revertImpersonationSession(sessionId)
     revalidatePath('/platform/tenants', 'layout')
 }

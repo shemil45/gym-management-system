@@ -117,8 +117,8 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
         .select('id, name')
         .order('name')
 
-    const impersonation = await getActiveImpersonation()
     const { gym } = await getCurrentGymContext()
+    const impersonation = await getActiveImpersonation(gym?.id)
     const demoIds = gym ? Array.from(await getImpersonationOwnedIds(gym.id, 'member')) : []
 
     return (

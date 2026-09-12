@@ -10,7 +10,12 @@ import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } 
 import { getAvatarStoragePath } from '@/lib/utils/storage'
 import { canAddStaff } from '@/lib/billing/entitlements'
 import { assertActiveSubscription } from '@/lib/billing/gate'
-import { checkMutationAllowed, getActiveImpersonation, recordImpersonationWrite } from '@/lib/platform/impersonation-ledger'
+import {
+    checkMutationAllowed,
+    getActiveImpersonation,
+    recordImpersonationWrite,
+    IMPERSONATION_EMAIL_IN_USE_MESSAGE,
+} from '@/lib/platform/impersonation-ledger'
 
 type ExistingProfile = {
     id: string
@@ -36,7 +41,7 @@ export async function createStaff(formData: FormData) {
         return { error: entitlement.reason }
     }
 
-    const impersonation = await getActiveImpersonation()
+    const impersonation = await getActiveImpersonation(viewer.gym.id)
     const ledger = impersonation
         ? (type: Parameters<typeof recordImpersonationWrite>[2], id: string) =>
               recordImpersonationWrite(impersonation.sessionId, viewer.gym!.id, type, id)
@@ -68,6 +73,10 @@ export async function createStaff(formData: FormData) {
 
     try {
         const existingAuthUser = await findAuthUserByEmail(email)
+
+        if (impersonation && existingAuthUser) {
+            return { error: IMPERSONATION_EMAIL_IN_USE_MESSAGE }
+        }
 
         if (existingAuthUser) {
             createdUserId = existingAuthUser.id

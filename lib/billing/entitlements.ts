@@ -28,7 +28,7 @@ export async function canAddMember(gymId: string): Promise<EntitlementResult> {
 
     // A supporting operator is not blocked by the tenant's lapsed plan; the
     // plan's headcount limit still applies to them.
-    if (view.isLapsed && !(await isImpersonating())) {
+    if (view.isLapsed && !(await isImpersonating(gymId))) {
         return {
             ok: false,
             reason:
@@ -51,7 +51,7 @@ export async function canAddMember(gymId: string): Promise<EntitlementResult> {
 export async function canAddStaff(gymId: string): Promise<EntitlementResult> {
     const view = await getSubscriptionView(gymId)
 
-    if (view.isLapsed && !(await isImpersonating())) {
+    if (view.isLapsed && !(await isImpersonating(gymId))) {
         return {
             ok: false,
             reason: 'Your GMS Cloud subscription is not active. Renew to add more staff.',
