@@ -96,7 +96,7 @@ export default function AdminHeader({ user, onMenuClick }: AdminHeaderProps) {
             </div>
 
             <div
-                className={`hidden h-20 shrink-0 items-center gap-x-4 px-6 md:flex ${isDark ? 'text-white' : 'text-[#191c1e]'}`}
+                className={`hidden h-18 shrink-0 items-center gap-x-4 px-6 md:flex ${isDark ? 'text-white' : 'text-[#191c1e]'}`}
                 style={{ background: headerSurface }}
             >
                 <div className="flex flex-1 items-center gap-4">
