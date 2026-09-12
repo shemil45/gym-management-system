@@ -10,6 +10,7 @@ import {
     requireCapability,
     requirePlatformSession,
 } from '@/lib/platform/auth'
+import { revertImpersonationSession } from '@/lib/platform/impersonation-ledger'
 import {
     PLAN_ENTITLEMENT_COLUMNS,
     buildEntitlementSnapshot,
@@ -198,6 +199,14 @@ export async function stopImpersonation(): Promise<void> {
 
     if (session.admin) {
         const service = getSupabaseAdmin()
+
+        // Revert first so the operator never lands on a tenant page that still
+        // lists their demo rows. A failed revert still ends the session; the
+        // error is stored on it and surfaced in the portal.
+        if (session.impersonation) {
+            await revertImpersonationSession(session.impersonation.id)
+        }
+
         await service
             .from('platform_impersonation_sessions')
             .update({ ended_at: new Date().toISOString() } as never)

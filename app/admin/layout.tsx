@@ -10,6 +10,7 @@ import HideOnRenewPage from '@/components/layout/HideOnRenewPage'
 import ImpersonationBanner from '@/components/layout/ImpersonationBanner'
 import { stopImpersonation } from '@/app/platform/actions'
 import { requireActiveSubscription } from '@/lib/billing/gate'
+import { sweepExpiredImpersonations } from '@/lib/platform/impersonation-ledger'
 
 export default async function AdminLayout({
     children,
@@ -39,6 +40,14 @@ export default async function AdminLayout({
     // redirect is a single clean navigation. See lib/billing/gate.ts.
     const pathname = (await headers()).get('x-pathname') ?? ''
     await requireActiveSubscription(gym.id, pathname)
+
+    // Timed-out support sessions are cleaned up here as well as by cron, so
+    // the tenant does not see demo rows for up to 15 minutes after a timeout.
+    // Never awaited past a short budget and never allowed to fail the page.
+    await Promise.race([
+        sweepExpiredImpersonations().catch((err) => console.error('[impersonation] lazy sweep failed', err)),
+        new Promise((resolve) => setTimeout(resolve, 1500)),
+    ])
 
     return (
         <AdminThemeProvider>

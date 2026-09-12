@@ -9,9 +9,19 @@ import SessionCountdown from '@/components/platform/SessionCountdown'
 import { ResumeSessionButton, SessionSubmitButton } from '@/components/platform/SupportSessionControls'
 import type { PlatformNotificationItem } from '@/components/platform/PlatformNotifications'
 import { signOutOfPlatform, stopImpersonation } from '@/app/platform/actions'
+import { sweepExpiredImpersonations } from '@/lib/platform/impersonation-ledger'
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
     const session = await requirePlatformSession()
+
+    // Timed-out support sessions are cleaned up here as well as by cron, so
+    // the tenant does not see demo rows for up to 15 minutes after a timeout.
+    // Never awaited past a short budget and never allowed to fail the page.
+    await Promise.race([
+        sweepExpiredImpersonations().catch((err) => console.error('[impersonation] lazy sweep failed', err)),
+        new Promise((resolve) => setTimeout(resolve, 1500)),
+    ])
+
     const alerts = await getPlatformAlerts()
 
     // Ordered by how fast each one costs money if ignored, so the tray reads
