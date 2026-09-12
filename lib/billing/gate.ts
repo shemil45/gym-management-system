@@ -2,6 +2,7 @@ import 'server-only'
 
 import { redirect } from 'next/navigation'
 import { getSubscriptionView } from '@/lib/billing/subscription'
+import { getCurrentAuthResolution } from '@/lib/auth/gym-context'
 
 /**
  * Subscription gating for the tenant admin and member portal.
@@ -11,7 +12,16 @@ import { getSubscriptionView } from '@/lib/billing/subscription'
  * so they can renew - but the sections that create or change tenant records
  * are closed. Both halves live here so the page redirect and the server
  * action refusal can never disagree about what "lapsed" means.
+ *
+ * A platform operator in an impersonation session is exempt from both: they
+ * are there to support the tenant, and a lapsed plan is often exactly what
+ * they came to look at.
  */
+
+export async function isImpersonating(): Promise<boolean> {
+    const { activeImpersonation } = await getCurrentAuthResolution()
+    return Boolean(activeImpersonation)
+}
 
 export const RENEW_PATH = '/admin/renew'
 
@@ -45,6 +55,7 @@ export function isGatedPath(pathname: string): boolean {
  *   dashboard -> members; the section layout is a new segment and does.
  */
 export async function redirectIfLapsed(gymId: string): Promise<void> {
+    if (await isImpersonating()) return
     const view = await getSubscriptionView(gymId)
     if (view.isLapsed) redirect(RENEW_PATH)
 }
@@ -60,6 +71,7 @@ export async function requireActiveSubscription(gymId: string, pathname: string)
  * tab can still submit its form, so every mutating action calls this too.
  */
 export async function assertActiveSubscription(gymId: string): Promise<{ error: string } | null> {
+    if (await isImpersonating()) return null
     const view = await getSubscriptionView(gymId)
     return view.isLapsed ? { error: RENEW_MESSAGE } : null
 }

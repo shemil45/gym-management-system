@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { getSubscriptionView } from '@/lib/billing/subscription'
+import { isImpersonating } from '@/lib/billing/gate'
 
 /**
  * Plan entitlement enforcement.
@@ -25,7 +26,9 @@ export type EntitlementResult = EntitlementOk | EntitlementFailure
 export async function canAddMember(gymId: string): Promise<EntitlementResult> {
     const view = await getSubscriptionView(gymId)
 
-    if (view.isLapsed) {
+    // A supporting operator is not blocked by the tenant's lapsed plan; the
+    // plan's headcount limit still applies to them.
+    if (view.isLapsed && !(await isImpersonating())) {
         return {
             ok: false,
             reason:
@@ -48,7 +51,7 @@ export async function canAddMember(gymId: string): Promise<EntitlementResult> {
 export async function canAddStaff(gymId: string): Promise<EntitlementResult> {
     const view = await getSubscriptionView(gymId)
 
-    if (view.isLapsed) {
+    if (view.isLapsed && !(await isImpersonating())) {
         return {
             ok: false,
             reason: 'Your GMS Cloud subscription is not active. Renew to add more staff.',
