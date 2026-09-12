@@ -5,8 +5,10 @@ import { getTenantDetail } from '@/lib/platform/data'
 import { getSubscriptionView } from '@/lib/billing/subscription'
 import { daysUntil, formatPlatformRole } from '@/lib/platform/types'
 import { getPlatformSession, roleCan } from '@/lib/platform/auth'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import {
     completeTenantOnboarding,
+    retryImpersonationCleanup,
     saveTenantNotes,
     setTenantStatus,
     startImpersonation,
@@ -62,6 +64,21 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
     // Same derivation the tenant sees on their own billing page, so the two
     // portals can never disagree about whether a subscription is live.
     const billing = await getSubscriptionView(id)
+
+    // Sessions whose revert failed on stop: still open (never marked
+    // reverted) but carrying an error, so they need an operator to retry.
+    const pendingResult = await getSupabaseAdmin()
+        .from('platform_impersonation_sessions')
+        .select('id, started_at, revert_error')
+        .eq('gym_id', tenant.id)
+        .is('reverted_at', null)
+        .not('revert_error', 'is', null)
+        .order('started_at', { ascending: false })
+    const pendingCleanup = (pendingResult.data ?? []) as {
+        id: string
+        started_at: string
+        revert_error: string
+    }[]
 
     const status = tenantStatusTone(tenant.platform_status)
     const onboarding = tenantStatusTone(tenant.onboarding_status)
@@ -498,6 +515,39 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                             </TableShell>
                         )}
                     </Panel>
+
+                    {pendingCleanup.length > 0 ? (
+                        <Panel padded={false}>
+                            <div className="p-4 pb-2">
+                                <PanelHeader
+                                    title="Support session cleanup needed"
+                                    description="These sessions ended but the demo rows they created could not be removed automatically."
+                                />
+                            </div>
+                            <ul>
+                                {pendingCleanup.map((s) => (
+                                    <li
+                                        key={s.id}
+                                        className="flex items-center justify-between gap-4 border-t border-[var(--p-line-soft)] px-4 py-2"
+                                    >
+                                        <div className="min-w-0">
+                                            <p className="text-[12.5px] text-[var(--p-ink-3)]">
+                                                Session started {new Date(s.started_at).toLocaleString('en-IN')}
+                                            </p>
+                                            <p className="mt-0.5 text-[11.5px] text-[var(--p-danger)]">
+                                                {s.revert_error}
+                                            </p>
+                                        </div>
+                                        <form action={retryImpersonationCleanup.bind(null, s.id)}>
+                                            <SessionSubmitButton pendingLabel="Retrying" tone="secondary">
+                                                Retry cleanup
+                                            </SessionSubmitButton>
+                                        </form>
+                                    </li>
+                                ))}
+                            </ul>
+                        </Panel>
+                    ) : null}
 
                     {/* Activity sits in the main column, not the rail.
 

@@ -496,3 +496,15 @@ export async function saveTenantNotes(formData: FormData): Promise<void> {
 export async function ensurePlatformSession() {
     return requirePlatformSession()
 }
+
+/**
+ * Retries a support-session revert that failed on stop. The tenant page
+ * binds this to one session's id and renders it only while that session
+ * still has a `revert_error` on it, so a clean retry just makes the notice
+ * disappear on the next render.
+ */
+export async function retryImpersonationCleanup(sessionId: string): Promise<void> {
+    await requireCapability('impersonate')
+    await revertImpersonationSession(sessionId)
+    revalidatePath('/platform/tenants', 'layout')
+}
