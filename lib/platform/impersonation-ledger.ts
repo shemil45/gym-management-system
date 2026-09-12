@@ -288,4 +288,29 @@ export async function sweepExpiredImpersonations(): Promise<number> {
     return processed
 }
 
+/**
+ * Who may change an existing row. Operators may only touch rows their own
+ * session created; tenants may not touch demo rows at all. Returns the
+ * refusal message, or null when the write may proceed, plus whether the row
+ * is a demo row (callers that delete need to release the ledger entry).
+ */
+export async function checkMutationAllowed(
+    gymId: string,
+    entityType: ImpersonationEntityType,
+    entityId: string,
+): Promise<{ error: string; owned: boolean } | { error: null; owned: boolean }> {
+    const [impersonation, owner] = await Promise.all([
+        getActiveImpersonation(),
+        isImpersonationOwned(gymId, entityType, entityId),
+    ])
+    if (impersonation) {
+        if (!owner || owner.sessionId !== impersonation.sessionId) {
+            return { error: IMPERSONATION_READONLY_MESSAGE, owned: Boolean(owner) }
+        }
+        return { error: null, owned: true }
+    }
+    if (owner) return { error: DEMO_READONLY_MESSAGE, owned: true }
+    return { error: null, owned: false }
+}
+
 export { ENTITY_TYPES as IMPERSONATION_ENTITY_TYPES }

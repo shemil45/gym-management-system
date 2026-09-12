@@ -11,7 +11,12 @@ import { findAuthUserByEmail, getSupabaseAdmin } from '@/lib/supabase/admin'
 import { invalidateGymAdminSummaries } from '@/lib/auth/admin-server'
 import { canAddMember } from '@/lib/billing/entitlements'
 import { assertActiveSubscription } from '@/lib/billing/gate'
-import { getActiveImpersonation, recordImpersonationWrite } from '@/lib/platform/impersonation-ledger'
+import {
+    checkMutationAllowed,
+    getActiveImpersonation,
+    recordImpersonationWrite,
+    releaseImpersonationWrite,
+} from '@/lib/platform/impersonation-ledger'
 
 type PlanLookup = Pick<InsertTables<'membership_plans'>, 'duration_days' | 'price'>
 type ReferrerLookup = { id: string }
@@ -417,6 +422,9 @@ export async function updateMember(formData: FormData) {
             return { error: 'Member ID is required' }
         }
 
+        const allowed = await checkMutationAllowed(viewer.gym.id, 'member', memberId)
+        if (allowed.error) return { error: allowed.error }
+
         let membershipExpiryDate: string | null = null
         if (planId && startDateValue) {
             const planResult = await supabase
@@ -532,6 +540,9 @@ export async function deleteMember(memberId: string) {
             return { error: 'Member ID is required' }
         }
 
+        const allowed = await checkMutationAllowed(viewer.gym.id, 'member', memberId)
+        if (allowed.error) return { error: allowed.error }
+
         const memberResult = await supabase
             .from('members')
             .select('id, photo_url, gym_id')
@@ -562,6 +573,7 @@ export async function deleteMember(memberId: string) {
         if (member.gym_id) {
             invalidateGymAdminSummaries(member.gym_id)
         }
+        if (allowed.owned) await releaseImpersonationWrite(viewer.gym.id, 'member', memberId)
         revalidatePath('/admin/members')
         revalidatePath(`/admin/members/${memberId}`)
         revalidatePath(`/admin/members/${memberId}/edit`)

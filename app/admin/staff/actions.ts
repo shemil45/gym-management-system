@@ -10,7 +10,7 @@ import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } 
 import { getAvatarStoragePath } from '@/lib/utils/storage'
 import { canAddStaff } from '@/lib/billing/entitlements'
 import { assertActiveSubscription } from '@/lib/billing/gate'
-import { getActiveImpersonation, recordImpersonationWrite } from '@/lib/platform/impersonation-ledger'
+import { checkMutationAllowed, getActiveImpersonation, recordImpersonationWrite } from '@/lib/platform/impersonation-ledger'
 
 type ExistingProfile = {
     id: string
@@ -252,6 +252,13 @@ export async function updateStaff(formData: FormData) {
 
     if (!STAFF_ROLES.includes(role)) {
         return { error: 'Please choose a valid staff role.' }
+    }
+
+    try {
+        const allowed = await checkMutationAllowed(viewer.gym.id, 'admin', id)
+        if (allowed.error) return { error: allowed.error }
+    } catch (err: unknown) {
+        return { error: err instanceof Error ? err.message : 'Could not verify record ownership.' }
     }
 
     try {

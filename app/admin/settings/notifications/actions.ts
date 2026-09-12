@@ -5,6 +5,7 @@ import type { UpdateTables } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 import { getCurrentGymContext } from '@/lib/auth/gym-context'
 import { assertActiveSubscription } from '@/lib/billing/gate'
+import { getActiveImpersonation, IMPERSONATION_READONLY_MESSAGE } from '@/lib/platform/impersonation-ledger'
 
 function getErrorMessage(error: unknown, fallback: string) {
     return error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
@@ -31,6 +32,9 @@ export async function updateNotificationSettings(formData: FormData) {
 
     const lapsed = await assertActiveSubscription(viewer.gym.id)
     if (lapsed) return { error: lapsed.error }
+
+    // Edits the gym row itself; there is no demo version of that.
+    if (await getActiveImpersonation()) return { error: IMPERSONATION_READONLY_MESSAGE }
 
     let payload: UpdateTables<'gyms'>
 
