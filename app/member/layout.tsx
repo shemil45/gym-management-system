@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
 import { Toaster } from 'sonner'
 import { getCurrentMemberContext } from '@/lib/auth/member-server'
 import { getMemberPortalData } from '@/lib/member/portal-data'
@@ -30,10 +31,21 @@ export default async function MemberLayout({ children }: { children: React.React
     // The gym's own GMS Cloud plan gates the whole portal - a member cannot
     // renew it, so they get an explanation instead of the chrome.
     if (await isSubscriptionLapsed(gym.id)) {
+        const supabase = await createClient()
+        const contactResult = await supabase
+            .from('gyms')
+            .select('contact_phone, contact_email')
+            .eq('id', gym.id)
+            .maybeSingle()
+        const contact = contactResult.data as { contact_phone: string | null; contact_email: string | null } | null
+
         return (
             <MemberThemeProvider>
                 <div className="min-h-[100dvh] bg-[var(--m-bg)] text-[var(--m-ink)]">
-                    <PortalUnavailable gymName={gym.name} />
+                    <PortalUnavailable
+                        phone={contact?.contact_phone ?? null}
+                        email={contact?.contact_email ?? null}
+                    />
                 </div>
             </MemberThemeProvider>
         )

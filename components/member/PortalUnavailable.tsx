@@ -1,11 +1,20 @@
-import { IconLock, IconShieldCheck } from '@tabler/icons-react'
+import { IconLock, IconMail, IconPhone, IconShieldCheck } from '@tabler/icons-react'
 
 /**
  * Replaces the member portal while the gym's GMS Cloud subscription is
- * lapsed. Members are not the ones who can fix this, so there is nothing
- * to click - just a clear, unalarming explanation and who to ask.
+ * lapsed. Members are not told why - the gym's billing relationship with
+ * us is not theirs to see - only that the portal is paused and how to reach
+ * the gym.
  */
-export default function PortalUnavailable({ gymName }: { gymName: string }) {
+export default function PortalUnavailable({
+    phone,
+    email,
+}: {
+    phone: string | null
+    email: string | null
+}) {
+    const hasContact = Boolean(phone || email)
+
     return (
         <div className="flex min-h-[100dvh] items-center justify-center px-4 py-16">
             <div className="renew-reveal w-full max-w-md" style={{ animationDelay: '60ms' }}>
@@ -37,9 +46,38 @@ export default function PortalUnavailable({ gymName }: { gymName: string }) {
                             Temporarily unavailable
                         </h1>
                         <p className="mt-3 text-[14.5px] leading-relaxed" style={{ color: 'var(--m-ink-2)' }}>
-                            {gymName}&rsquo;s GMS Cloud subscription is not active right now, so the member portal is
-                            paused. Please contact your gym for help.
+                            The member portal is temporarily unavailable. Please check back soon, or get in
+                            touch with the gym if you need anything right away.
                         </p>
+
+                        {hasContact ? (
+                            <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
+                                {phone ? (
+                                    <a
+                                        href={`tel:${phone}`}
+                                        className="m-tap inline-flex h-11 items-center justify-center gap-2 rounded-[var(--m-r-control)] px-4 text-[14px] font-medium transition-transform duration-200 active:scale-[0.98]"
+                                        style={{ background: 'var(--m-ink)', color: 'var(--m-surface)' }}
+                                    >
+                                        <IconPhone size={16} stroke={1.5} />
+                                        Call gym
+                                    </a>
+                                ) : null}
+                                {email ? (
+                                    <a
+                                        href={`mailto:${email}`}
+                                        className="m-tap inline-flex h-11 items-center justify-center gap-2 rounded-[var(--m-r-control)] px-4 text-[14px] font-medium transition-transform duration-200 active:scale-[0.98]"
+                                        style={{
+                                            background: 'var(--m-surface)',
+                                            color: 'var(--m-ink)',
+                                            boxShadow: 'inset 0 0 0 1px var(--m-line)',
+                                        }}
+                                    >
+                                        <IconMail size={16} stroke={1.5} />
+                                        Email gym
+                                    </a>
+                                ) : null}
+                            </div>
+                        ) : null}
 
                         <div
                             className="mt-7 flex items-start gap-3 rounded-[var(--m-r-control)] p-3.5 text-left"
