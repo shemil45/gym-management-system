@@ -1,6 +1,6 @@
 'use client'
 
-import { startTransition, useEffect, useRef, useState } from 'react'
+import { startTransition, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { deleteMember } from '@/app/admin/members/actions'
@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import SupportDemoBadge from '@/components/platform/SupportDemoBadge'
+import { DEMO_READONLY_MESSAGE } from '@/lib/platform/impersonation-messages'
 import {
     Select,
     SelectContent,
@@ -54,6 +56,8 @@ interface MembersTableProps {
     plans: { id: string; name: string }[]
     currentPage: number
     totalCount: number
+    demoIds?: string[]
+    readOnlyMode?: 'tenant' | 'operator'
     initialFilters?: {
         q?: string
         status?: string
@@ -182,11 +186,14 @@ function PaginationBar({
     )
 }
 
-export default function MembersTable({ members, plans, currentPage, totalCount, initialFilters }: MembersTableProps) {
+export default function MembersTable({ members, plans, currentPage, totalCount, demoIds, readOnlyMode = 'tenant', initialFilters }: MembersTableProps) {
     const router = useRouter()
     const pathname = usePathname()
     const { isDark } = useAdminTheme()
     const { confirm, dialog } = useConfirmDialog()
+    const demo = useMemo(() => new Set(demoIds), [demoIds])
+    const isLocked = (id: string) => (readOnlyMode === 'operator' ? !demo.has(id) : demo.has(id))
+    const lockTitle = readOnlyMode === 'operator' ? 'Read-only while impersonating' : DEMO_READONLY_MESSAGE
     const todayValue = new Date().toISOString().split('T')[0]
     const initialRenewalFilter = initialFilters?.filter === 'expires' || initialFilters?.filter === 'overdue' || initialFilters?.filter === 'renewals'
         ? initialFilters.filter
@@ -714,9 +721,12 @@ export default function MembersTable({ members, plans, currentPage, totalCount, 
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex items-start justify-between gap-2">
                                                     <div className="min-w-0">
-                                                        <p className="truncate text-[15px] font-medium leading-tight text-blue-600">
-                                                            {member.full_name}
-                                                        </p>
+                                                        <div className="flex min-w-0 items-center gap-1.5">
+                                                            <p className="truncate text-[15px] font-medium leading-tight text-blue-600">
+                                                                {member.full_name}
+                                                            </p>
+                                                            {demo.has(member.id) ? <SupportDemoBadge /> : null}
+                                                        </div>
                                                         <p className="mt-0.5 text-[11px] font-medium leading-tight text-slate-400">
                                                             {member.member_id}
                                                         </p>
@@ -739,8 +749,8 @@ export default function MembersTable({ members, plans, currentPage, totalCount, 
                                         >
                                             <StatusBadge status={member.status} />
                                             <button
-                                                title="Delete"
-                                                disabled={deletingId === member.id || !!navigatingMemberId}
+                                                title={isLocked(member.id) ? lockTitle : 'Delete'}
+                                                disabled={deletingId === member.id || !!navigatingMemberId || isLocked(member.id)}
                                                 onClick={() => handleDelete(member.id, member.full_name)}
                                                 className="flex h-8 w-8 items-center justify-center rounded-lg text-red-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
                                             >
@@ -814,7 +824,10 @@ export default function MembersTable({ members, plans, currentPage, totalCount, 
                                                 <span className="text-sm font-semibold text-gray-800">{member.member_id}</span>
                                             </td>
                                             <td className="px-3 py-3">
-                                                <span className="text-sm font-medium text-gray-800">{member.full_name}</span>
+                                                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-800">
+                                                    {member.full_name}
+                                                    {demo.has(member.id) ? <SupportDemoBadge /> : null}
+                                                </span>
                                             </td>
                                             <td className="px-3 py-3">
                                                 <span className="text-sm text-gray-500">{member.phone}</span>
@@ -847,17 +860,27 @@ export default function MembersTable({ members, plans, currentPage, totalCount, 
                                                         >
                                                             <Eye className="h-4 w-4" />
                                                         </button>
-                                                        <Link href={`/admin/members/${member.id}/edit`}>
+                                                        {isLocked(member.id) ? (
                                                             <button
-                                                                title="Edit"
-                                                                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600"
+                                                                title={lockTitle}
+                                                                disabled
+                                                                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 disabled:opacity-40"
                                                             >
                                                                 <Pencil className="h-3.5 w-3.5" />
                                                             </button>
-                                                        </Link>
+                                                        ) : (
+                                                            <Link href={`/admin/members/${member.id}/edit`}>
+                                                                <button
+                                                                    title="Edit"
+                                                                    className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600"
+                                                                >
+                                                                    <Pencil className="h-3.5 w-3.5" />
+                                                                </button>
+                                                            </Link>
+                                                        )}
                                                         <button
-                                                            title="Delete"
-                                                            disabled={deletingId === member.id || !!navigatingMemberId}
+                                                            title={isLocked(member.id) ? lockTitle : 'Delete'}
+                                                            disabled={deletingId === member.id || !!navigatingMemberId || isLocked(member.id)}
                                                             onClick={() => handleDelete(member.id, member.full_name)}
                                                             className="flex h-8 w-8 items-center justify-center rounded-lg text-red-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
                                                         >

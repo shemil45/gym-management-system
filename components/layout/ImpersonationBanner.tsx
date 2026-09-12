@@ -103,6 +103,9 @@ export default function ImpersonationBanner({
                             </>
                         )}
                     </p>
+                    <p className={urgent ? 'mt-1 text-sm text-red-100/75' : 'mt-1 text-sm text-amber-100/75'}>
+                        Records you create here are removed when the session ends.
+                    </p>
                 </div>
                 <form action={stopAction}>
                     <ExitButton urgent={urgent} />

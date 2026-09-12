@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect, useRef, startTransition } from 'react'
+import { useState, useEffect, useMemo, useRef, startTransition } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import SupportDemoBadge from '@/components/platform/SupportDemoBadge'
 import {
     Select,
     SelectContent,
@@ -69,6 +70,7 @@ interface PaymentsTableProps {
     totalRevenue: number
     currentPage: number
     totalCount: number
+    demoIds?: string[]
     initialFilters?: {
         q?: string
         status?: string
@@ -253,11 +255,13 @@ export default function PaymentsTable({
     totalRevenue,
     currentPage,
     totalCount,
+    demoIds,
     initialFilters,
 }: PaymentsTableProps) {
     const router = useRouter()
     const pathname = usePathname()
     const { isDark } = useAdminTheme()
+    const demo = useMemo(() => new Set(demoIds), [demoIds])
     const initialDateRange = getPresetDateRange(initialFilters?.date ?? null)
     const [openingRecordPayment, setOpeningRecordPayment] = useState(false)
     const [searchQuery, setSearchQuery] = useState(initialFilters?.q || '')
@@ -699,9 +703,12 @@ export default function PaymentsTable({
                                             {/* Row 1: Name + payment date/time */}
                                             <div className="flex items-start justify-between gap-2">
                                                 <div className="min-w-0">
-                                                    <p className="truncate text-[15px] font-medium leading-tight text-slate-800">
-                                                        {name}
-                                                    </p>
+                                                    <div className="flex min-w-0 items-center gap-1.5">
+                                                        <p className="truncate text-[15px] font-medium leading-tight text-slate-800">
+                                                            {name}
+                                                        </p>
+                                                        {demo.has(payment.id) ? <SupportDemoBadge /> : null}
+                                                    </div>
                                                     <p className="mt-0.5 text-[11px] font-medium leading-tight text-slate-400">
                                                         {member?.member_id ?? '—'}
                                                     </p>
@@ -820,7 +827,10 @@ export default function PaymentsTable({
                                                 </Avatar>
                                             </td>
                                             <td className="px-3 py-3">
-                                                <p className="text-sm font-medium text-gray-800">{name}</p>
+                                                <p className="flex items-center gap-1.5 text-sm font-medium text-gray-800">
+                                                    {name}
+                                                    {demo.has(payment.id) ? <SupportDemoBadge /> : null}
+                                                </p>
                                                 <p className="text-[11px] text-gray-400">{member?.member_id ?? '—'}</p>
                                             </td>
                                             <td className="px-3 py-3">

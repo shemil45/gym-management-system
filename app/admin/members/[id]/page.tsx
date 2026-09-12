@@ -1,7 +1,11 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentGymContext } from '@/lib/auth/gym-context'
+import { getActiveImpersonation, isImpersonationOwned } from '@/lib/platform/impersonation-ledger'
+import { DEMO_READONLY_MESSAGE } from '@/lib/platform/impersonation-messages'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import LoadingLinkButton from '@/components/ui/loading-link-button'
+import SupportDemoBadge from '@/components/platform/SupportDemoBadge'
 import {
     User,
     Phone,
@@ -101,6 +105,12 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
 
     if (!member) notFound()
 
+    const { gym } = await getCurrentGymContext()
+    const impersonation = await getActiveImpersonation()
+    const isDemo = gym ? Boolean(await isImpersonationOwned(gym.id, 'member', member.id)) : false
+    const locked = impersonation ? !isDemo : isDemo
+    const lockTitle = impersonation ? 'Read-only while impersonating' : DEMO_READONLY_MESSAGE
+
     const initials = member.full_name
         .split(' ')
         .map((n) => n[0])
@@ -124,14 +134,25 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
                     <span className="text-sm font-medium">Members</span>
                 </LoadingLinkButton>
 
-                <LoadingLinkButton
-                    href={`/admin/members/${member.id}/edit`}
-                    loadingText="Opening..."
-                    className="flex h-9 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700"
-                >
-                    <Pencil className="h-3.5 w-3.5" />
-                    Edit
-                </LoadingLinkButton>
+                {locked ? (
+                    <button
+                        title={lockTitle}
+                        disabled
+                        className="flex h-9 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white opacity-40"
+                    >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Edit
+                    </button>
+                ) : (
+                    <LoadingLinkButton
+                        href={`/admin/members/${member.id}/edit`}
+                        loadingText="Opening..."
+                        className="flex h-9 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700"
+                    >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Edit
+                    </LoadingLinkButton>
+                )}
             </div>
 
             {/* ── Profile card ── */}
@@ -153,7 +174,10 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
 
                     {/* Name + ID + status */}
                     <div className="min-w-0 flex-1">
-                        <h1 className="truncate text-lg font-bold text-white">{member.full_name}</h1>
+                        <h1 className="flex items-center gap-2 truncate text-lg font-bold text-white">
+                            {member.full_name}
+                            {isDemo ? <SupportDemoBadge /> : null}
+                        </h1>
                         <p className="text-xs font-medium text-blue-200">{member.member_id}</p>
                         <span
                             className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full ${status.bg} px-2.5 py-0.5 text-xs font-semibold ${status.text}`}

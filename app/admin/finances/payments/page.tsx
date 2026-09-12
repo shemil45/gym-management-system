@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import type { QueryResult } from '@/lib/types'
 import PaymentsTable from '@/components/tables/PaymentsTable'
+import { getImpersonationOwnedIds } from '@/lib/platform/impersonation-ledger'
+import { getCurrentGymContext } from '@/lib/auth/gym-context'
 
 const ITEMS_PER_PAGE = 20
 
@@ -174,6 +176,9 @@ export default async function FinancesPaymentsPage({ searchParams }: FinancesPay
         getPaidPaymentTotal(supabase, {}),
     ])
 
+    const { gym } = await getCurrentGymContext()
+    const demoIds = gym ? Array.from(await getImpersonationOwnedIds(gym.id, 'payment')) : []
+
     return (
         <PaymentsTable
             key={`${params.status || 'all'}:${params.date || 'none'}:${params.method || 'all'}:${dateFrom}:${dateTo}:${params.type || 'none'}`}
@@ -183,6 +188,7 @@ export default async function FinancesPaymentsPage({ searchParams }: FinancesPay
             totalRevenue={totalRevenue}
             currentPage={page}
             totalCount={totalPayments}
+            demoIds={demoIds}
             initialFilters={{
                 q: params.q,
                 status: params.status,

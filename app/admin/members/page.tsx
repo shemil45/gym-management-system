@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import MembersTable from '@/components/tables/MembersTable'
 import { getRenewalBoundaries } from '@/lib/utils/renewals'
+import { getActiveImpersonation, getImpersonationOwnedIds } from '@/lib/platform/impersonation-ledger'
+import { getCurrentGymContext } from '@/lib/auth/gym-context'
 
 const ITEMS_PER_PAGE = 20
 
@@ -115,6 +117,10 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
         .select('id, name')
         .order('name')
 
+    const impersonation = await getActiveImpersonation()
+    const { gym } = await getCurrentGymContext()
+    const demoIds = gym ? Array.from(await getImpersonationOwnedIds(gym.id, 'member')) : []
+
     return (
         <MembersTable
             key={`${params.status || 'all'}:${params.plan || 'all'}:${params.gender || 'all'}:${params.startFrom || ''}:${params.startTo || ''}:${endFrom}:${endTo}:${params.planExpiry || 'none'}:${params.filter || 'none'}`}
@@ -122,6 +128,8 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
             plans={plans || []}
             currentPage={page}
             totalCount={totalMembers || 0}
+            demoIds={demoIds}
+            readOnlyMode={impersonation ? 'operator' : 'tenant'}
             initialFilters={{
                 q: params.q,
                 status: params.status,

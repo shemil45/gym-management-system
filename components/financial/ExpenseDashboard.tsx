@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState, useMemo, useTransition, useRef } from 'react'
+import SupportDemoBadge from '@/components/platform/SupportDemoBadge'
+import { DEMO_READONLY_MESSAGE } from '@/lib/platform/impersonation-messages'
 import { usePathname, useRouter } from 'next/navigation'
 import {
     BarChart,
@@ -80,6 +82,8 @@ interface ExpenseDashboardProps {
     summaryExpenses: ExpenseRow[]
     currentPage: number
     totalCount: number
+    demoIds?: string[]
+    readOnlyMode?: 'tenant' | 'operator'
     initialFilters?: {
         q?: string
         category?: string
@@ -502,12 +506,17 @@ export default function ExpenseDashboard({
     summaryExpenses,
     currentPage,
     totalCount,
+    demoIds,
+    readOnlyMode = 'tenant',
     initialFilters,
 }: ExpenseDashboardProps) {
     const { isDark } = useAdminTheme()
     const router = useRouter()
     const pathname = usePathname()
     const { confirm, dialog } = useConfirmDialog()
+    const demo = useMemo(() => new Set(demoIds), [demoIds])
+    const isLocked = (id: string) => (readOnlyMode === 'operator' ? !demo.has(id) : demo.has(id))
+    const lockTitle = readOnlyMode === 'operator' ? 'Read-only while impersonating' : DEMO_READONLY_MESSAGE
     const expenseTableRef = useRef<HTMLDivElement | null>(null)
     const initialDateRange = getPresetDateRange(initialFilters?.date ?? null)
     const [showModal, setShowModal] = useState(false)
@@ -1122,9 +1131,12 @@ export default function ExpenseDashboard({
                                     <div className="min-w-0">
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="min-w-0">
-                                                <p className="truncate text-[15px] font-medium leading-tight text-slate-800">
-                                                    {expense.description}
-                                                </p>
+                                                <div className="flex min-w-0 items-center gap-1.5">
+                                                    <p className="truncate text-[15px] font-medium leading-tight text-slate-800">
+                                                        {expense.description}
+                                                    </p>
+                                                    {demo.has(expense.id) ? <SupportDemoBadge /> : null}
+                                                </div>
                                                 <p className="mt-0.5 text-[11px] font-medium leading-tight text-slate-400">
                                                     {getCategoryConfig(expense.category).label}
                                                 </p>
@@ -1143,8 +1155,8 @@ export default function ExpenseDashboard({
                                             <CategoryBadge category={expense.category} />
                                             </div>
                                             <button
-                                                title="Delete expense"
-                                                disabled={deletingId === expense.id}
+                                                title={isLocked(expense.id) ? lockTitle : 'Delete expense'}
+                                                disabled={deletingId === expense.id || isLocked(expense.id)}
                                                 onClick={() => handleDelete(expense.id)}
                                                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-red-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
                                             >
@@ -1182,7 +1194,10 @@ export default function ExpenseDashboard({
                                                 <CategoryBadge category={expense.category} />
                                             </td>
                                             <td className="px-3 py-3">
-                                                <span className="text-sm text-gray-700">{expense.description}</span>
+                                                <span className="inline-flex items-center gap-1.5 text-sm text-gray-700">
+                                                    {expense.description}
+                                                    {demo.has(expense.id) ? <SupportDemoBadge /> : null}
+                                                </span>
                                             </td>
                                             <td className="px-3 py-3">
                                                 <span className="text-sm text-gray-500">{formatDate(expense.expense_date)}</span>
@@ -1194,8 +1209,8 @@ export default function ExpenseDashboard({
                                             </td>
                                             <td className="px-3 py-3 pr-5 text-right">
                                                 <button
-                                                    title="Delete expense"
-                                                    disabled={deletingId === expense.id}
+                                                    title={isLocked(expense.id) ? lockTitle : 'Delete expense'}
+                                                    disabled={deletingId === expense.id || isLocked(expense.id)}
                                                     onClick={() => handleDelete(expense.id)}
                                                     className="flex h-7 w-7 items-center justify-center rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-40 transition-colors ml-auto"
                                                 >

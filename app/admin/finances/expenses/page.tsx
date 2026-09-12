@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import type { QueryResult } from '@/lib/types'
 import ExpenseDashboard from '@/components/financial/ExpenseDashboard'
+import { getActiveImpersonation, getImpersonationOwnedIds } from '@/lib/platform/impersonation-ledger'
+import { getCurrentGymContext } from '@/lib/auth/gym-context'
 
 const ITEMS_PER_PAGE = 20
 
@@ -111,6 +113,10 @@ export default async function FinancesExpensesPage({ searchParams }: FinancesExp
         created_at: expense.expense_date,
     }))
 
+    const { gym } = await getCurrentGymContext()
+    const impersonation = await getActiveImpersonation()
+    const demoIds = gym ? Array.from(await getImpersonationOwnedIds(gym.id, 'expense')) : []
+
     return (
         <ExpenseDashboard
             key={`${params.page || '1'}:${params.q || ''}:${params.category || 'all'}:${params.date || 'none'}:${dateFrom}:${dateTo}:${params.type || 'none'}`}
@@ -119,6 +125,8 @@ export default async function FinancesExpensesPage({ searchParams }: FinancesExp
             summaryExpenses={summaryExpenses}
             currentPage={page}
             totalCount={totalExpenses || 0}
+            demoIds={demoIds}
+            readOnlyMode={impersonation ? 'operator' : 'tenant'}
             initialFilters={{
                 q: params.q,
                 category: params.category,

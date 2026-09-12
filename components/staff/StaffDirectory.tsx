@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { startTransition, useState } from 'react'
+import { startTransition, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { formatRoleLabel } from '@/lib/auth/roles'
 import { resolveAvatarUrl } from '@/lib/utils/storage'
+import SupportDemoBadge from '@/components/platform/SupportDemoBadge'
 import { Loader2, Plus, Phone } from 'lucide-react'
 
 type StaffMember = {
@@ -32,10 +33,11 @@ function getRoleBadgeClass(role: string) {
     return palette[role] ?? 'border-slate-200 bg-slate-50 text-slate-700'
 }
 
-export default function StaffDirectory({ staff }: { staff: StaffMember[] }) {
+export default function StaffDirectory({ staff, demoIds }: { staff: StaffMember[]; demoIds?: string[] }) {
     const router = useRouter()
     const { isDark } = useAdminTheme()
     const [navigatingStaffId, setNavigatingStaffId] = useState<string | null>(null)
+    const demo = useMemo(() => new Set(demoIds), [demoIds])
 
     const handleViewStaff = (id: string) => {
         if (navigatingStaffId) return
@@ -110,7 +112,10 @@ export default function StaffDirectory({ staff }: { staff: StaffMember[] }) {
 
                                         <div className="min-w-0 flex-1">
                                             <div className="flex flex-wrap items-start justify-between gap-2">
-                                                <p className="truncate text-[15px] font-semibold text-slate-900">{member.full_name}</p>
+                                                <p className="flex min-w-0 items-center gap-1.5 truncate text-[15px] font-semibold text-slate-900">
+                                                    {member.full_name}
+                                                    {demo.has(member.id) ? <SupportDemoBadge /> : null}
+                                                </p>
                                                 <Badge variant="outline" className={`capitalize ${getRoleBadgeClass(member.role)}`}>
                                                     {formatRoleLabel(member.role)}
                                                 </Badge>
@@ -175,7 +180,12 @@ export default function StaffDirectory({ staff }: { staff: StaffMember[] }) {
                                                     </AvatarFallback>
                                                 </Avatar>
                                             </td>
-                                            <td className="px-3 py-4 text-sm font-medium text-slate-900">{member.full_name}</td>
+                                            <td className="px-3 py-4">
+                                                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-900">
+                                                    {member.full_name}
+                                                    {demo.has(member.id) ? <SupportDemoBadge /> : null}
+                                                </span>
+                                            </td>
                                             <td className="px-3 py-4">
                                                 <Badge variant="outline" className={`capitalize ${getRoleBadgeClass(member.role)}`}>
                                                     {formatRoleLabel(member.role)}

@@ -1,8 +1,12 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { getCurrentGymContext } from '@/lib/auth/gym-context'
+import { getActiveImpersonation, isImpersonationOwned } from '@/lib/platform/impersonation-ledger'
+import { DEMO_READONLY_MESSAGE } from '@/lib/platform/impersonation-messages'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import LoadingLinkButton from '@/components/ui/loading-link-button'
+import SupportDemoBadge from '@/components/platform/SupportDemoBadge'
 import { formatRoleLabel, type StaffRole } from '@/lib/auth/roles'
 import { resolveAvatarUrl } from '@/lib/utils/storage'
 import {
@@ -99,6 +103,12 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
     const authUserResult = await admin.auth.admin.getUserById(id)
     const email = authUserResult.error ? null : authUserResult.data.user?.email ?? null
 
+    const { gym } = await getCurrentGymContext()
+    const impersonation = await getActiveImpersonation()
+    const isDemo = gym ? Boolean(await isImpersonationOwned(gym.id, 'admin', staff.user_id)) : false
+    const locked = impersonation ? !isDemo : isDemo
+    const lockTitle = impersonation ? 'Read-only while impersonating' : DEMO_READONLY_MESSAGE
+
     const initials = staff.profile.full_name
         .split(' ')
         .map((name) => name[0])
@@ -119,14 +129,25 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
                     <span className="text-sm font-medium">Staff</span>
                 </LoadingLinkButton>
 
-                <LoadingLinkButton
-                    href={`/admin/staff/${staff.user_id}/edit`}
-                    loadingText="Opening..."
-                    className="flex h-9 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700"
-                >
-                    <Pencil className="h-3.5 w-3.5" />
-                    Edit
-                </LoadingLinkButton>
+                {locked ? (
+                    <button
+                        title={lockTitle}
+                        disabled
+                        className="flex h-9 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white opacity-40"
+                    >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Edit
+                    </button>
+                ) : (
+                    <LoadingLinkButton
+                        href={`/admin/staff/${staff.user_id}/edit`}
+                        loadingText="Opening..."
+                        className="flex h-9 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700"
+                    >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Edit
+                    </LoadingLinkButton>
+                )}
             </div>
 
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-700 to-violet-700 px-4 py-4 shadow-[0_8px_24px_rgba(59,130,246,0.35)]">
@@ -144,7 +165,10 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
                     </div>
 
                     <div className="min-w-0 flex-1">
-                        <h1 className="truncate text-lg font-bold text-white">{staff.profile.full_name}</h1>
+                        <h1 className="flex items-center gap-2 truncate text-lg font-bold text-white">
+                            {staff.profile.full_name}
+                            {isDemo ? <SupportDemoBadge /> : null}
+                        </h1>
                         <p className="text-xs font-medium capitalize text-blue-200">{formatRoleLabel(staff.role)}</p>
                     </div>
                 </div>

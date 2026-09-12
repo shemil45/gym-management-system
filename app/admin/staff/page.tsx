@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import type { QueryResult } from '@/lib/types'
 import StaffDirectory from '@/components/staff/StaffDirectory'
 import type { StaffRole } from '@/lib/auth/roles'
+import { getImpersonationOwnedIds } from '@/lib/platform/impersonation-ledger'
+import { getCurrentGymContext } from '@/lib/auth/gym-context'
 
 type StaffDirectoryRow = {
     user_id: string
@@ -37,5 +39,8 @@ export default async function StaffPage() {
         }]
     })
 
-    return <StaffDirectory staff={staff} />
+    const { gym } = await getCurrentGymContext()
+    const demoIds = gym ? Array.from(await getImpersonationOwnedIds(gym.id, 'admin')) : []
+
+    return <StaffDirectory staff={staff} demoIds={demoIds} />
 }

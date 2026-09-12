@@ -4,6 +4,7 @@ import { cache } from 'react'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { getCurrentAuthResolution } from '@/lib/auth/gym-context'
 import type { InsertTables, QueryResult, Tables } from '@/lib/types'
+import { DEMO_READONLY_MESSAGE, IMPERSONATION_READONLY_MESSAGE } from './impersonation-messages'
 
 /**
  * Impersonation sandbox ledger.
@@ -19,11 +20,7 @@ import type { InsertTables, QueryResult, Tables } from '@/lib/types'
 
 export type ImpersonationEntityType = Tables<'platform_impersonation_writes'>['entity_type']
 
-export const IMPERSONATION_READONLY_MESSAGE = 'Existing records are read-only while impersonating.'
-export const IMPERSONATION_PAYMENT_MESSAGE =
-    'While impersonating you can only record payments for members created in this session.'
-export const DEMO_READONLY_MESSAGE =
-    'This record was created by GMS Cloud support for a demo and is read-only. It will be removed automatically when their session ends.'
+export { IMPERSONATION_READONLY_MESSAGE, IMPERSONATION_PAYMENT_MESSAGE, DEMO_READONLY_MESSAGE } from './impersonation-messages'
 
 const ENTITY_TYPES: ImpersonationEntityType[] = [
     'auth_user',
