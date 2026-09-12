@@ -11,6 +11,7 @@ import { findAuthUserByEmail, getSupabaseAdmin } from '@/lib/supabase/admin'
 import { invalidateGymAdminSummaries } from '@/lib/auth/admin-server'
 import { canAddMember } from '@/lib/billing/entitlements'
 import { assertActiveSubscription } from '@/lib/billing/gate'
+import { getActiveImpersonation, recordImpersonationWrite } from '@/lib/platform/impersonation-ledger'
 
 type PlanLookup = Pick<InsertTables<'membership_plans'>, 'duration_days' | 'price'>
 type ReferrerLookup = { id: string }
@@ -56,6 +57,12 @@ export async function createMember(formData: FormData) {
         if (!entitlement.ok) {
             return { error: entitlement.reason }
         }
+
+        const impersonation = await getActiveImpersonation()
+        const ledger = impersonation
+            ? (type: Parameters<typeof recordImpersonationWrite>[2], id: string) =>
+                  recordImpersonationWrite(impersonation.sessionId, viewer.gym!.id, type, id)
+            : null
 
         const fullName = (formData.get('full_name') as string | null)?.trim()
         const email = (formData.get('email') as string | null)?.trim().toLowerCase()
@@ -131,7 +138,9 @@ export async function createMember(formData: FormData) {
         expiryDate.setDate(expiryDate.getDate() + plan.duration_days)
 
         // Resolve referral code → referrer member
-        const rawCode = (formData.get('referral_code') as string | null)?.trim().toUpperCase()
+        // Referral codes credit a real member's coin balance, which cannot be
+        // undone when a demo session ends - so operators do not get them.
+        const rawCode = impersonation ? undefined : (formData.get('referral_code') as string | null)?.trim().toUpperCase()
         let referrerId: string | null = null
         if (rawCode) {
             const referrerResult = await supabase
@@ -181,6 +190,7 @@ export async function createMember(formData: FormData) {
 
             createdNewAuthUser = true
             createdUserId = createUserResult.data.user.id
+            if (ledger) await ledger('auth_user', createdUserId)
         }
 
         if (!createdUserId) {
@@ -234,6 +244,7 @@ export async function createMember(formData: FormData) {
             }
 
             createdProfile = true
+            if (ledger) await ledger('profile', createdUserId)
         }
 
         const memberPayload: InsertTables<'members'> = {
@@ -290,6 +301,10 @@ export async function createMember(formData: FormData) {
         }
 
         createdMemberId = member.id
+        if (ledger) {
+            await ledger('member', member.id)
+            if (uploadedPhotoPath) await ledger('storage_object', uploadedPhotoPath)
+        }
 
         // Create initial payment record
         const planAmount = Number(paymentAmountValue)
@@ -305,9 +320,12 @@ export async function createMember(formData: FormData) {
             notes: 'Initial membership fee',
         }
 
-        const { error: paymentError } = await supabase
+        const paymentInsertResult = await supabase
             .from('payments')
             .insert(paymentPayload as never)
+            .select('id')
+            .single()
+        const { data: initialPayment, error: paymentError } = paymentInsertResult as unknown as QueryResult<{ id: string } | null>
 
         if (paymentError) {
             await supabase.from('members').delete().eq('id', member.id)
@@ -322,6 +340,7 @@ export async function createMember(formData: FormData) {
             }
             return { error: getErrorMessage(paymentError, 'Failed to create initial payment record') }
         }
+        if (ledger && initialPayment) await ledger('payment', initialPayment.id)
 
         // If referred, create a referral record
         if (referrerId) {
