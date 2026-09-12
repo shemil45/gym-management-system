@@ -33,15 +33,25 @@ export function isGatedPath(pathname: string): boolean {
 /**
  * Page-level gate: sends a lapsed tenant to the renewal page.
  *
- * Must run from the admin layout, above app/admin/loading.tsx. Below that
- * Suspense boundary the shell has already streamed by the time redirect()
- * throws, so Next falls back to a client-side redirect and the tenant sees
- * the page load twice.
+ * Called from two places, and both are needed:
+ *
+ * - The admin layout, for full document loads. It sits above
+ *   app/admin/loading.tsx, so redirect() becomes a real 307 before anything
+ *   streams. Below that Suspense boundary the shell would already be on the
+ *   wire and Next would fall back to a client-side redirect - a visible
+ *   double load.
+ * - Each gated section's layout, for client-side navigations. Shared layouts
+ *   are not re-rendered on a soft navigation, so the admin layout never sees
+ *   dashboard -> members; the section layout is a new segment and does.
  */
-export async function requireActiveSubscription(gymId: string, pathname: string): Promise<void> {
-    if (!isGatedPath(pathname)) return
+export async function redirectIfLapsed(gymId: string): Promise<void> {
     const view = await getSubscriptionView(gymId)
     if (view.isLapsed) redirect(RENEW_PATH)
+}
+
+export async function requireActiveSubscription(gymId: string, pathname: string): Promise<void> {
+    if (!isGatedPath(pathname)) return
+    await redirectIfLapsed(gymId)
 }
 
 /**
