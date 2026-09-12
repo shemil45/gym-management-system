@@ -62,6 +62,7 @@ export async function createStaff(formData: FormData) {
     let createdNewAuthUser = false
     let createdUserId: string | null = null
     let createdProfile = false
+    let createdMembership = false
     let photoUrl: string | null = uploadedPhotoUrl
     let finalUploadedPhotoPath: string | null = uploadedPhotoPath
 
@@ -174,6 +175,14 @@ export async function createStaff(formData: FormData) {
             if (ledger) await ledger('profile', createdUserId)
         }
 
+        const existingMembershipResult = await admin
+            .from('admins')
+            .select('id')
+            .eq('user_id', createdUserId)
+            .eq('gym_id', viewer.gym.id)
+            .maybeSingle()
+        const { data: existingMembership } = existingMembershipResult as unknown as QueryResult<{ id: string } | null>
+
         const { error: membershipError } = await admin
             .from('admins')
             .upsert(({
@@ -188,12 +197,14 @@ export async function createStaff(formData: FormData) {
             throw membershipError
         }
 
-        if (ledger) await ledger('admin', createdUserId)
+        createdMembership = !existingMembership
+
+        if (ledger && createdMembership) await ledger('admin', createdUserId)
 
         revalidatePath('/admin/staff')
         return { success: true }
     } catch (error) {
-        if (createdUserId) {
+        if (createdMembership && createdUserId) {
             await admin.from('admins').delete().eq('user_id', createdUserId).eq('gym_id', viewer.gym.id)
         }
         if (finalUploadedPhotoPath) {
