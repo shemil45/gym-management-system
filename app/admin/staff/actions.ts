@@ -181,7 +181,11 @@ export async function createStaff(formData: FormData) {
             .eq('user_id', createdUserId)
             .eq('gym_id', viewer.gym.id)
             .maybeSingle()
-        const { data: existingMembership } = existingMembershipResult as unknown as QueryResult<{ id: string } | null>
+        const { data: existingMembership, error: existingMembershipError } = existingMembershipResult as unknown as QueryResult<{ id: string } | null>
+
+        if (existingMembershipError) {
+            throw existingMembershipError
+        }
 
         const { error: membershipError } = await admin
             .from('admins')
