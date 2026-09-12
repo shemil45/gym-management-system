@@ -6,6 +6,13 @@ import { revalidatePath } from 'next/cache'
 import { invalidateGymAdminSummaries } from '@/lib/auth/admin-server'
 import { sendMemberWhatsAppNotification } from '@/lib/notifications/service'
 import { assertActiveSubscription } from '@/lib/billing/gate'
+import {
+    DEMO_READONLY_MESSAGE,
+    IMPERSONATION_PAYMENT_MESSAGE,
+    getActiveImpersonation,
+    isImpersonationOwned,
+    recordImpersonationWrite,
+} from '@/lib/platform/impersonation-ledger'
 
 function getErrorMessage(error: unknown, fallback: string) {
     return error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
@@ -47,6 +54,19 @@ export async function recordPayment(formData: FormData) {
 
         const lapsed = await assertActiveSubscription(memberGymRow.gym_id)
         if (lapsed) return { error: lapsed.error }
+
+        // Demo members belong to the session that made them: the operator may
+        // pay against those and nothing else; the tenant may not pay against
+        // them at all (it would move a row that is about to be deleted).
+        const impersonation = await getActiveImpersonation()
+        const owner = await isImpersonationOwned(memberGymRow.gym_id, 'member', memberId)
+        if (impersonation) {
+            if (!owner || owner.sessionId !== impersonation.sessionId) {
+                return { error: IMPERSONATION_PAYMENT_MESSAGE }
+            }
+        } else if (owner) {
+            return { error: DEMO_READONLY_MESSAGE }
+        }
 
         const { data: receiptNumber, error: receiptNumberError } = await supabase.rpc('generate_receipt_number', {
             p_gym_id: memberGymRow.gym_id,
@@ -105,11 +125,15 @@ export async function recordPayment(formData: FormData) {
         const paymentInsertResult = await supabase
             .from('payments')
             .insert(paymentPayload as never)
-            .select('gym_id')
+            .select('id, gym_id')
             .single()
-        const { data: insertedPayment, error: paymentError } = paymentInsertResult as unknown as QueryResult<{ gym_id: string } | null>
+        const { data: insertedPayment, error: paymentError } = paymentInsertResult as unknown as QueryResult<{ id: string; gym_id: string } | null>
 
         if (paymentError) return { error: getErrorMessage(paymentError, 'Failed to record payment') }
+
+        if (impersonation && insertedPayment) {
+            await recordImpersonationWrite(impersonation.sessionId, memberGymRow.gym_id, 'payment', insertedPayment.id)
+        }
 
         if (renewMembership && planId && paymentStatus === 'paid' && membershipStartDate && membershipEndDate) {
             const { error: updateMemberError } = await supabase

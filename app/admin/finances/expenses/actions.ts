@@ -1,17 +1,27 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import type { InsertTables } from '@/lib/types'
+import type { InsertTables, QueryResult } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 import { getCurrentGymContext } from '@/lib/auth/gym-context'
 import { assertActiveSubscription } from '@/lib/billing/gate'
+import {
+    DEMO_READONLY_MESSAGE,
+    IMPERSONATION_READONLY_MESSAGE,
+    getActiveImpersonation,
+    isImpersonationOwned,
+    recordImpersonationWrite,
+    releaseImpersonationWrite,
+} from '@/lib/platform/impersonation-ledger'
 
-async function gate(): Promise<{ error: string } | null> {
+async function gate(): Promise<{ error: string } | { gymId: string }> {
     const viewer = await getCurrentGymContext()
     if (!viewer.user || !viewer.isStaff || !viewer.gym) {
         return { error: 'You do not have permission to manage expenses.' }
     }
-    return assertActiveSubscription(viewer.gym.id)
+    const lapsed = await assertActiveSubscription(viewer.gym.id)
+    if (lapsed) return { error: lapsed.error }
+    return { gymId: viewer.gym.id }
 }
 
 export type ExpenseCategory =
@@ -24,8 +34,8 @@ export type ExpenseCategory =
     | 'other'
 
 export async function addExpense(formData: FormData) {
-    const blocked = await gate()
-    if (blocked) return { error: blocked.error }
+    const gated = await gate()
+    if ('error' in gated) return { error: gated.error }
 
     const supabase = await createClient()
 
@@ -47,21 +57,36 @@ export async function addExpense(formData: FormData) {
         expense_date,
     }
 
-    const { error } = await supabase.from('expenses').insert(expensePayload as never)
+    const insertResult = await supabase.from('expenses').insert(expensePayload as never).select('id').single()
+    const { data: inserted, error } = insertResult as unknown as QueryResult<{ id: string } | null>
 
-    if (error) return { error: error.message }
+    if (error) return { error: (error as { message: string }).message }
+
+    const impersonation = await getActiveImpersonation()
+    if (impersonation && inserted) {
+        await recordImpersonationWrite(impersonation.sessionId, gated.gymId, 'expense', inserted.id)
+    }
 
     revalidatePath('/admin/finances/expenses')
     return { success: true }
 }
 
 export async function deleteExpense(id: string) {
-    const blocked = await gate()
-    if (blocked) return { error: blocked.error }
+    const gated = await gate()
+    if ('error' in gated) return { error: gated.error }
+
+    const impersonation = await getActiveImpersonation()
+    const owner = await isImpersonationOwned(gated.gymId, 'expense', id)
+    if (impersonation) {
+        if (!owner || owner.sessionId !== impersonation.sessionId) return { error: IMPERSONATION_READONLY_MESSAGE }
+    } else if (owner) {
+        return { error: DEMO_READONLY_MESSAGE }
+    }
 
     const supabase = await createClient()
     const { error } = await supabase.from('expenses').delete().eq('id', id)
     if (error) return { error: error.message }
+    if (owner) await releaseImpersonationWrite(gated.gymId, 'expense', id)
     revalidatePath('/admin/finances/expenses')
     return { success: true }
 }
