@@ -9,6 +9,7 @@ import type { InsertTables, QueryResult, UpdateTables } from '@/lib/types'
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
 import { getAvatarStoragePath } from '@/lib/utils/storage'
 import { canAddStaff } from '@/lib/billing/entitlements'
+import { assertActiveSubscription } from '@/lib/billing/gate'
 
 type ExistingProfile = {
     id: string
@@ -199,6 +200,9 @@ export async function updateStaff(formData: FormData) {
     if (!viewer.user || !viewer.isStaff || !viewer.gym) {
         return { error: 'You do not have permission to edit staff.' }
     }
+
+    const lapsed = await assertActiveSubscription(viewer.gym.id)
+    if (lapsed) return { error: lapsed.error }
 
     const id = (formData.get('id') as string | null)?.trim()
     const fullName = (formData.get('full_name') as string | null)?.trim()

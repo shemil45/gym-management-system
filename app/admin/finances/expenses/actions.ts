@@ -3,6 +3,16 @@
 import { createClient } from '@/lib/supabase/server'
 import type { InsertTables } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
+import { getCurrentGymContext } from '@/lib/auth/gym-context'
+import { assertActiveSubscription } from '@/lib/billing/gate'
+
+async function gate(): Promise<{ error: string } | null> {
+    const viewer = await getCurrentGymContext()
+    if (!viewer.user || !viewer.isStaff || !viewer.gym) {
+        return { error: 'You do not have permission to manage expenses.' }
+    }
+    return assertActiveSubscription(viewer.gym.id)
+}
 
 export type ExpenseCategory =
     | 'utilities'
@@ -14,6 +24,9 @@ export type ExpenseCategory =
     | 'other'
 
 export async function addExpense(formData: FormData) {
+    const blocked = await gate()
+    if (blocked) return { error: blocked.error }
+
     const supabase = await createClient()
 
     const category = formData.get('category') as ExpenseCategory
@@ -43,6 +56,9 @@ export async function addExpense(formData: FormData) {
 }
 
 export async function deleteExpense(id: string) {
+    const blocked = await gate()
+    if (blocked) return { error: blocked.error }
+
     const supabase = await createClient()
     const { error } = await supabase.from('expenses').delete().eq('id', id)
     if (error) return { error: error.message }

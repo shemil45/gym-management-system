@@ -5,6 +5,7 @@ import { getCurrentAdminContext } from '@/lib/auth/admin-server'
 import { isStaffRole } from '@/lib/auth/roles'
 import { getPlatformSession } from '@/lib/platform/auth'
 import AccountNotice from '@/components/layout/AccountNotice'
+import HideOnRenewPage from '@/components/layout/HideOnRenewPage'
 import ImpersonationBanner from '@/components/layout/ImpersonationBanner'
 import { stopImpersonation } from '@/app/platform/actions'
 
@@ -43,7 +44,9 @@ export default async function AdminLayout({
                     />
                 ) : null}
 
-                <AccountNotice gymId={gym.id} />
+                <HideOnRenewPage>
+                    <AccountNotice gymId={gym.id} />
+                </HideOnRenewPage>
 
                 {children}
             </AdminShell>

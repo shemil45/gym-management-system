@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { UpdateTables } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 import { getCurrentGymContext } from '@/lib/auth/gym-context'
+import { assertActiveSubscription } from '@/lib/billing/gate'
 
 function getErrorMessage(error: unknown, fallback: string) {
     return error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
@@ -27,6 +28,9 @@ export async function updateNotificationSettings(formData: FormData) {
     if (!viewer.user || !viewer.isStaff || !viewer.gym) {
         return { error: 'You do not have permission to change these settings.' }
     }
+
+    const lapsed = await assertActiveSubscription(viewer.gym.id)
+    if (lapsed) return { error: lapsed.error }
 
     let payload: UpdateTables<'gyms'>
 

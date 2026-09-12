@@ -10,6 +10,7 @@ import { getCurrentGymContext } from '@/lib/auth/gym-context'
 import { findAuthUserByEmail, getSupabaseAdmin } from '@/lib/supabase/admin'
 import { invalidateGymAdminSummaries } from '@/lib/auth/admin-server'
 import { canAddMember } from '@/lib/billing/entitlements'
+import { assertActiveSubscription } from '@/lib/billing/gate'
 
 type PlanLookup = Pick<InsertTables<'membership_plans'>, 'duration_days' | 'price'>
 type ReferrerLookup = { id: string }
@@ -379,8 +380,16 @@ export async function createMember(formData: FormData) {
 export async function updateMember(formData: FormData) {
     const supabase = await createClient()
     const supabaseAdmin = getSupabaseAdmin()
+    const viewer = await getCurrentGymContext()
 
     try {
+        if (!viewer.user || !viewer.isStaff || !viewer.gym) {
+            return { error: 'You do not have permission to edit members.' }
+        }
+
+        const lapsed = await assertActiveSubscription(viewer.gym.id)
+        if (lapsed) return { error: lapsed.error }
+
         const memberId = formData.get('id') as string
         const planId = (formData.get('membership_plan_id') as string) || null
         const startDateValue = (formData.get('membership_start_date') as string) || null
@@ -490,8 +499,16 @@ export async function updateMember(formData: FormData) {
 export async function deleteMember(memberId: string) {
     const supabase = await createClient()
     const supabaseAdmin = getSupabaseAdmin()
+    const viewer = await getCurrentGymContext()
 
     try {
+        if (!viewer.user || !viewer.isStaff || !viewer.gym) {
+            return { error: 'You do not have permission to delete members.' }
+        }
+
+        const lapsed = await assertActiveSubscription(viewer.gym.id)
+        if (lapsed) return { error: lapsed.error }
+
         if (!memberId) {
             return { error: 'Member ID is required' }
         }

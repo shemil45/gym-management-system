@@ -5,6 +5,7 @@ import type { InsertTables, QueryResult, UpdateTables } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 import { invalidateGymAdminSummaries } from '@/lib/auth/admin-server'
 import { sendMemberWhatsAppNotification } from '@/lib/notifications/service'
+import { assertActiveSubscription } from '@/lib/billing/gate'
 
 function getErrorMessage(error: unknown, fallback: string) {
     return error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
@@ -43,6 +44,9 @@ export async function recordPayment(formData: FormData) {
 
         if (memberGymError) return { error: getErrorMessage(memberGymError, 'Failed to resolve member') }
         if (!memberGymRow?.gym_id) return { error: 'Member is not linked to a gym' }
+
+        const lapsed = await assertActiveSubscription(memberGymRow.gym_id)
+        if (lapsed) return { error: lapsed.error }
 
         const { data: receiptNumber, error: receiptNumberError } = await supabase.rpc('generate_receipt_number', {
             p_gym_id: memberGymRow.gym_id,

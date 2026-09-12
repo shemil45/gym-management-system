@@ -4,6 +4,8 @@ import { getCurrentMemberContext } from '@/lib/auth/member-server'
 import { getMemberPortalData } from '@/lib/member/portal-data'
 import { getNotifications } from '@/lib/member/notifications'
 import { MemberThemeProvider } from '@/components/member/MemberTheme'
+import PortalUnavailable from '@/components/member/PortalUnavailable'
+import { isSubscriptionLapsed } from '@/lib/billing/gate'
 import {
     BottomNav,
     DesktopHeader,
@@ -24,6 +26,18 @@ export default async function MemberLayout({ children }: { children: React.React
 
     if (!user || !gym) redirect('/member/login')
     if (!profile || profile.role !== 'member') redirect('/admin/dashboard')
+
+    // The gym's own GMS Cloud plan gates the whole portal - a member cannot
+    // renew it, so they get an explanation instead of the chrome.
+    if (await isSubscriptionLapsed(gym.id)) {
+        return (
+            <MemberThemeProvider>
+                <div className="min-h-[100dvh] bg-[var(--m-bg)] text-[var(--m-ink)]">
+                    <PortalUnavailable gymName={gym.name} />
+                </div>
+            </MemberThemeProvider>
+        )
+    }
 
     const data = await getMemberPortalData()
     const unread = data ? getNotifications(data).filter((n) => n.unread).length : 0

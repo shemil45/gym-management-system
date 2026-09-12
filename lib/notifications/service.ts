@@ -1,6 +1,7 @@
 import { addDays, format } from 'date-fns'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { sendWhatsAppMessage } from '@/lib/whatsapp'
+import { isSubscriptionLapsed } from '@/lib/billing/gate'
 import type { InsertTables, QueryResult } from '@/lib/types'
 import type { NotificationType } from '@/lib/notifications/templates'
 import {
@@ -376,6 +377,25 @@ export async function sendMemberWhatsAppNotification(input: SendMemberNotificati
                 notificationType,
                 error,
                 logId,
+            }
+        }
+
+        // A gym whose GMS Cloud subscription has lapsed sends nothing, whatever
+        // its own notification settings say - this covers the cron path too.
+        if (await isSubscriptionLapsed(member.gym_id)) {
+            console.info('[notifications] Skipping notification for lapsed subscription', {
+                memberId,
+                notificationType,
+                source,
+            })
+
+            return {
+                success: true,
+                status: 'skipped',
+                message: "This gym's GMS Cloud subscription is not active.",
+                memberId,
+                notificationType,
+                reason: 'subscription_lapsed',
             }
         }
 
