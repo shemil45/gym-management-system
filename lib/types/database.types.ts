@@ -1013,6 +1013,8 @@ export interface Database {
                     started_at: string
                     expires_at: string
                     ended_at: string | null
+                    reverted_at: string | null
+                    revert_error: string | null
                 }
                 Insert: {
                     id?: string
@@ -1024,6 +1026,8 @@ export interface Database {
                     started_at?: string
                     expires_at?: string
                     ended_at?: string | null
+                    reverted_at?: string | null
+                    revert_error?: string | null
                 }
                 Update: {
                     id?: string
@@ -1035,6 +1039,37 @@ export interface Database {
                     started_at?: string
                     expires_at?: string
                     ended_at?: string | null
+                    reverted_at?: string | null
+                    revert_error?: string | null
+                }
+            }
+            platform_impersonation_writes: {
+                Row: {
+                    id: string
+                    session_id: string
+                    gym_id: string
+                    entity_type: 'auth_user' | 'profile' | 'member' | 'admin' | 'payment' | 'expense' | 'storage_object'
+                    entity_id: string
+                    created_at: string
+                    reverted_at: string | null
+                }
+                Insert: {
+                    id?: string
+                    session_id: string
+                    gym_id: string
+                    entity_type: 'auth_user' | 'profile' | 'member' | 'admin' | 'payment' | 'expense' | 'storage_object'
+                    entity_id: string
+                    created_at?: string
+                    reverted_at?: string | null
+                }
+                Update: {
+                    id?: string
+                    session_id?: string
+                    gym_id?: string
+                    entity_type?: 'auth_user' | 'profile' | 'member' | 'admin' | 'payment' | 'expense' | 'storage_object'
+                    entity_id?: string
+                    created_at?: string
+                    reverted_at?: string | null
                 }
             }
             background_job_runs: {
