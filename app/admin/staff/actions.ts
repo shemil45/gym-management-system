@@ -10,6 +10,7 @@ import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } 
 import { getAvatarStoragePath } from '@/lib/utils/storage'
 import { canAddStaff } from '@/lib/billing/entitlements'
 import { assertActiveSubscription } from '@/lib/billing/gate'
+import { getActiveImpersonation, recordImpersonationWrite } from '@/lib/platform/impersonation-ledger'
 
 type ExistingProfile = {
     id: string
@@ -34,6 +35,12 @@ export async function createStaff(formData: FormData) {
     if (!entitlement.ok) {
         return { error: entitlement.reason }
     }
+
+    const impersonation = await getActiveImpersonation()
+    const ledger = impersonation
+        ? (type: Parameters<typeof recordImpersonationWrite>[2], id: string) =>
+              recordImpersonationWrite(impersonation.sessionId, viewer.gym!.id, type, id)
+        : null
 
     const fullName = (formData.get('full_name') as string | null)?.trim()
     const phone = (formData.get('phone') as string | null)?.trim()
@@ -76,6 +83,8 @@ export async function createStaff(formData: FormData) {
 
             createdNewAuthUser = true
             createdUserId = createUserResult.data.user.id
+
+            if (ledger) await ledger('auth_user', createdUserId)
         }
 
         if (!createdUserId) {
@@ -110,6 +119,8 @@ export async function createStaff(formData: FormData) {
 
             finalUploadedPhotoPath = fileName
             photoUrl = publicUrl
+
+            if (ledger) await ledger('storage_object', fileName)
         }
 
         const existingProfileResult = await admin
@@ -159,6 +170,8 @@ export async function createStaff(formData: FormData) {
             }
 
             createdProfile = true
+
+            if (ledger) await ledger('profile', createdUserId)
         }
 
         const { error: membershipError } = await admin
@@ -175,9 +188,14 @@ export async function createStaff(formData: FormData) {
             throw membershipError
         }
 
+        if (ledger) await ledger('admin', createdUserId)
+
         revalidatePath('/admin/staff')
         return { success: true }
     } catch (error) {
+        if (createdUserId) {
+            await admin.from('admins').delete().eq('user_id', createdUserId).eq('gym_id', viewer.gym.id)
+        }
         if (finalUploadedPhotoPath) {
             await admin.storage.from('avatars').remove([finalUploadedPhotoPath])
         }
