@@ -1,3 +1,4 @@
+import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import AdminShell from '@/components/layout/AdminShell'
 import { AdminThemeProvider } from '@/components/layout/AdminThemeContext'
@@ -8,6 +9,7 @@ import AccountNotice from '@/components/layout/AccountNotice'
 import HideOnRenewPage from '@/components/layout/HideOnRenewPage'
 import ImpersonationBanner from '@/components/layout/ImpersonationBanner'
 import { stopImpersonation } from '@/app/platform/actions'
+import { requireActiveSubscription } from '@/lib/billing/gate'
 
 export default async function AdminLayout({
     children,
@@ -32,6 +34,11 @@ export default async function AdminLayout({
     if (!profile || !isStaffRole(profile.role) || !isStaff) {
         redirect('/member')
     }
+
+    // Lapsed subscriptions are bounced here, before the shell streams, so the
+    // redirect is a single clean navigation. See lib/billing/gate.ts.
+    const pathname = (await headers()).get('x-pathname') ?? ''
+    await requireActiveSubscription(gym.id, pathname)
 
     return (
         <AdminThemeProvider>

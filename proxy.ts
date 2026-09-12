@@ -2,6 +2,10 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function proxy(request: NextRequest) {
+    // Layouts cannot see the URL, so the pathname rides along as a request
+    // header for the admin layout's subscription gate.
+    request.headers.set('x-pathname', request.nextUrl.pathname)
+
     // Temporarily simplified - just refresh the session
     let supabaseResponse = NextResponse.next({
         request,

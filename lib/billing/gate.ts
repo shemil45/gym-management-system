@@ -18,8 +18,28 @@ export const RENEW_PATH = '/admin/renew'
 export const RENEW_MESSAGE =
     'Your GMS Cloud subscription has expired. Renew your plan to continue.'
 
-/** Page-level gate: sends a lapsed tenant to the renewal page. */
-export async function requireActiveSubscription(gymId: string): Promise<void> {
+/** Admin sections closed while lapsed. Everything else stays reachable. */
+const GATED_PREFIXES = [
+    '/admin/members',
+    '/admin/finances',
+    '/admin/staff',
+    '/admin/settings/notifications',
+]
+
+export function isGatedPath(pathname: string): boolean {
+    return GATED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+}
+
+/**
+ * Page-level gate: sends a lapsed tenant to the renewal page.
+ *
+ * Must run from the admin layout, above app/admin/loading.tsx. Below that
+ * Suspense boundary the shell has already streamed by the time redirect()
+ * throws, so Next falls back to a client-side redirect and the tenant sees
+ * the page load twice.
+ */
+export async function requireActiveSubscription(gymId: string, pathname: string): Promise<void> {
+    if (!isGatedPath(pathname)) return
     const view = await getSubscriptionView(gymId)
     if (view.isLapsed) redirect(RENEW_PATH)
 }
