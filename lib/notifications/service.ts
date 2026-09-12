@@ -2,6 +2,7 @@ import { addDays, format } from 'date-fns'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { sendWhatsAppMessage } from '@/lib/whatsapp'
 import { isSubscriptionLapsed } from '@/lib/billing/gate'
+import { isImpersonationOwned } from '@/lib/platform/impersonation-ledger'
 import type { InsertTables, QueryResult } from '@/lib/types'
 import type { NotificationType } from '@/lib/notifications/templates'
 import {
@@ -396,6 +397,25 @@ export async function sendMemberWhatsAppNotification(input: SendMemberNotificati
                 memberId,
                 notificationType,
                 reason: 'subscription_lapsed',
+            }
+        }
+
+        // Demo members created by a support session have made-up numbers and
+        // will be deleted; never message them.
+        if (await isImpersonationOwned(member.gym_id, 'member', memberId)) {
+            console.info('[notifications] Skipping notification for impersonation demo member', {
+                memberId,
+                notificationType,
+                source,
+            })
+
+            return {
+                success: true,
+                status: 'skipped',
+                message: 'This member is a support demo record.',
+                memberId,
+                notificationType,
+                reason: 'impersonation_demo',
             }
         }
 
