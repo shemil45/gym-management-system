@@ -6,6 +6,7 @@ import { getMemberPortalData } from '@/lib/member/portal-data'
 import { getNotifications } from '@/lib/member/notifications'
 import { MemberThemeProvider } from '@/components/member/MemberTheme'
 import PortalUnavailable from '@/components/member/PortalUnavailable'
+import { UnavailableHeader } from '@/components/member/UnavailableHeader'
 import { isSubscriptionLapsed } from '@/lib/billing/gate'
 import {
     BottomNav,
@@ -42,6 +43,7 @@ export default async function MemberLayout({ children }: { children: React.React
         return (
             <MemberThemeProvider>
                 <div className="min-h-[100dvh] bg-[var(--m-bg)] text-[var(--m-ink)]">
+                    <UnavailableHeader gymName={gym.name} />
                     <PortalUnavailable
                         phone={contact?.contact_phone ?? null}
                         email={contact?.contact_email ?? null}

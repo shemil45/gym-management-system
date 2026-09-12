@@ -94,7 +94,7 @@ export function TopBar({ gymName, unread }: { gymName: string; unread: number })
             style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
         >
             <div className="flex h-[var(--m-topbar)] items-center gap-2 px-5">
-                <p className="min-w-0 flex-1 truncate text-[15px] font-semibold tracking-[-0.015em]">
+                <p className="min-w-0 flex-1 truncate text-xl font-semibold tracking-[-0.02em] lg:text-2xl">
                     {gymName}
                 </p>
                 <ThemeToggleButton />
@@ -117,7 +117,7 @@ export function DesktopHeader({ gymName, unread }: { gymName: string; unread: nu
             {/* Same max-width and gutters as the page content below, so the
                 brand lines up with the first heading on the page. */}
             <div className="mx-auto flex h-[var(--m-header)] max-w-[1120px] items-center gap-3 px-10">
-                <p className="min-w-0 flex-1 truncate text-[15px] font-semibold tracking-[-0.015em]">
+                <p className="min-w-0 flex-1 truncate text-[19px] font-semibold tracking-[-0.02em] lg:text-[21px]">
                     {gymName}
                 </p>
                 <ThemeToggleButton />

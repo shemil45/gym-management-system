@@ -16,7 +16,7 @@ export default function PortalUnavailable({
     const hasContact = Boolean(phone || email)
 
     return (
-        <div className="flex min-h-[100dvh] items-center justify-center px-4 py-16">
+        <div className="flex min-h-[calc(100dvh-var(--m-topbar))] items-center justify-center px-4 py-12 lg:min-h-[calc(100dvh-var(--m-header))]">
             <div className="renew-reveal w-full max-w-md" style={{ animationDelay: '60ms' }}>
                 <div
                     className="rounded-[var(--m-r-shell)] p-1.5"

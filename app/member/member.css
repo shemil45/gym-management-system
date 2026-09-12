@@ -48,8 +48,8 @@
   --m-ease: cubic-bezier(0.32, 0.72, 0, 1);
 
   /* fixed chrome heights, used to reserve content space */
-  --m-topbar: 56px;
-  --m-header: 64px;
+  --m-topbar: 68px;
+  --m-header: 80px;
   --m-bottomnav: 66px;
 
   background-color: var(--m-bg);
