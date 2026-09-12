@@ -3,7 +3,7 @@ import { sweepExpiredImpersonations } from '@/lib/platform/impersonation-ledger'
 
 /**
  * Closes impersonation sessions that timed out without an explicit Stop and
- * removes everything they created. Runs every 15 minutes (vercel.json); the
+ * removes everything they created. Runs daily (vercel.json; Vercel Hobby allows one run per day); the
  * admin and platform layouts also sweep lazily so demo rows rarely outlive a
  * session by more than a page load.
  */

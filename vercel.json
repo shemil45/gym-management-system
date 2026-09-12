@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/impersonation-cleanup",
-      "schedule": "*/15 * * * *"
+      "schedule": "40 3 * * *"
     }
   ]
 }
