@@ -191,6 +191,7 @@ async function getLatestPayment(memberId: string) {
         .eq('member_id', memberId)
         .eq('payment_status', 'paid')
         .order('payment_date', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
 

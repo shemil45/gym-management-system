@@ -323,7 +323,10 @@ export const getMemberPortalData = cache(async (): Promise<MemberPortalData | nu
                     'id, amount, payment_date, created_at, payment_method, payment_status, invoice_number, receipt_number, membership_start_date, membership_end_date',
                 )
                 .eq('member_id', memberId)
+                // payment_date is a calendar day; same-day rows need the
+                // insert time to keep the newest on top.
                 .order('payment_date', { ascending: false })
+                .order('created_at', { ascending: false })
                 .limit(24),
             supabase
                 .from('membership_plans')
