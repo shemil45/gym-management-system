@@ -28,7 +28,14 @@ import {
     SectionHeading,
     Stack,
 } from '@/components/member/ui'
-import { verificationStorageKey } from '@/lib/payments/razorpay-checkout'
+import {
+    checkoutStorageKey,
+    loadRazorpayScript,
+    openRazorpayCheckout,
+    verificationStorageKey,
+    type StoredCheckoutPayload,
+    type StoredVerificationPayload,
+} from '@/lib/payments/razorpay-checkout'
 import {
     displayReceiptNumber,
     downloadReceiptPdf,
@@ -48,7 +55,8 @@ import { markRazorpayPaymentFailed, verifyRazorpayPayment } from '@/app/member/p
 
   Three screens behind one route, chosen by `status`:
 
-  - processing : the gateway took the money, the signature is still unverified.
+  - processing : checkout is open over this screen, or the gateway took the
+                 money and the signature is still unverified.
   - success    : a receipt exists, so the amount leads and the paperwork follows.
   - failure    : nothing was taken; the only thing that matters is the way back.
 
@@ -154,66 +162,53 @@ export default function ResultClient({
     const router = useRouter()
     const [downloading, setDownloading] = useState(false)
     const [processingError, setProcessingError] = useState<string | null>(null)
+    const [phase, setPhase] = useState<'checkout' | 'verifying'>('verifying')
 
     /*
-      Finishes the checkout the renew screen started: it parked the signed
-      Razorpay response in sessionStorage and routed here, because verification
-      has to happen server-side and should survive the navigation away from the
-      gateway's window.
+      Runs the checkout the renew screen handed off: it parked the order in
+      sessionStorage and routed here before opening anything, so the Razorpay
+      modal sits over this processing state and every outcome - paid, declined,
+      closed - resolves on this screen without a stall in between.
+
+      A signed response is parked under its own key the moment it arrives, so a
+      reload after the gateway confirmed but before verification finished picks
+      the verification up rather than reopening checkout for an order that has
+      already been paid.
     */
     useEffect(() => {
         if (status !== 'processing' || !invoiceNumber) return
 
         let cancelled = false
         const invoice = invoiceNumber
-        const key = verificationStorageKey(invoice)
+        const verificationKey = verificationStorageKey(invoice)
+        const checkoutKey = checkoutStorageKey(invoice)
 
-        async function finalize() {
+        function readJson<T>(key: string): T | null | 'unreadable' {
             const stored = sessionStorage.getItem(key)
-
-            if (!stored) {
-                if (!cancelled) {
-                    setProcessingError(
-                        'We could not pick up the confirmation for this payment. Check your payment history in a moment.',
-                    )
-                }
-                return
-            }
-
-            let payload: unknown
+            if (!stored) return null
             try {
-                payload = JSON.parse(stored)
+                return JSON.parse(stored) as T
             } catch {
                 sessionStorage.removeItem(key)
-                if (!cancelled) {
-                    setProcessingError(
-                        'The saved confirmation details were unreadable. Check your payment history in a moment.',
-                    )
-                }
-                return
+                return 'unreadable'
             }
+        }
 
-            const verification = payload as {
-                planId: string
-                razorpayOrderId: string
-                razorpayPaymentId: string
-                razorpaySignature: string
-                useReferralCoins: boolean
-            }
+        async function fail(razorpayOrderId: string, reason: string) {
+            await markRazorpayPaymentFailed({ razorpayOrderId, reason })
+            if (cancelled) return
+            router.replace(
+                `/member/payments/result?status=failure&invoice=${encodeURIComponent(invoice)}&reason=${encodeURIComponent(reason)}`,
+            )
+        }
 
+        async function verify(verification: StoredVerificationPayload) {
             const result = await verifyRazorpayPayment(verification)
-            sessionStorage.removeItem(key)
-
+            sessionStorage.removeItem(verificationKey)
             if (cancelled) return
 
             if ('error' in result) {
-                await markRazorpayPaymentFailed({
-                    razorpayOrderId: verification.razorpayOrderId,
-                    reason: result.error,
-                })
-                router.replace(
-                    `/member/payments/result?status=failure&invoice=${encodeURIComponent(invoice)}&reason=${encodeURIComponent(result.error)}`,
-                )
+                await fail(verification.razorpayOrderId, result.error)
                 return
             }
 
@@ -222,7 +217,69 @@ export default function ResultClient({
             )
         }
 
-        void finalize()
+        async function run() {
+            const verification = readJson<StoredVerificationPayload>(verificationKey)
+            if (verification === 'unreadable') {
+                setProcessingError(
+                    'The saved confirmation details were unreadable. Check your payment history in a moment.',
+                )
+                return
+            }
+            if (verification) {
+                setPhase('verifying')
+                await verify(verification)
+                return
+            }
+
+            const checkout = readJson<StoredCheckoutPayload>(checkoutKey)
+            if (!checkout || checkout === 'unreadable') {
+                setProcessingError(
+                    'We could not pick up the confirmation for this payment. Check your payment history in a moment.',
+                )
+                return
+            }
+
+            setPhase('checkout')
+
+            // Load before opening so an effect re-run (React strict mode, a
+            // fast back-and-forward) can bail out here instead of stacking a
+            // second modal on top of the first.
+            const loaded = await loadRazorpayScript()
+            if (cancelled) return
+            if (!loaded) {
+                setProcessingError('Could not load the payment window. Check your connection and try again.')
+                return
+            }
+
+            await openRazorpayCheckout({
+                order: checkout.order,
+                gymName: checkout.gymName,
+                planName: checkout.planName,
+                onSuccess: (response) => {
+                    const signed: StoredVerificationPayload = {
+                        planId: checkout.planId,
+                        razorpayOrderId: response.razorpay_order_id,
+                        razorpayPaymentId: response.razorpay_payment_id,
+                        razorpaySignature: response.razorpay_signature,
+                        useReferralCoins: checkout.useReferralCoins,
+                    }
+                    sessionStorage.setItem(verificationKey, JSON.stringify(signed))
+                    sessionStorage.removeItem(checkoutKey)
+                    if (cancelled) return
+                    setPhase('verifying')
+                    void verify(signed)
+                },
+                onDismiss: (reason) => {
+                    sessionStorage.removeItem(checkoutKey)
+                    void fail(
+                        checkout.order.orderId,
+                        reason ?? 'Checkout was closed before payment completed.',
+                    )
+                },
+            })
+        }
+
+        void run()
 
         return () => {
             cancelled = true
@@ -233,7 +290,7 @@ export default function ResultClient({
 
     if (status === 'processing') {
         return (
-            <Screen title="Confirming payment">
+            <Screen title={phase === 'checkout' ? 'Complete payment' : 'Confirming payment'}>
                 <Stack gap={14}>
                     <Bezel className="m-rise">
                         <div className="flex flex-col items-center px-6 py-10 text-center">
@@ -241,11 +298,12 @@ export default function ResultClient({
                                 <IconLoader2 size={28} stroke={2} className="animate-spin" />
                             </span>
                             <p className="text-[17px] font-semibold tracking-[-0.015em]">
-                                Verifying with Razorpay
+                                {phase === 'checkout' ? 'Waiting for Razorpay' : 'Verifying with Razorpay'}
                             </p>
                             <p className="mt-2 max-w-[34ch] text-[13.5px] leading-relaxed text-[var(--m-ink-2)]">
-                                Your payment went through. We are checking it against the gateway and
-                                extending your membership.
+                                {phase === 'checkout'
+                                    ? 'Finish the payment in the Razorpay window. This screen updates on its own once it closes.'
+                                    : 'Your payment went through. We are checking it against the gateway and extending your membership.'}
                             </p>
                             {invoiceNumber ? (
                                 <p className="m-num mt-4 text-[12px] text-[var(--m-ink-3)]">

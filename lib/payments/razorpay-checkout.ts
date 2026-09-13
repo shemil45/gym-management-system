@@ -66,6 +66,23 @@ export interface StoredVerificationPayload {
 }
 
 /**
+ * Hand-off from the member renew screen to the result screen, which opens
+ * checkout itself so the modal sits over the processing state rather than
+ * over a page the member has already left in their head.
+ */
+export function checkoutStorageKey(invoiceNumber: string) {
+    return `razorpay-checkout:${invoiceNumber}`
+}
+
+export interface StoredCheckoutPayload {
+    order: RazorpayOrder
+    gymName: string
+    planId: string
+    planName: string
+    useReferralCoins: boolean
+}
+
+/**
  * Injects Razorpay's checkout bundle on demand rather than on every member page
  * load. Resolves false instead of throwing so callers can show a toast.
  */

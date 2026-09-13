@@ -8,12 +8,8 @@ import { cn } from '@/lib/utils/cn'
 import { formatCurrency } from '@/lib/utils/currency'
 import type { PlanOption } from '@/lib/member/portal-data'
 import { Card, EmptyState, Pill, Screen, Stack } from '@/components/member/ui'
-import { createRazorpayOrder, markRazorpayPaymentFailed } from '@/app/member/plans/actions'
-import {
-    openRazorpayCheckout,
-    verificationStorageKey,
-    type StoredVerificationPayload,
-} from '@/lib/payments/razorpay-checkout'
+import { createRazorpayOrder } from '@/app/member/plans/actions'
+import { checkoutStorageKey, type StoredCheckoutPayload } from '@/lib/payments/razorpay-checkout'
 
 /*
   Renewal.
@@ -22,11 +18,14 @@ import {
   width, and the confirm bar is pinned above the bottom nav so the decision and
   the action are both in the thumb zone.
 
-  "Pay now" hands off to Razorpay. The amount shown here is only a preview: the
+  "Pay now" only creates the order. The amount shown here is a preview: the
   server re-prices the plan and reserves referral coins inside
   `createRazorpayOrder`, so the credit arithmetic below mirrors that action
-  rather than inventing its own discount. Confirmation happens on
-  `/member/payments/result`, which verifies the signature server-side.
+  rather than inventing its own discount. The order is parked in sessionStorage
+  and the member is sent straight to `/member/payments/result`, which opens
+  Razorpay over its processing screen and verifies the signature server-side.
+  Moving first means a declined or abandoned payment never leaves the member
+  staring at a disabled button while the failure is recorded.
 */
 
 export default function RenewClient({
@@ -84,47 +83,17 @@ export default function RenewClient({
             return
         }
 
-        const opened = await openRazorpayCheckout({
+        const payload: StoredCheckoutPayload = {
             order,
             gymName,
+            planId: plan.id,
             planName: plan.name,
-            onSuccess: (response) => {
-                const payload: StoredVerificationPayload = {
-                    planId: plan.id,
-                    razorpayOrderId: response.razorpay_order_id,
-                    razorpayPaymentId: response.razorpay_payment_id,
-                    razorpaySignature: response.razorpay_signature,
-                    useReferralCoins: useCredits,
-                }
-                sessionStorage.setItem(
-                    verificationStorageKey(order.invoiceNumber),
-                    JSON.stringify(payload),
-                )
-                router.push(
-                    `/member/payments/result?status=processing&invoice=${encodeURIComponent(order.invoiceNumber)}`,
-                )
-            },
-            onDismiss: async (reason) => {
-                // Releases the pending row so the member's history does not
-                // accumulate payments that will never settle.
-                const message = reason ?? 'Checkout was closed before payment completed.'
-                await markRazorpayPaymentFailed({
-                    razorpayOrderId: order.orderId,
-                    reason: message,
-                })
-                setPaying(false)
-                router.push(
-                    `/member/payments/result?status=failure&invoice=${encodeURIComponent(order.invoiceNumber)}&reason=${encodeURIComponent(message)}`,
-                )
-            },
-        })
-
-        if (!opened) {
-            setPaying(false)
-            toast.error('Could not load the payment window', {
-                description: 'Check your connection and try again.',
-            })
+            useReferralCoins: useCredits,
         }
+        sessionStorage.setItem(checkoutStorageKey(order.invoiceNumber), JSON.stringify(payload))
+        router.push(
+            `/member/payments/result?status=processing&invoice=${encodeURIComponent(order.invoiceNumber)}`,
+        )
     }
 
     return (
