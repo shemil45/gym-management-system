@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
     IconAlertTriangle,
@@ -162,7 +162,20 @@ export default function ResultClient({
     const router = useRouter()
     const [downloading, setDownloading] = useState(false)
     const [processingError, setProcessingError] = useState<string | null>(null)
-    const [phase, setPhase] = useState<'checkout' | 'verifying'>('verifying')
+    /* checkout  - the Razorpay modal is (or should be) open over this screen.
+       closing   - the modal reported an outcome; the row is being updated.
+       verifying - a signed response is being checked server-side. */
+    const [phase, setPhase] = useState<'checkout' | 'closing' | 'verifying'>('verifying')
+    /* A signed response found on a non-processing visit (a failure screen
+       reached while a late payment was still going through) is consumed here
+       rather than dropped, so the receipt is never left in sessionStorage. */
+    const [recovering, setRecovering] = useState(false)
+    /* Re-opens checkout from a tap. The modal is opened from an effect, which
+       an in-app browser or an aggressive content blocker can swallow; a user
+       gesture is the one signal none of them refuse. Held in a ref because
+       the opener closes over the effect's cancellation flag. */
+    const reopenCheckout = useRef<(() => void) | null>(null)
+    const [showReopen, setShowReopen] = useState(false)
 
     /*
       Runs the checkout the renew screen handed off: it parked the order in
@@ -176,12 +189,16 @@ export default function ResultClient({
       already been paid.
     */
     useEffect(() => {
-        if (status !== 'processing' || !invoiceNumber) return
+        if (!invoiceNumber) return
 
         let cancelled = false
         const invoice = invoiceNumber
         const verificationKey = verificationStorageKey(invoice)
         const checkoutKey = checkoutStorageKey(invoice)
+
+        // Only a signed response can pull a settled screen back into
+        // processing; the checkout hand-off is for the processing route alone.
+        if (status !== 'processing' && !sessionStorage.getItem(verificationKey)) return
 
         function readJson<T>(key: string): T | null | 'unreadable' {
             const stored = sessionStorage.getItem(key)
@@ -197,6 +214,14 @@ export default function ResultClient({
         async function fail(razorpayOrderId: string, reason: string) {
             await markRazorpayPaymentFailed({ razorpayOrderId, reason })
             if (cancelled) return
+            // A payment that landed while the row was being closed outranks
+            // the close: the gateway has the money, so verify it instead.
+            const late = readJson<StoredVerificationPayload>(verificationKey)
+            if (late && late !== 'unreadable') {
+                setPhase('verifying')
+                await verify(late)
+                return
+            }
             router.replace(
                 `/member/payments/result?status=failure&invoice=${encodeURIComponent(invoice)}&reason=${encodeURIComponent(reason)}`,
             )
@@ -226,10 +251,12 @@ export default function ResultClient({
                 return
             }
             if (verification) {
+                if (status !== 'processing') setRecovering(true)
                 setPhase('verifying')
                 await verify(verification)
                 return
             }
+            if (status !== 'processing') return
 
             const checkout = readJson<StoredCheckoutPayload>(checkoutKey)
             if (!checkout || checkout === 'unreadable') {
@@ -240,7 +267,20 @@ export default function ResultClient({
             }
 
             setPhase('checkout')
+            reopenCheckout.current = () => {
+                if (settled) return
+                setProcessingError(null)
+                void openCheckout(checkout)
+            }
+            await openCheckout(checkout)
+        }
 
+        // Flipped the moment the modal reports an outcome, so the reopen
+        // control can never start a second payment while the first is being
+        // recorded - the gap that used to let a paid order be filed as failed.
+        let settled = false
+
+        async function openCheckout(checkout: StoredCheckoutPayload) {
             // Load before opening so an effect re-run (React strict mode, a
             // fast back-and-forward) can bail out here instead of stacking a
             // second modal on top of the first.
@@ -256,6 +296,8 @@ export default function ResultClient({
                 gymName: checkout.gymName,
                 planName: checkout.planName,
                 onSuccess: (response) => {
+                    settled = true
+                    reopenCheckout.current = null
                     const signed: StoredVerificationPayload = {
                         planId: checkout.planId,
                         razorpayOrderId: response.razorpay_order_id,
@@ -270,7 +312,10 @@ export default function ResultClient({
                     void verify(signed)
                 },
                 onDismiss: (reason) => {
+                    settled = true
+                    reopenCheckout.current = null
                     sessionStorage.removeItem(checkoutKey)
+                    if (!cancelled) setPhase('closing')
                     void fail(
                         checkout.order.orderId,
                         reason ?? 'Checkout was closed before payment completed.',
@@ -283,12 +328,24 @@ export default function ResultClient({
 
         return () => {
             cancelled = true
+            reopenCheckout.current = null
         }
     }, [invoiceNumber, router, status])
 
+    /* The reopen control waits a beat so it is not tapped over a modal that is
+       still animating in, which would stack a second checkout on the first. */
+    useEffect(() => {
+        if (phase !== 'checkout') {
+            setShowReopen(false)
+            return
+        }
+        const timer = window.setTimeout(() => setShowReopen(true), 2500)
+        return () => window.clearTimeout(timer)
+    }, [phase])
+
     /* ------------------------------------------------------------ processing */
 
-    if (status === 'processing') {
+    if (status === 'processing' || recovering) {
         return (
             <Screen title={phase === 'checkout' ? 'Complete payment' : 'Confirming payment'}>
                 <Stack gap={14}>
@@ -298,17 +355,39 @@ export default function ResultClient({
                                 <IconLoader2 size={28} stroke={2} className="animate-spin" />
                             </span>
                             <p className="text-[17px] font-semibold tracking-[-0.015em]">
-                                {phase === 'checkout' ? 'Waiting for Razorpay' : 'Verifying with Razorpay'}
+                                {phase === 'checkout'
+                                    ? 'Waiting for Razorpay'
+                                    : phase === 'closing'
+                                      ? 'Closing checkout'
+                                      : 'Verifying with Razorpay'}
                             </p>
                             <p className="mt-2 max-w-[34ch] text-[13.5px] leading-relaxed text-[var(--m-ink-2)]">
                                 {phase === 'checkout'
                                     ? 'Finish the payment in the Razorpay window. This screen updates on its own once it closes.'
-                                    : 'Your payment went through. We are checking it against the gateway and extending your membership.'}
+                                    : phase === 'closing'
+                                      ? 'The payment window closed. Updating your payment record.'
+                                      : 'Your payment went through. We are checking it against the gateway and extending your membership.'}
                             </p>
                             {invoiceNumber ? (
                                 <p className="m-num mt-4 text-[12px] text-[var(--m-ink-3)]">
                                     {invoiceNumber}
                                 </p>
+                            ) : null}
+                            {phase === 'checkout' && showReopen ? (
+                                <div className="mt-6">
+                                    <p className="text-[12.5px] text-[var(--m-ink-3)]">
+                                        Payment window did not appear?
+                                    </p>
+                                    <div className="mt-2">
+                                        <Button
+                                            tone="quiet"
+                                            size="sm"
+                                            onClick={() => reopenCheckout.current?.()}
+                                        >
+                                            Open payment window
+                                        </Button>
+                                    </div>
+                                </div>
                             ) : null}
                         </div>
                     </Bezel>
