@@ -488,7 +488,7 @@ insert into public.platform_feature_flags (key, description, is_enabled)
 values
   ('ai_trainer', 'Enable AI trainer experiences.', true),
   ('referrals', 'Enable referrals across gyms.', true),
-  ('member_support', 'Enable the support center for gyms.', false),
+  ('member_portal', 'Members of this gym can sign in to the member portal.', false),
   ('advanced_reports', 'Enable advanced analytics exports.', true)
 on conflict (key) do nothing;
 

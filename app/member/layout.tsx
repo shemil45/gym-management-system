@@ -8,6 +8,7 @@ import { MemberThemeProvider } from '@/components/member/MemberTheme'
 import PortalUnavailable from '@/components/member/PortalUnavailable'
 import { UnavailableHeader } from '@/components/member/UnavailableHeader'
 import { isSubscriptionLapsed } from '@/lib/billing/gate'
+import { gymHasFeature } from '@/lib/gym/features'
 import {
     BottomNav,
     DesktopHeader,
@@ -30,8 +31,14 @@ export default async function MemberLayout({ children }: { children: React.React
     if (!profile || profile.role !== 'member') redirect('/admin/dashboard')
 
     // The gym's own GMS Cloud plan gates the whole portal - a member cannot
-    // renew it, so they get an explanation instead of the chrome.
-    if (await isSubscriptionLapsed(gym.id)) {
+    // renew it, so they get an explanation instead of the chrome. The same
+    // screen covers the `member_portal` feature resolving false: a plan
+    // without it, a platform override, or onboarding not yet completed.
+    const [lapsed, portalEnabled] = await Promise.all([
+        isSubscriptionLapsed(gym.id),
+        gymHasFeature(gym.id, 'member_portal'),
+    ])
+    if (lapsed || !portalEnabled) {
         const supabase = await createClient()
         const contactResult = await supabase
             .from('gyms')
