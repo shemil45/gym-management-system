@@ -34,8 +34,8 @@ function ExitButton({ urgent }: { urgent: boolean }) {
             aria-busy={pending || undefined}
             className={
                 (urgent
-                    ? 'rounded-full border border-red-200/20 bg-red-50/10 px-4 py-2 text-sm font-medium text-red-50 transition hover:bg-red-50/20'
-                    : 'rounded-full border border-amber-200/20 bg-amber-50/10 px-4 py-2 text-sm font-medium text-amber-50 transition hover:bg-amber-50/20') +
+                    ? 'rounded-lg bg-red-700 px-4 py-2 text-sm font-medium text-red-50 transition hover:bg-red-800 dark:bg-red-300 dark:text-red-950 dark:hover:bg-red-200'
+                    : 'rounded-lg bg-amber-900 px-4 py-2 text-sm font-medium text-amber-50 transition hover:bg-amber-950 dark:bg-amber-200 dark:text-amber-950 dark:hover:bg-amber-100') +
                 ' inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60'
             }
         >
@@ -71,8 +71,8 @@ export default function ImpersonationBanner({
         <div
             className={
                 urgent
-                    ? 'impersonation-banner-urgent mb-5 rounded-3xl border border-red-400/30 bg-red-400/10 p-4 text-red-50'
-                    : 'mb-5 rounded-3xl border border-amber-300/20 bg-amber-300/10 p-4 text-amber-50'
+                    ? 'impersonation-banner-urgent mb-5 rounded-3xl border border-red-200 bg-red-50 p-4 text-red-900 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-200'
+                    : 'mb-5 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200'
             }
             role={urgent ? 'alert' : undefined}
         >
@@ -85,7 +85,7 @@ export default function ImpersonationBanner({
                               ? 'Support session ending soon.'
                               : 'Platform impersonation mode is active.'}
                     </p>
-                    <p className={urgent ? 'text-sm text-red-100/75' : 'text-sm text-amber-100/75'}>
+                    <p className={urgent ? 'text-sm text-red-800/80 dark:text-red-200/70' : 'text-sm text-amber-800/80 dark:text-amber-200/70'}>
                         You are viewing {gymName} with elevated support access. All actions are audited.{' '}
                         {expired ? (
                             'Returning you to the platform portal.'
@@ -103,7 +103,7 @@ export default function ImpersonationBanner({
                             </>
                         )}
                     </p>
-                    <p className={urgent ? 'mt-1 text-sm text-red-100/75' : 'mt-1 text-sm text-amber-100/75'}>
+                    <p className={urgent ? 'mt-1 text-sm text-red-800/80 dark:text-red-200/70' : 'mt-1 text-sm text-amber-800/80 dark:text-amber-200/70'}>
                         Records you create here are removed when the session ends.
                     </p>
                 </div>

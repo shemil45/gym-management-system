@@ -79,7 +79,7 @@ export default async function AccountNotice({ gymId }: { gymId: string }) {
             </div>
             <Link
                 href={notice.href}
-                className={`shrink-0 rounded-full px-4 py-2 text-center text-sm font-medium transition-opacity hover:opacity-90 ${style.cta}`}
+                className={`shrink-0 rounded-lg px-4 py-2 text-center text-sm font-medium transition-opacity hover:opacity-90 ${style.cta}`}
             >
                 {notice.cta}
             </Link>
