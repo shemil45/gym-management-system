@@ -6,23 +6,29 @@ import {
     verifyWebhookSignature,
 } from '@/lib/billing/checkout'
 import { recordSystemEvent } from '@/lib/platform/auth'
+import { failMemberPayment, settleMemberPayment } from '@/lib/payments/settle-member-payment'
 
 export const runtime = 'nodejs'
 /** The raw body is needed byte-for-byte to verify the signature. */
 export const dynamic = 'force-dynamic'
 
 /**
- * Razorpay webhook for GMS Cloud subscription payments.
+ * Razorpay webhook for every payment the platform's one Razorpay account
+ * takes: GMS Cloud subscription invoices (orders tagged `kind:
+ * gms_subscription`) and tenants' member purchases (everything else with an
+ * order id, matched against `payments.razorpay_order_id`).
  *
- * Only handles orders tagged `kind: gms_subscription` in their notes; the
- * tenant's own member payments flow through a different path and must not be
- * settled here.
+ * For member purchases this is the safety net under the browser: the signed
+ * response only reaches us if the member's tab survives the round trip, so a
+ * closed tab or a dropped connection used to leave a captured payment pending
+ * forever. Orders that match neither table are acknowledged and ignored.
  *
  * Two independent guards make replay safe:
  *  - `platform_webhook_events` has a unique (provider, event_id), so a retried
  *    delivery is rejected by the database rather than by a race-prone check.
- *  - `settleSubscriptionPayment` only acts on an invoice still marked `open`,
- *    so the webhook and the browser confirm cannot both apply the same payment.
+ *  - Both settlers claim their row with a conditional update (`open` -> `paid`,
+ *    `pending`/`failed` -> `paid`), so the webhook and the browser confirm
+ *    cannot both apply the same payment.
  */
 export async function POST(request: Request) {
     const rawBody = await request.text()
@@ -42,6 +48,7 @@ export async function POST(request: Request) {
                     id?: string
                     order_id?: string
                     method?: string
+                    error_description?: string | null
                     notes?: Record<string, string>
                 }
             }
@@ -57,11 +64,11 @@ export async function POST(request: Request) {
     const payment = event.payload?.payment?.entity
     const notes = payment?.notes ?? {}
 
-    // Ignore anything that is not a platform subscription payment.
-    if (notes.kind !== 'gms_subscription' || !payment?.order_id) {
+    if (!payment?.order_id) {
         return NextResponse.json({ ok: true, ignored: true })
     }
 
+    const isSubscription = notes.kind === 'gms_subscription'
     const db = getSupabaseAdmin()
 
     // Razorpay does not send a stable event id header on every plan, so the
@@ -92,20 +99,46 @@ export async function POST(request: Request) {
         switch (event.event) {
             case 'payment.captured':
             case 'order.paid': {
-                const result = await settleSubscriptionPayment({
+                if (isSubscription) {
+                    const result = await settleSubscriptionPayment({
+                        razorpayOrderId: payment.order_id,
+                        razorpayPaymentId: payment.id ?? '',
+                        paymentMethod: payment.method ?? null,
+                    })
+                    return NextResponse.json({ ok: true, applied: result.applied })
+                }
+
+                const result = await settleMemberPayment({
                     razorpayOrderId: payment.order_id,
                     razorpayPaymentId: payment.id ?? '',
-                    paymentMethod: payment.method ?? null,
                 })
-                return NextResponse.json({ ok: true, applied: result.applied })
+                if (result.applied) {
+                    // The browser did not get here first, so this is the
+                    // recovery path working; worth a trace for support.
+                    await recordSystemEvent('razorpay-webhook', 'info', 'Member payment settled by webhook', {
+                        gymId: result.gymId,
+                        orderId: payment.order_id,
+                        invoiceNumber: result.invoiceNumber,
+                    })
+                }
+                return NextResponse.json({
+                    ok: true,
+                    applied: result.applied,
+                    ...(result.applied ? {} : { reason: result.reason }),
+                })
             }
 
             case 'payment.failed': {
-                await recordFailedPayment(payment.order_id)
-                await recordSystemEvent('razorpay-webhook', 'warning', 'Subscription payment failed', {
-                    gymId: notes.gym_id ?? null,
-                    orderId: payment.order_id,
-                })
+                if (isSubscription) {
+                    await recordFailedPayment(payment.order_id)
+                    await recordSystemEvent('razorpay-webhook', 'warning', 'Subscription payment failed', {
+                        gymId: notes.gym_id ?? null,
+                        orderId: payment.order_id,
+                    })
+                    return NextResponse.json({ ok: true, failed: true })
+                }
+
+                await failMemberPayment(payment.order_id, event.payload?.payment?.entity?.error_description ?? null)
                 return NextResponse.json({ ok: true, failed: true })
             }
 

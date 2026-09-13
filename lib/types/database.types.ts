@@ -422,6 +422,8 @@ export interface Database {
                     razorpay_payment_id: string | null
                     membership_start_date: string | null
                     membership_end_date: string | null
+                    membership_plan_id: string | null
+                    referral_coins_used: number
                     notes: string | null
                     processed_by: string | null
                     admission_fee_amount: number | null
@@ -442,6 +444,8 @@ export interface Database {
                     razorpay_payment_id?: string | null
                     membership_start_date?: string | null
                     membership_end_date?: string | null
+                    membership_plan_id?: string | null
+                    referral_coins_used?: number
                     notes?: string | null
                     processed_by?: string | null
                     admission_fee_amount?: number | null
@@ -462,6 +466,8 @@ export interface Database {
                     razorpay_payment_id?: string | null
                     membership_start_date?: string | null
                     membership_end_date?: string | null
+                    membership_plan_id?: string | null
+                    referral_coins_used?: number
                     notes?: string | null
                     processed_by?: string | null
                     admission_fee_amount?: number | null

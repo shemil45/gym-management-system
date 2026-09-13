@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { getCurrentGymContext } from '@/lib/auth/gym-context'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { sendMemberWhatsAppNotification } from '@/lib/notifications/service'
+import { settleMemberPayment } from '@/lib/payments/settle-member-payment'
 
 type PurchaseContext = {
     availableCoins: number
@@ -283,8 +284,10 @@ async function applyMembershipAfterPayment(context: PurchaseContext, razorpayOrd
             receipt_number: receiptNumber,
             razorpay_order_id: razorpayOrderId,
             razorpay_payment_id: razorpayPaymentId,
+            membership_plan_id: context.planId,
             membership_start_date: context.startDate,
             membership_end_date: context.expiryDate,
+            referral_coins_used: context.coinsUsed,
             notes:
                 context.coinsUsed > 0
                     ? `Self-service Razorpay purchase: ${context.planName}. Referral coins used: ${context.coinsUsed}.`
@@ -413,8 +416,10 @@ export async function createRazorpayOrder(planId: string, useReferralCoins = tru
                 invoice_number: context.invoiceNumber,
                 receipt_number: receiptNumber,
                 razorpay_order_id: payload.id,
+                membership_plan_id: context.planId,
                 membership_start_date: context.startDate,
                 membership_end_date: context.expiryDate,
+                referral_coins_used: context.coinsUsed,
                 notes:
                     context.coinsUsed > 0
                         ? `Pending self-service Razorpay purchase: ${context.planName}. Referral coins reserved: ${context.coinsUsed}.`
@@ -443,6 +448,12 @@ export async function createRazorpayOrder(planId: string, useReferralCoins = tru
     }
 }
 
+/**
+ * Browser-side confirmation. Checks the signature and that the order belongs
+ * to the signed-in member, then hands off to the same settlement the Razorpay
+ * webhook uses, so the two can never disagree about what a paid order means
+ * and whichever arrives first applies the membership exactly once.
+ */
 export async function verifyRazorpayPayment(input: {
     planId: string
     razorpayOrderId: string
@@ -462,14 +473,17 @@ export async function verifyRazorpayPayment(input: {
             return { error: 'Payment verification failed' }
         }
 
-        const context = await getPurchaseContext(input.planId, input.useReferralCoins ?? true)
-        const supabaseAdmin = getSupabaseAdmin()
+        const viewer = await getCurrentGymContext()
+        if (!viewer.user || !viewer.member || !viewer.gym) {
+            return { error: 'Not authenticated' }
+        }
 
+        const supabaseAdmin = getSupabaseAdmin()
         const { data: existingPayment } = await supabaseAdmin
             .from('payments')
-            .select('id, payment_status, invoice_number')
-            .eq('gym_id', context.gymId)
-            .eq('member_id', context.memberId)
+            .select('id, invoice_number')
+            .eq('gym_id', viewer.gym.id)
+            .eq('member_id', viewer.member.id)
             .eq('razorpay_order_id', input.razorpayOrderId)
             .maybeSingle()
 
@@ -477,73 +491,18 @@ export async function verifyRazorpayPayment(input: {
             return { error: 'Pending payment record not found' }
         }
 
-        if (existingPayment.payment_status === 'paid') {
-            return { success: true, invoiceNumber: existingPayment.invoice_number || context.invoiceNumber }
+        const result = await settleMemberPayment({
+            razorpayOrderId: input.razorpayOrderId,
+            razorpayPaymentId: input.razorpayPaymentId,
+        })
+
+        // "Already paid" and "claimed elsewhere" both mean the webhook got
+        // there first; the receipt exists either way.
+        if (result.applied || result.reason === 'already-paid' || result.reason === 'claimed-elsewhere') {
+            return { success: true, invoiceNumber: existingPayment.invoice_number ?? '' }
         }
 
-        const { error: updatePendingError } = await supabaseAdmin
-            .from('payments')
-            .update({
-                payment_status: 'paid',
-                razorpay_payment_id: input.razorpayPaymentId,
-            })
-            .eq('id', existingPayment.id)
-
-        if (updatePendingError) {
-            return { error: updatePendingError.message }
-        }
-
-        const { error: memberError } = await supabaseAdmin
-            .from('members')
-            .update({
-                membership_plan_id: context.planId,
-                membership_start_date: context.startDate,
-                membership_expiry_date: context.expiryDate,
-                status: 'active',
-                referral_coins_balance: context.availableCoins - context.coinsUsed,
-            })
-            .eq('id', context.memberId)
-
-        if (memberError) {
-            return { error: memberError.message }
-        }
-
-        const { data: appliedReferrals } = await supabaseAdmin
-            .from('referrals')
-            .update({
-                status: 'applied',
-                applied_at: new Date().toISOString(),
-            })
-            .select('referrer_id')
-            .eq('gym_id', context.gymId)
-            .eq('referred_id', context.memberId)
-            .eq('status', 'pending')
-
-        if (appliedReferrals && appliedReferrals.length > 0) {
-            for (const referral of appliedReferrals) {
-                const { data: referrer } = await supabaseAdmin
-                    .from('members')
-                    .select('id, referral_coins_balance')
-                    .eq('id', referral.referrer_id)
-                    .single()
-
-                if (referrer) {
-                    await supabaseAdmin
-                        .from('members')
-                        .update({ referral_coins_balance: (referrer.referral_coins_balance || 0) + 500 })
-                        .eq('id', referrer.id)
-                }
-            }
-        }
-
-        await notifyPaymentReceived(context.memberId, context.currentExpiry !== null)
-
-        revalidatePath('/member')
-        revalidatePath('/member/membership')
-        revalidatePath('/member/payments')
-        revalidatePath('/member/referrals')
-
-        return { success: true, invoiceNumber: existingPayment.invoice_number || context.invoiceNumber }
+        return { error: 'Pending payment record not found' }
     } catch (error) {
         return { error: error instanceof Error ? error.message : 'Failed to verify payment' }
     }
