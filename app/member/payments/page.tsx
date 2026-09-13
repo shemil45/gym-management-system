@@ -73,10 +73,14 @@ export default async function PaymentsPage() {
                                         {formatCurrency(payment.amount)}
                                     </p>
                                     <p className="mt-1 text-[12.5px] text-[var(--m-ink-3)]">
-                                        {new Date(payment.date).toLocaleDateString('en-IN', {
+                                        {new Date(payment.recordedAt).toLocaleString('en-IN', {
                                             day: 'numeric',
                                             month: 'short',
                                             year: 'numeric',
+                                            hour: 'numeric',
+                                            minute: '2-digit',
+                                            // Server-rendered: pin to the gym's clock, not the host's.
+                                            timeZone: 'Asia/Kolkata',
                                         })}
                                     </p>
                                     <p className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-[var(--m-ink-3)]">

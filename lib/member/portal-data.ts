@@ -68,7 +68,10 @@ export interface ActivitySummary {
 export interface PaymentRecord {
     id: string
     amount: number
+    /** Calendar day the payment is booked against (date-only column). */
     date: string
+    /** When the row was recorded; the only timestamp a payment carries. */
+    recordedAt: string
     method: string
     status: string
     invoiceNumber: string | null
@@ -159,6 +162,7 @@ interface PaymentRow {
     id: string
     amount: number | null
     payment_date: string
+    created_at: string
     payment_method: string | null
     payment_status: string | null
     invoice_number: string | null
@@ -316,7 +320,7 @@ export const getMemberPortalData = cache(async (): Promise<MemberPortalData | nu
             supabase
                 .from('payments')
                 .select(
-                    'id, amount, payment_date, payment_method, payment_status, invoice_number, receipt_number, membership_start_date, membership_end_date',
+                    'id, amount, payment_date, created_at, payment_method, payment_status, invoice_number, receipt_number, membership_start_date, membership_end_date',
                 )
                 .eq('member_id', memberId)
                 .order('payment_date', { ascending: false })
@@ -372,6 +376,7 @@ export const getMemberPortalData = cache(async (): Promise<MemberPortalData | nu
         id: row.id,
         amount: Number(row.amount ?? 0),
         date: row.payment_date,
+        recordedAt: row.created_at,
         method: row.payment_method ?? 'cash',
         status: row.payment_status ?? 'paid',
         invoiceNumber: row.invoice_number,
