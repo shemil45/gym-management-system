@@ -1,6 +1,7 @@
 import Link from 'next/link'
-import { IconDownload, IconReceipt } from '@tabler/icons-react'
-import { getMemberPortalData } from '@/lib/member/portal-data'
+import { IconChevronLeft, IconChevronRight, IconDownload, IconReceipt } from '@tabler/icons-react'
+import { cn } from '@/lib/utils/cn'
+import { getMemberPaidInYear, getMemberPaymentHistory } from '@/lib/member/payment-history'
 import { formatCurrency } from '@/lib/utils/currency'
 import {
     Card,
@@ -22,11 +23,47 @@ const METHOD_LABEL: Record<string, string> = {
     razorpay: 'Online',
 }
 
-export default async function PaymentsPage() {
-    const data = await getMemberPortalData()
-    const history = data?.payments.history ?? []
+/** One edge of the pager. A span, not a disabled link, at the ends. */
+function PagerLink({
+    href,
+    disabled,
+    children,
+}: {
+    href: string
+    disabled: boolean
+    children: React.ReactNode
+}) {
+    const className = cn(
+        'm-tap inline-flex h-9 items-center gap-1 rounded-full border border-[var(--m-line)] px-3 text-[12.5px] font-medium',
+        disabled && 'pointer-events-none opacity-40',
+    )
+    if (disabled) {
+        return (
+            <span className={className} aria-disabled="true">
+                {children}
+            </span>
+        )
+    }
+    return (
+        <Link href={href} className={className}>
+            {children}
+        </Link>
+    )
+}
 
-    if (!data || history.length === 0) {
+export default async function PaymentsPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ page?: string }>
+}) {
+    const params = await searchParams
+    const year = new Date().getFullYear()
+    const [history, paidThisYear] = await Promise.all([
+        getMemberPaymentHistory(Number(params.page ?? 1)),
+        getMemberPaidInYear(year),
+    ])
+
+    if (!history || history.total === 0) {
         return (
             <Screen title="Payments">
                 <EmptyState
@@ -43,20 +80,14 @@ export default async function PaymentsPage() {
         )
     }
 
-    const paidThisYear = history
-        .filter(
-            (p) =>
-                p.status === 'paid' &&
-                new Date(p.date).getFullYear() === new Date().getFullYear(),
-        )
-        .reduce((sum, p) => sum + p.amount, 0)
+    const pageHref = (page: number) => (page <= 1 ? '/member/payments' : `/member/payments?page=${page}`)
 
     return (
         <Screen title="Payments">
             <Stack gap={14}>
                 <Card className="p-4">
                     <p className="text-[13px] font-medium text-[var(--m-ink-2)]">
-                        Paid in {new Date().getFullYear()}
+                        Paid in {year}
                     </p>
                     <p className="m-num mt-1.5 text-[30px] font-semibold leading-none">
                         {formatCurrency(paidThisYear)}
@@ -65,7 +96,7 @@ export default async function PaymentsPage() {
 
                 <SectionHeading>History</SectionHeading>
                 <Card className="m-divide overflow-hidden">
-                    {history.map((payment) => (
+                    {history.rows.map((payment) => (
                         <div key={payment.id} className="px-4 py-3.5">
                             <div className="flex items-start gap-3">
                                 <div className="min-w-0 flex-1">
@@ -117,6 +148,28 @@ export default async function PaymentsPage() {
                         </div>
                     ))}
                 </Card>
+
+                {history.pageCount > 1 ? (
+                    <nav
+                        aria-label="Payment history pages"
+                        className="flex items-center justify-between gap-3 px-1"
+                    >
+                        <PagerLink href={pageHref(history.page - 1)} disabled={history.page <= 1}>
+                            <IconChevronLeft size={15} stroke={1.8} />
+                            Newer
+                        </PagerLink>
+                        <p className="m-num text-[12.5px] text-[var(--m-ink-3)]">
+                            {history.from}–{history.to} of {history.total}
+                        </p>
+                        <PagerLink
+                            href={pageHref(history.page + 1)}
+                            disabled={history.page >= history.pageCount}
+                        >
+                            Older
+                            <IconChevronRight size={15} stroke={1.8} />
+                        </PagerLink>
+                    </nav>
+                ) : null}
             </Stack>
         </Screen>
     )
