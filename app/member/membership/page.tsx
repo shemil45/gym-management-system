@@ -49,7 +49,7 @@ export default async function MembershipPage() {
         )
     }
 
-    const { membership, payments, credits } = data
+    const { membership, payments, credits, referralsEnabled } = data
 
     return (
         <Screen title="Plan">
@@ -109,12 +109,14 @@ export default async function MembershipPage() {
                                     : 'No payments recorded'
                             }
                         />
-                        <Row
-                            href="/member/referrals"
-                            icon={<IconGift size={18} stroke={1.7} />}
-                            label="Referral credits"
-                            value={String(credits)}
-                        />
+                        {referralsEnabled ? (
+                            <Row
+                                href="/member/referrals"
+                                icon={<IconGift size={18} stroke={1.7} />}
+                                label="Referral credits"
+                                value={String(credits)}
+                            />
+                        ) : null}
                     </RowGroup>
 
                     {/* One row, not three. Holds, billing-date changes and

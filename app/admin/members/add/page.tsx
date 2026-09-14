@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import AddMemberForm from '@/components/forms/AddMemberForm'
 import { getCurrentAdminContext } from '@/lib/auth/admin-server'
+import { gymHasFeature } from '@/lib/gym/features'
 import type { QueryResult, Tables } from '@/lib/types'
 
 type GymFeeSettings = Pick<Tables<'gyms'>, 'default_admission_fee' | 'allow_admission_fee_waiver' | 'allow_custom_membership_start_date'>
@@ -15,12 +16,17 @@ export default async function AddMemberPage() {
         .order('price')
 
     let gymSettings = { defaultAdmissionFee: 0, allowAdmissionFeeWaiver: true, allowCustomStartDate: false }
+    let referralsEnabled = false
     if (gym) {
-        const gymResult = await supabase
-            .from('gyms')
-            .select('default_admission_fee, allow_admission_fee_waiver, allow_custom_membership_start_date')
-            .eq('id', gym.id)
-            .single()
+        const [gymResult, referralsOn] = await Promise.all([
+            supabase
+                .from('gyms')
+                .select('default_admission_fee, allow_admission_fee_waiver, allow_custom_membership_start_date')
+                .eq('id', gym.id)
+                .single(),
+            gymHasFeature(gym.id, 'referrals'),
+        ])
+        referralsEnabled = referralsOn
         const { data: gymRow } = gymResult as unknown as QueryResult<GymFeeSettings | null>
         if (gymRow) {
             gymSettings = {
@@ -31,5 +37,5 @@ export default async function AddMemberPage() {
         }
     }
 
-    return <AddMemberForm plans={plans || []} gymSettings={gymSettings} />
+    return <AddMemberForm plans={plans || []} gymSettings={gymSettings} referralsEnabled={referralsEnabled} />
 }

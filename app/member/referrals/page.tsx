@@ -8,6 +8,10 @@ export const metadata = { title: 'Refer a friend' }
 export default async function ReferralsPage() {
     const data = await getMemberPortalData()
     if (!data) redirect('/member')
+    // The program is off for this gym (plan, platform override, or
+    // onboarding): the entry rows are hidden, so a direct hit goes back to
+    // where those rows would have been.
+    if (!data.referralsEnabled) redirect('/member/account')
 
     // Admin client so the join onto the referred member's name is not blocked by RLS.
     const { data: rows } = (await getSupabaseAdmin()

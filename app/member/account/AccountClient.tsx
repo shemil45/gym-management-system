@@ -32,6 +32,7 @@ export default function AccountClient({
     photoUrl,
     joinedAt,
     credits,
+    referralsEnabled,
 }: {
     name: string
     memberCode: string
@@ -40,6 +41,7 @@ export default function AccountClient({
     photoUrl: string | null
     joinedAt: string | null
     credits: number
+    referralsEnabled: boolean
 }) {
     const router = useRouter()
     const { mode, setMode } = useMemberTheme()
@@ -153,12 +155,14 @@ export default function AccountClient({
                             icon={<IconReceipt size={18} stroke={1.7} />}
                             label="Payments and receipts"
                         />
-                        <Row
-                            href="/member/referrals"
-                            icon={<IconGift size={18} stroke={1.7} />}
-                            label="Refer a friend"
-                            value={String(credits)}
-                        />
+                        {referralsEnabled ? (
+                            <Row
+                                href="/member/referrals"
+                                icon={<IconGift size={18} stroke={1.7} />}
+                                label="Refer a friend"
+                                value={String(credits)}
+                            />
+                        ) : null}
                         <Row
                             href="/member/support"
                             icon={<IconLifebuoy size={18} stroke={1.7} />}

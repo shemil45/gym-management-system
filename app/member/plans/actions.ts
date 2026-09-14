@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { getCurrentGymContext } from '@/lib/auth/gym-context'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { sendMemberWhatsAppNotification } from '@/lib/notifications/service'
-import { settleMemberPayment } from '@/lib/payments/settle-member-payment'
+import { creditReferrers, settleMemberPayment } from '@/lib/payments/settle-member-payment'
 
 type PurchaseContext = {
     availableCoins: number
@@ -313,33 +313,7 @@ async function applyMembershipAfterPayment(context: PurchaseContext, razorpayOrd
         throw new Error(memberError.message)
     }
 
-    const { data: appliedReferrals } = await supabaseAdmin
-        .from('referrals')
-        .update({
-            status: 'applied',
-            applied_at: new Date().toISOString(),
-        })
-        .select('referrer_id')
-        .eq('gym_id', context.gymId)
-        .eq('referred_id', context.memberId)
-        .eq('status', 'pending')
-
-    if (appliedReferrals && appliedReferrals.length > 0) {
-        for (const referral of appliedReferrals) {
-            const { data: referrer } = await supabaseAdmin
-                .from('members')
-                .select('id, referral_coins_balance')
-                .eq('id', referral.referrer_id)
-                .single()
-
-            if (referrer) {
-                await supabaseAdmin
-                    .from('members')
-                    .update({ referral_coins_balance: (referrer.referral_coins_balance || 0) + 500 })
-                    .eq('id', referrer.id)
-            }
-        }
-    }
+    await creditReferrers(context.gymId, context.memberId)
 
     revalidatePath('/member')
     revalidatePath('/member/membership')

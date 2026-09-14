@@ -15,9 +15,10 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
-import { Loader2, Upload, ImageIcon, Camera, Gift } from 'lucide-react'
+import { Loader2, Upload, ImageIcon, Camera } from 'lucide-react'
 import { toast } from 'sonner'
 import { createMember } from '@/app/admin/members/actions'
+import ReferrerPicker from '@/components/forms/ReferrerPicker'
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
 import { createImagePreviewUrl, removeUploadedAvatar, uploadCompressedAvatar } from '@/lib/utils/client-image-upload'
 
@@ -28,9 +29,11 @@ interface AddMemberFormProps {
         allowAdmissionFeeWaiver: boolean
         allowCustomStartDate: boolean
     }
+    /** Gym's `referrals` feature. Off hides the referred-by field. */
+    referralsEnabled: boolean
 }
 
-export default function AddMemberForm({ plans, gymSettings }: AddMemberFormProps) {
+export default function AddMemberForm({ plans, gymSettings, referralsEnabled }: AddMemberFormProps) {
     const router = useRouter()
     const { isDark } = useAdminTheme()
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -135,6 +138,11 @@ export default function AddMemberForm({ plans, gymSettings }: AddMemberFormProps
                 toast.success('Member added successfully!')
                 if (result.notificationWarning) {
                     toast.warning(result.notificationWarning, {
+                        duration: 7000,
+                    })
+                }
+                if (result.referralWarning) {
+                    toast.warning(result.referralWarning, {
                         duration: 7000,
                     })
                 }
@@ -324,22 +332,8 @@ export default function AddMemberForm({ plans, gymSettings }: AddMemberFormProps
                             />
                         </div>
 
-                        {/* Referral Code */}
-                        <div className="space-y-1.5">
-                            <Label htmlFor="referral_code" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-                                <Gift className="h-3.5 w-3.5 text-orange-500" />
-                                Referred By (Code)
-                            </Label>
-                            <Input
-                                id="referral_code"
-                                name="referral_code"
-                                placeholder="e.g. GYM001"
-                                disabled={loading}
-                                className="h-10 border-gray-300 text-sm uppercase"
-                                style={{ textTransform: 'uppercase' }}
-                            />
-                            <p className="text-xs text-gray-400">Optional — enter the referrer&apos;s member ID</p>
-                        </div>
+                        {/* Referrer: search-and-confirm, never free text */}
+                        {referralsEnabled ? <ReferrerPicker disabled={loading} /> : null}
                     </div>
 
                     {/* ── Emergency Contact ── */}
