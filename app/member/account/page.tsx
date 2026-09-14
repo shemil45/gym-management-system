@@ -19,6 +19,7 @@ export default async function AccountPage() {
             photoUrl={data?.member.photoUrl ?? context.profile?.photo_url ?? null}
             joinedAt={data?.member.joinedAt ?? null}
             credits={data?.credits ?? 0}
+            referralsEnabled={data?.referralsEnabled ?? false}
         />
     )
 }

@@ -3,6 +3,7 @@ import 'server-only'
 import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentMemberContext } from '@/lib/auth/member-server'
+import { gymHasFeature } from '@/lib/gym/features'
 
 /**
  * Single read model for the member portal.
@@ -131,6 +132,12 @@ export interface MemberPortalData {
     plans: PlanOption[]
     training: TrainingSummary
     credits: number
+    /**
+     * Whether the gym's `referrals` feature resolves on. Off hides the
+     * refer-a-friend program; an already-earned balance stays spendable
+     * because it belongs to the member, not the program.
+     */
+    referralsEnabled: boolean
 }
 
 /* Rows as they come back from Supabase, before mapping into the read model. */
@@ -309,7 +316,7 @@ export const getMemberPortalData = cache(async (): Promise<MemberPortalData | nu
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
     const weekStart = new Date(today.getTime() - ((today.getDay() + 6) % 7) * DAY_MS)
 
-    const [checkInsRes, paymentsRes, plansRes, workoutRes, nutritionRes, profileRes] =
+    const [checkInsRes, paymentsRes, plansRes, workoutRes, nutritionRes, profileRes, referralsEnabled] =
         await Promise.all([
             supabase
                 .from('check_ins')
@@ -350,6 +357,7 @@ export const getMemberPortalData = cache(async (): Promise<MemberPortalData | nu
                 .select('user_id')
                 .eq('user_id', context.user.id)
                 .limit(1),
+            gymHasFeature(context.gym.id, 'referrals'),
         ])
 
     // ---- activity ------------------------------------------------------
@@ -478,5 +486,6 @@ export const getMemberPortalData = cache(async (): Promise<MemberPortalData | nu
         })),
         training,
         credits: Number(memberRow.referral_coins_balance ?? 0),
+        referralsEnabled,
     }
 })

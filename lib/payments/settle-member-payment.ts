@@ -3,6 +3,7 @@ import 'server-only'
 import { revalidatePath } from 'next/cache'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { sendMemberWhatsAppNotification } from '@/lib/notifications/service'
+import { gymHasFeature } from '@/lib/gym/features'
 
 /**
  * Applies a member's self-service Razorpay payment from the pending row alone.
@@ -141,7 +142,16 @@ function settledNotes(notes: string | null): string | null {
         .replace(/Referral coins reserved:/, 'Referral coins used:')
 }
 
-async function creditReferrers(gymId: string, referredId: string) {
+/**
+ * Pays the referrer bonus for a referred member's first settled payment.
+ *
+ * Skipped entirely when the gym's `referrals` feature is off: the pending
+ * referral row is left as it is rather than marked applied, so turning the
+ * program back on later still honours it.
+ */
+export async function creditReferrers(gymId: string, referredId: string) {
+    if (!(await gymHasFeature(gymId, 'referrals'))) return
+
     const db = getSupabaseAdmin()
     const { data: applied } = await db
         .from('referrals')

@@ -11,6 +11,8 @@ import { findAuthUserByEmail, getSupabaseAdmin } from '@/lib/supabase/admin'
 import { invalidateGymAdminSummaries } from '@/lib/auth/admin-server'
 import { canAddMember } from '@/lib/billing/entitlements'
 import { assertActiveSubscription } from '@/lib/billing/gate'
+import { gymHasFeature } from '@/lib/gym/features'
+import { creditReferrers } from '@/lib/payments/settle-member-payment'
 import {
     checkMutationAllowed,
     getActiveImpersonation,
@@ -146,7 +148,12 @@ export async function createMember(formData: FormData) {
         // Resolve referral code → referrer member
         // Referral codes credit a real member's coin balance, which cannot be
         // undone when a demo session ends - so operators do not get them.
-        const rawCode = impersonation ? undefined : (formData.get('referral_code') as string | null)?.trim().toUpperCase()
+        // The form hides the field when the gym's `referrals` feature is off;
+        // the action ignores it too so a stale form cannot slip a code through.
+        const referralsEnabled = impersonation ? false : await gymHasFeature(viewer.gym.id, 'referrals')
+        const rawCode = referralsEnabled
+            ? (formData.get('referral_code') as string | null)?.trim().toUpperCase()
+            : undefined
         let referrerId: string | null = null
         if (rawCode) {
             const referrerResult = await supabase
@@ -353,6 +360,7 @@ export async function createMember(formData: FormData) {
         if (ledger && initialPayment) await ledger('payment', initialPayment.id)
 
         // If referred, create a referral record
+        let referralWarning: string | undefined
         if (referrerId) {
             const referralPayload: InsertTables<'referrals'> = {
                 gym_id: viewer.gym.id,
@@ -362,7 +370,22 @@ export async function createMember(formData: FormData) {
                 status: 'pending',
             }
 
-            await supabase.from('referrals').insert(referralPayload as never)
+            const { error: referralError } = await supabase.from('referrals').insert(referralPayload as never)
+            if (referralError) {
+                // The member and their payment are already committed; losing
+                // the referral is worth a warning, not a rollback.
+                referralWarning = `Member created, but the referral could not be recorded: ${referralError.message}`
+                console.warn('[members] Referral was not recorded after member creation', {
+                    memberId: member.id,
+                    referrerId,
+                    error: referralError.message,
+                })
+            } else {
+                // The enrolment payment above is the referred member's first
+                // paid event, so the referrer earns their bonus now rather than
+                // waiting for a self-service renewal that may never happen.
+                await creditReferrers(viewer.gym.id, member.id)
+            }
         }
 
         let notificationWarning: string | undefined
@@ -387,6 +410,7 @@ export async function createMember(formData: FormData) {
             success: true,
             memberId: member.id,
             ...(notificationWarning ? { notificationWarning } : {}),
+            ...(referralWarning ? { referralWarning } : {}),
         }
     } catch (err: unknown) {
         if (createdMemberId) {
@@ -593,4 +617,48 @@ export async function deleteMember(memberId: string) {
         const message = err instanceof Error ? err.message : 'Failed to delete member'
         return { error: message }
     }
+}
+
+export type ReferrerMatch = {
+    id: string
+    memberId: string
+    fullName: string
+    photoUrl: string | null
+}
+
+/**
+ * Members an operator can name as a referrer, matched on member ID or name.
+ *
+ * Read through the caller's client so RLS keeps it to their own gym. The form
+ * only ever submits a code it got from here, so a typo cannot be enrolled.
+ */
+export async function searchReferrers(query: string): Promise<ReferrerMatch[]> {
+    // Member IDs and names are letters, digits and spaces; dropping anything
+    // else keeps PostgREST's `or` filter and LIKE wildcards out of reach.
+    const term = query.replace(/[^\p{L}\p{N}\s-]/gu, '').trim()
+    if (term.length < 2) return []
+
+    const viewer = await getCurrentGymContext()
+    if (!viewer.gym) return []
+
+    const supabase = await createClient()
+    const pattern = `%${term}%`
+    const result = await supabase
+        .from('members')
+        .select('id, member_id, full_name, photo_url')
+        .eq('gym_id', viewer.gym.id)
+        .eq('status', 'active')
+        .or(`member_id.ilike.${pattern},full_name.ilike.${pattern}`)
+        .order('member_id')
+        .limit(8)
+    const { data } = result as unknown as QueryResult<
+        Array<{ id: string; member_id: string; full_name: string; photo_url: string | null }> | null
+    >
+
+    return (data ?? []).map((row) => ({
+        id: row.id,
+        memberId: row.member_id,
+        fullName: row.full_name,
+        photoUrl: row.photo_url,
+    }))
 }
