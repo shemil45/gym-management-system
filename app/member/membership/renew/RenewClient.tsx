@@ -7,7 +7,7 @@ import { IconCheck, IconCoin, IconLoader2, IconShieldCheck } from '@tabler/icons
 import { cn } from '@/lib/utils/cn'
 import { formatCurrency } from '@/lib/utils/currency'
 import type { PlanOption } from '@/lib/member/portal-data'
-import { Card, EmptyState, Pill, Screen, Stack } from '@/components/member/ui'
+import { EmptyState, Pill, Screen, Stack } from '@/components/member/ui'
 import { createRazorpayOrder } from '@/app/member/plans/actions'
 import { checkoutStorageKey, type StoredCheckoutPayload } from '@/lib/payments/razorpay-checkout'
 
@@ -164,47 +164,14 @@ export default function RenewClient({
                     })}
                 </ul>
 
-                {credits > 0 ? (
-                    <Card className="flex items-center gap-3 p-4">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-[var(--m-accent-wash)] text-[var(--m-accent-wash-ink)]">
-                            <IconCoin size={19} stroke={1.8} />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                            <p className="text-[14px] font-medium">Use referral credits</p>
-                            <p className="m-num mt-0.5 text-[12.5px] text-[var(--m-ink-3)]">
-                                {credits} available
-                            </p>
-                        </div>
-                        <button
-                            type="button"
-                            role="switch"
-                            aria-checked={useCredits}
-                            aria-label="Use referral credits"
-                            onClick={() => setUseCredits((v) => !v)}
-                            /* 44px tap target around a 32px track. */
-                            className="m-tap flex h-11 w-14 shrink-0 items-center"
-                        >
-                            <span
-                                className={cn(
-                                    'relative block h-8 w-14 rounded-full transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
-                                    useCredits
-                                        ? 'bg-[var(--m-accent-strong)]'
-                                        : 'bg-[var(--m-surface-2)]',
-                                )}
-                            >
-                                <span
-                                    className={cn(
-                                        'absolute top-1 h-6 w-6 rounded-full bg-white shadow-sm transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
-                                        useCredits ? 'translate-x-7' : 'translate-x-1',
-                                    )}
-                                />
-                            </span>
-                        </button>
-                    </Card>
-                ) : null}
-
-                {/* Clears the pinned confirm bar so the last card is never covered. */}
-                <p className="flex items-center justify-center gap-2 pb-24 text-[12.5px] text-[var(--m-ink-3)] lg:pb-0">
+                {/* Clears the pinned confirm bar so the last card is never
+                    covered; the bar is a row taller when credits are offered. */}
+                <p
+                    className={cn(
+                        'flex items-center justify-center gap-2 text-[12.5px] text-[var(--m-ink-3)] lg:pb-0',
+                        credits > 0 ? 'pb-40' : 'pb-24',
+                    )}
+                >
                     <IconShieldCheck size={15} stroke={1.8} />
                     Secured by Razorpay, your receipt appears in Payments.
                 </p>
@@ -213,6 +180,48 @@ export default function RenewClient({
             {/* Confirm bar sits directly above the bottom nav so price and action
                 are both reachable without moving the hand. */}
             <div className="m-confirmbar z-30 border-t border-[var(--m-line)] bg-[var(--m-bg)]/95 px-5 py-3 backdrop-blur-xl lg:mt-6 lg:rounded-[var(--m-r-shell)] lg:border lg:px-4">
+                {/* Credits live in the bar, not the scroll: the decision that
+                    changes the price sits next to the price it changes. */}
+                {credits > 0 ? (
+                    <div className="mx-auto mb-2.5 flex max-w-[720px] items-center gap-3 border-b border-[var(--m-line)] pb-2.5">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[var(--m-accent-wash)] text-[var(--m-accent-wash-ink)]">
+                            <IconCoin size={16} stroke={1.8} />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-[13.5px] font-medium leading-tight">Use referral credits</p>
+                            <p className="m-num mt-0.5 text-[12px] text-[var(--m-ink-3)]">{credits} available</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={useCredits}
+                            aria-label="Use referral credits"
+                            onClick={() => setUseCredits((v) => !v)}
+                            /* 44px tap target around a 28px track. */
+                            className="m-tap flex h-11 w-12 shrink-0 items-center justify-end"
+                        >
+                            <span
+                                className={cn(
+                                    'relative block h-7 w-12 rounded-full transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
+                                    /* --m-line, not --m-surface-2: in light mode surface-2
+                                       is within 0.01 L of the bar behind it and the off
+                                       track disappears under the white knob. */
+                                    useCredits ? 'bg-[var(--m-accent-strong)]' : 'bg-[var(--m-line)]',
+                                )}
+                            >
+                                <span
+                                    className={cn(
+                                        /* Anchored at left-1: without it the knob's static
+                                           position already sits partway along the track and
+                                           the on-state translate carries it past the edge. */
+                                        'absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
+                                        useCredits ? 'translate-x-5' : 'translate-x-0',
+                                    )}
+                                />
+                            </span>
+                        </button>
+                    </div>
+                ) : null}
                 <div className="mx-auto flex max-w-[720px] items-center gap-4">
                     <div className="min-w-0 flex-1">
                         <p className="truncate text-[12px] text-[var(--m-ink-3)]">
