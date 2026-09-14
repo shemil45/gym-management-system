@@ -78,6 +78,8 @@ const PARENTS: Record<string, string> = {
     '/member/profile': '/member/account',
     '/member/referrals': '/member/account',
     '/member/support': '/member/account',
+    '/member/train/profile': '/member/train',
+    '/member/train/coach': '/member/train',
 }
 
 /**

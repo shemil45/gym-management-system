@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { generateJSON } from '@/lib/gemini'
 import { revalidatePath } from 'next/cache'
+import { requireAiTrainer } from '@/lib/member/ai-trainer'
 
 const admin = () => createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -49,9 +50,9 @@ type GenerateWorkoutPlanResult =
     | { error: string }
 
 export async function generateWorkoutPlan(): Promise<GenerateWorkoutPlanResult> {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'Not authenticated' }
+    const access = await requireAiTrainer()
+    if ('error' in access) return { error: access.error }
+    const user = { id: access.userId }
 
     const db = admin()
 
@@ -98,7 +99,7 @@ Include exactly ${typedProfile.days_per_week} training days and add rest days as
 
         if (error) return { error: error.message }
 
-        revalidatePath('/member/workout')
+        revalidatePath('/member/train')
         return { success: true, plan: (saved as SavedWorkoutPlanRow).plan_data, version: nextVersion }
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error'

@@ -25,5 +25,5 @@ export default async function TrainPage() {
         )
     }
 
-    return <TrainClient training={data.training} />
+    return <TrainClient training={data.training} aiTrainerEnabled={data.aiTrainerEnabled} />
 }

@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import {
     IconApple,
     IconBarbell,
     IconMessageCircle,
+    IconRefresh,
     IconSparkles,
 } from '@tabler/icons-react'
 import { cn } from '@/lib/utils/cn'
@@ -15,12 +17,15 @@ import {
     Button,
     Card,
     EmptyState,
+    LinkButton,
     Pill,
     Screen,
     SectionHeading,
     Stack,
     StatTile,
 } from '@/components/member/ui'
+import { generateWorkoutPlan } from '@/app/member/workout/actions'
+import { generateNutritionPlan } from '@/app/member/nutrition/actions'
 
 /*
   Training.
@@ -28,11 +33,61 @@ import {
   A weekly split is a list of lists, which is the worst thing to put on a phone
   as one long scroll. Instead the week is a scroll-snap day picker (thumb flick,
   44px targets) and only one day's exercises render at a time.
+
+  Plan building lives here rather than on the questionnaire so the loading
+  state sits where the result appears. The questionnaire redirects back with
+  `?build=1` and the effect below picks that up once.
 */
 
-export default function TrainClient({ training }: { training: TrainingSummary }) {
+export default function TrainClient({
+    training,
+    aiTrainerEnabled,
+}: {
+    training: TrainingSummary
+    aiTrainerEnabled: boolean
+}) {
+    const router = useRouter()
+    const searchParams = useSearchParams()
     const [preview, setPreview] = useState(false)
     const [active, setActive] = useState(0)
+    const [building, startBuild] = useTransition()
+    const autoBuilt = useRef(false)
+
+    function build() {
+        if (!training.hasProfile) {
+            router.push('/member/train/profile')
+            return
+        }
+        startBuild(async () => {
+            const [workout, nutrition] = await Promise.all([
+                generateWorkoutPlan(),
+                generateNutritionPlan(),
+            ])
+            if ('error' in workout) {
+                toast.error('Could not build your workout plan', { description: workout.error })
+            }
+            if ('error' in nutrition) {
+                toast.error('Could not build your nutrition targets', {
+                    description: nutrition.error,
+                })
+            }
+            if ('success' in workout || 'success' in nutrition) {
+                setPreview(false)
+                setActive(0)
+                router.refresh()
+            }
+        })
+    }
+
+    // Arrive from the questionnaire: build once, then drop the flag from the
+    // URL so a reload or back-navigation does not generate again.
+    useEffect(() => {
+        if (searchParams.get('build') !== '1' || autoBuilt.current) return
+        autoBuilt.current = true
+        router.replace('/member/train')
+        if (aiTrainerEnabled && training.hasProfile) build()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams])
 
     const plan = training.hasPlan ? training : preview ? SAMPLE_TRAINING : null
 
@@ -42,28 +97,32 @@ export default function TrainClient({ training }: { training: TrainingSummary })
                 <Stack gap={14}>
                     <EmptyState
                         icon={<IconSparkles size={26} stroke={1.6} />}
-                        title="No plan yet"
-                        body="Tell us your goal, experience and how many days a week you can train. You get a weekly split you can follow at this gym."
+                        title={building ? 'Writing your plan' : 'No plan yet'}
+                        body={
+                            building
+                                ? 'The coach is putting together your weekly split and daily targets. This takes about half a minute.'
+                                : aiTrainerEnabled
+                                  ? 'Tell us your goal, experience and how many days a week you can train. You get a weekly split you can follow at this gym.'
+                                  : 'Plans are not available at this gym yet. You can still preview what one looks like.'
+                        }
                         action={
                             <div className="flex flex-col gap-2.5 sm:flex-row">
+                                {aiTrainerEnabled ? (
+                                    <Button tone="primary" disabled={building} onClick={build}>
+                                        {building ? 'Building' : 'Build my plan'}
+                                    </Button>
+                                ) : null}
                                 <Button
-                                    tone="primary"
-                                    onClick={() =>
-                                        toast('Plan builder is not wired up yet', {
-                                            description:
-                                                'This connects to the AI coach service in the next milestone.',
-                                        })
-                                    }
+                                    tone="quiet"
+                                    disabled={building}
+                                    onClick={() => setPreview(true)}
                                 >
-                                    Build my plan
-                                </Button>
-                                <Button tone="quiet" onClick={() => setPreview(true)}>
                                     Preview a sample week
                                 </Button>
                             </div>
                         }
                     />
-                    <CoachCard />
+                    {aiTrainerEnabled ? <CoachCard /> : null}
                 </Stack>
             </Screen>
         )
@@ -85,6 +144,26 @@ export default function TrainClient({ training }: { training: TrainingSummary })
                         >
                             Close preview
                         </button>
+                    </div>
+                ) : aiTrainerEnabled ? (
+                    <div className="flex items-center justify-between gap-3 rounded-[var(--m-r-control)] bg-[var(--m-surface-2)] px-3.5 py-2.5">
+                        <p className="min-w-0 truncate text-[13px] text-[var(--m-ink-2)]">
+                            {building ? 'Rebuilding your plan' : 'Built by your coach'}
+                        </p>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                            <LinkButton href="/member/train/profile" tone="quiet" size="sm">
+                                Edit profile
+                            </LinkButton>
+                            <Button
+                                tone="quiet"
+                                size="sm"
+                                disabled={building}
+                                onClick={build}
+                                leadingIcon={<IconRefresh size={15} stroke={2} />}
+                            >
+                                Rebuild
+                            </Button>
+                        </div>
                     </div>
                 ) : null}
 
@@ -186,7 +265,7 @@ export default function TrainClient({ training }: { training: TrainingSummary })
                     </Card>
                 )}
 
-                <CoachCard />
+                {aiTrainerEnabled ? <CoachCard /> : null}
             </Stack>
         </Screen>
     )
@@ -204,17 +283,9 @@ function CoachCard() {
                     Form checks, swaps, rest-day questions
                 </p>
             </div>
-            <Button
-                tone="quiet"
-                size="sm"
-                onClick={() =>
-                    toast('Coach chat is not wired up yet', {
-                        description: 'This connects to the AI coach service in the next milestone.',
-                    })
-                }
-            >
+            <LinkButton href="/member/train/coach" tone="quiet" size="sm">
                 Open
-            </Button>
+            </LinkButton>
         </Card>
     )
 }

@@ -138,6 +138,12 @@ export interface MemberPortalData {
      * because it belongs to the member, not the program.
      */
     referralsEnabled: boolean
+    /**
+     * Whether the gym's `ai_trainer` feature resolves on. Off hides plan
+     * building and the coach chat; a plan that was already generated stays
+     * readable because it belongs to the member.
+     */
+    aiTrainerEnabled: boolean
 }
 
 /* Rows as they come back from Supabase, before mapping into the read model. */
@@ -316,7 +322,7 @@ export const getMemberPortalData = cache(async (): Promise<MemberPortalData | nu
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
     const weekStart = new Date(today.getTime() - ((today.getDay() + 6) % 7) * DAY_MS)
 
-    const [checkInsRes, paymentsRes, plansRes, workoutRes, nutritionRes, profileRes, referralsEnabled] =
+    const [checkInsRes, paymentsRes, plansRes, workoutRes, nutritionRes, profileRes, referralsEnabled, aiTrainerEnabled] =
         await Promise.all([
             supabase
                 .from('check_ins')
@@ -358,6 +364,7 @@ export const getMemberPortalData = cache(async (): Promise<MemberPortalData | nu
                 .eq('user_id', context.user.id)
                 .limit(1),
             gymHasFeature(context.gym.id, 'referrals'),
+            gymHasFeature(context.gym.id, 'ai_trainer'),
         ])
 
     // ---- activity ------------------------------------------------------
@@ -487,5 +494,6 @@ export const getMemberPortalData = cache(async (): Promise<MemberPortalData | nu
         training,
         credits: Number(memberRow.referral_coins_balance ?? 0),
         referralsEnabled,
+        aiTrainerEnabled,
     }
 })
