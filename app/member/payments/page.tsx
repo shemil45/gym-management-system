@@ -23,8 +23,30 @@ const METHOD_LABEL: Record<string, string> = {
     razorpay: 'Online',
 }
 
-/** One edge of the pager. A span, not a disabled link, at the ends. */
-function PagerLink({
+/**
+ * Which page numbers to show: always the first, last and current, plus one
+ * neighbour either side, with a gap marker where pages are skipped.
+ * 1 2 3 … 7  /  1 … 4 5 6 … 12  /  1 … 10 11 12
+ */
+function pageItems(page: number, pageCount: number): Array<number | 'gap'> {
+    if (pageCount <= 5) return Array.from({ length: pageCount }, (_, i) => i + 1)
+    const wanted = new Set([1, pageCount, page - 1, page, page + 1])
+    // Keep the window three wide at the edges so it never shrinks to two.
+    if (page <= 2) wanted.add(3)
+    if (page >= pageCount - 1) wanted.add(pageCount - 2)
+    const pages = [...wanted].filter((n) => n >= 1 && n <= pageCount).sort((a, b) => a - b)
+    const items: Array<number | 'gap'> = []
+    pages.forEach((n, i) => {
+        if (i > 0 && n - pages[i - 1] > 1) items.push('gap')
+        items.push(n)
+    })
+    return items
+}
+
+const PAGER_ITEM =
+    'm-tap inline-flex h-9 min-w-9 items-center justify-center rounded-full px-2.5 text-[12.5px] font-medium'
+
+function PagerEdge({
     href,
     disabled,
     children,
@@ -34,7 +56,8 @@ function PagerLink({
     children: React.ReactNode
 }) {
     const className = cn(
-        'm-tap inline-flex h-9 items-center gap-1 rounded-full border border-[var(--m-line)] px-3 text-[12.5px] font-medium',
+        PAGER_ITEM,
+        'gap-1 border border-[var(--m-line)] px-3',
         disabled && 'pointer-events-none opacity-40',
     )
     if (disabled) {
@@ -48,6 +71,56 @@ function PagerLink({
         <Link href={href} className={className}>
             {children}
         </Link>
+    )
+}
+
+function Pager({
+    page,
+    pageCount,
+    href,
+}: {
+    page: number
+    pageCount: number
+    href: (page: number) => string
+}) {
+    return (
+        <nav aria-label="Payment history pages" className="flex flex-wrap items-center justify-center gap-1.5">
+            <PagerEdge href={href(page - 1)} disabled={page <= 1}>
+                <IconChevronLeft size={15} stroke={1.8} />
+                Previous
+            </PagerEdge>
+            {pageItems(page, pageCount).map((item, i) =>
+                item === 'gap' ? (
+                    <span
+                        key={`gap-${i}`}
+                        className="inline-flex h-9 w-6 items-center justify-center text-[12.5px] text-[var(--m-ink-3)]"
+                        aria-hidden="true"
+                    >
+                        …
+                    </span>
+                ) : item === page ? (
+                    <span
+                        key={item}
+                        aria-current="page"
+                        className={cn(PAGER_ITEM, 'm-num bg-[var(--m-ink)] text-[var(--m-surface)]')}
+                    >
+                        {item}
+                    </span>
+                ) : (
+                    <Link
+                        key={item}
+                        href={href(item)}
+                        className={cn(PAGER_ITEM, 'm-num border border-[var(--m-line)]')}
+                    >
+                        {item}
+                    </Link>
+                ),
+            )}
+            <PagerEdge href={href(page + 1)} disabled={page >= pageCount}>
+                Next
+                <IconChevronRight size={15} stroke={1.8} />
+            </PagerEdge>
+        </nav>
     )
 }
 
@@ -150,25 +223,7 @@ export default async function PaymentsPage({
                 </Card>
 
                 {history.pageCount > 1 ? (
-                    <nav
-                        aria-label="Payment history pages"
-                        className="flex items-center justify-between gap-3 px-1"
-                    >
-                        <PagerLink href={pageHref(history.page - 1)} disabled={history.page <= 1}>
-                            <IconChevronLeft size={15} stroke={1.8} />
-                            Newer
-                        </PagerLink>
-                        <p className="m-num text-[12.5px] text-[var(--m-ink-3)]">
-                            {history.from}–{history.to} of {history.total}
-                        </p>
-                        <PagerLink
-                            href={pageHref(history.page + 1)}
-                            disabled={history.page >= history.pageCount}
-                        >
-                            Older
-                            <IconChevronRight size={15} stroke={1.8} />
-                        </PagerLink>
-                    </nav>
+                    <Pager page={history.page} pageCount={history.pageCount} href={pageHref} />
                 ) : null}
             </Stack>
         </Screen>
