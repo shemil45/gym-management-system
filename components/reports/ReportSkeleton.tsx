@@ -102,6 +102,50 @@ export function ExpensesShellSkeleton() {
     )
 }
 
+function RosterCardsSkeleton() {
+    return (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" aria-hidden="true">
+            {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-neutral-700 dark:bg-neutral-900">
+                    <div className={`h-3 w-14 ${bone}`} />
+                    <div className={`mt-2 h-6 w-10 ${bone}`} />
+                </div>
+            ))}
+        </div>
+    )
+}
+
+/** What the members page shows while a tab's data streams in. */
+export function MembersTabSkeleton({ tab }: { tab: 'joins' | 'renewals' | 'retention' | 'roster' | 'inactive' }) {
+    switch (tab) {
+        case 'joins': return <TableSkeleton columns={6} rows={8} />
+        case 'renewals': return <TableSkeleton columns={6} rows={8} />
+        case 'retention': return <><KpiStripSkeleton /><TableSkeleton columns={5} rows={4} /><TableSkeleton columns={5} rows={5} /></>
+        case 'roster': return <><RosterCardsSkeleton /><TableSkeleton columns={6} rows={4} /></>
+        case 'inactive': return <TableSkeleton columns={6} rows={8} />
+    }
+}
+
+/** Shell of the members report: back link, title, tab bar, controls row. */
+export function MembersShellSkeleton() {
+    return (
+        <div className="space-y-5 animate-pulse" aria-busy="true" aria-label="Loading members report">
+            <div>
+                <div className={`h-3 w-16 ${bone}`} />
+                <div className={`mt-2 h-6 w-24 ${bone}`} />
+            </div>
+            <div className="flex gap-1 border-b border-gray-200 dark:border-neutral-700">
+                {['w-20', 'w-24', 'w-20', 'w-16', 'w-16'].map((w, i) => <div key={i} className={`mx-3 mb-2 h-4 ${w} ${bone}`} />)}
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className={`h-8 w-64 ${bone}`} />
+                <div className={`h-8 w-28 ${bone}`} />
+            </div>
+            <MembersTabSkeleton tab="joins" />
+        </div>
+    )
+}
+
 /** Shell of the reports landing: heading + five area cards. */
 export function ReportsLandingSkeleton() {
     return (

@@ -5,7 +5,8 @@ import type { ReportPaymentRow } from '@/lib/reports/payments-aggregate'
 const row: ReportPaymentRow = {
     id: 'p1', amount: 1500, admission_fee_amount: 500, referral_coins_used: 50, payment_method: 'upi', payment_status: 'paid',
     payment_date: '2026-09-15', created_at: '2026-09-15T04:05:00Z', receipt_number: 'R-1', invoice_number: null, notes: 'a, note',
-    member_name: 'Asha', member_code: 'GYM001', member_phone: '9999999999', plan_name: 'Monthly', processor_name: 'S1', is_demo: false,
+    member_id: 'm1', member_name: 'Asha', member_code: 'GYM001', member_phone: '9999999999', plan_name: 'Monthly', processor_name: 'S1',
+    membership_start_date: null, membership_end_date: null, is_demo: false,
 }
 
 describe('payments csv builders', () => {

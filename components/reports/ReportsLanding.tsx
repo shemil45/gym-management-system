@@ -6,7 +6,7 @@ export type ReportArea = { id: string; title: string; blurb: string; href?: stri
 export const REPORT_AREAS: ReportArea[] = [
     { id: 'payments', title: 'Payments', blurb: 'Day book, period summary, collections by plan and staff, pending follow-ups, CSV export.', href: '/admin/reports/payments' },
     { id: 'expenses', title: 'Expenses & P&L', blurb: 'Expenses by category and a profit and loss statement by day, week or month.', href: '/admin/reports/expenses' },
-    { id: 'members', title: 'Members', blurb: 'New joins, expiring and lapsed members, churn and retention, plan distribution.' },
+    { id: 'members', title: 'Members', blurb: 'New joins, expiring and lapsed members, churn and retention, plan distribution.', href: '/admin/reports/members' },
     { id: 'attendance', title: 'Attendance', blurb: 'Daily footfall, per-member attendance, hour × weekday heat table.' },
     { id: 'referrals', title: 'Referrals', blurb: 'Referrer leaderboard, conversions, coins issued and redeemed.' },
 ]

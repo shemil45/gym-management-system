@@ -12,6 +12,7 @@ import {
 const SELECT = [
     'id', 'amount', 'admission_fee_amount', 'referral_coins_used', 'payment_method', 'payment_status',
     'payment_date', 'created_at', 'receipt_number', 'invoice_number', 'notes',
+    'member_id', 'membership_start_date', 'membership_end_date',
     'member:members(full_name, member_id, phone)',
     'membership_plan:membership_plans(name)',
     'processor:profiles!payments_processed_by_fkey(full_name)',
@@ -29,6 +30,9 @@ type RawRow = {
     receipt_number: string | null
     invoice_number: string | null
     notes: string | null
+    member_id: string
+    membership_start_date: string | null
+    membership_end_date: string | null
     member: { full_name: string; member_id: string; phone: string } | { full_name: string; member_id: string; phone: string }[] | null
     membership_plan: { name: string } | { name: string }[] | null
     processor: { full_name: string } | { full_name: string }[] | null
@@ -90,11 +94,14 @@ export async function fetchPaymentRows(gymId: string, range: DateRange): Promise
             receipt_number: row.receipt_number,
             invoice_number: row.invoice_number,
             notes: row.notes,
+            member_id: row.member_id,
             member_name: member?.full_name ?? null,
             member_code: member?.member_id ?? null,
             member_phone: member?.phone ?? null,
             plan_name: one(row.membership_plan)?.name ?? null,
             processor_name: one(row.processor)?.full_name ?? null,
+            membership_start_date: row.membership_start_date,
+            membership_end_date: row.membership_end_date,
             is_demo: demoIds.has(row.id),
         }
     })

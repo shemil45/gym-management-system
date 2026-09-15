@@ -43,7 +43,7 @@ Source data available to every area (tenant tables):
 - Expenses by category for the period, with itemised list.
 - P&L statement: payments income minus expenses per month, net margin.
 
-## 3. Members  — coming soon
+## 3. Members  — shipped (branch worktree-advanced-reports)
 
 - New joins in period, with source (referral vs walk-in).
 - Expiring in next 7 / 15 / 30 days and lapsed-in-period, with contact and

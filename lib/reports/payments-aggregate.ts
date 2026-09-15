@@ -22,11 +22,14 @@ export type ReportPaymentRow = {
     receipt_number: string | null
     invoice_number: string | null
     notes: string | null
+    member_id: string
     member_name: string | null
     member_code: string | null
     member_phone: string | null
     plan_name: string | null
     processor_name: string | null
+    membership_start_date: string | null
+    membership_end_date: string | null
     is_demo: boolean
 }
 
