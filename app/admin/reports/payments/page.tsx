@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { ReportBody, ReportNavigationProvider } from '@/components/reports/ReportNavigation'
 import { getCurrentAdminContext } from '@/lib/auth/admin-server'
 import { todayInKolkata } from '@/lib/reports/dates'
 import { parsePaymentsParams, toSearchParams, type PaymentsReportQuery, type RawParams } from '@/lib/reports/payments-params'
@@ -67,12 +68,16 @@ export default async function PaymentsReportPage({ searchParams }: { searchParam
         )
 
     return (
-        <PaymentsReport query={query} controls={controls}>
-            {/* Keyed on the full query so a tab or period change swaps the body
-                for its skeleton instead of holding the stale table. */}
-            <Suspense key={toSearchParams(query).toString()} fallback={<div className="space-y-5 animate-pulse"><PaymentsTabSkeleton tab={query.tab} /></div>}>
-                <TabBody gymId={gym.id} gymName={gym.name} query={query} />
-            </Suspense>
-        </PaymentsReport>
+        <ReportNavigationProvider area="payments" activeTab={query.tab}>
+            <PaymentsReport query={query} controls={controls}>
+                {/* Keyed on the full query so a tab or period change swaps the body
+                    for its skeleton instead of holding the stale table. */}
+                <ReportBody>
+                    <Suspense key={toSearchParams(query).toString()} fallback={<div className="space-y-5 animate-pulse"><PaymentsTabSkeleton tab={query.tab} /></div>}>
+                        <TabBody gymId={gym.id} gymName={gym.name} query={query} />
+                    </Suspense>
+                </ReportBody>
+            </PaymentsReport>
+        </ReportNavigationProvider>
     )
 }

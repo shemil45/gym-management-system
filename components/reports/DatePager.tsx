@@ -1,16 +1,16 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useReportNavigation } from '@/components/reports/ReportNavigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { addDaysIso } from '@/lib/reports/dates'
 import { toSearchParams, type PaymentsReportQuery } from '@/lib/reports/payments-params'
 
 export default function DatePager({ query, basePath, today }: { query: PaymentsReportQuery; basePath: string; today: string }) {
-    const router = useRouter()
+    const { navigate } = useReportNavigation()
     const go = (date: string) => {
         const params = toSearchParams(query)
         params.set('date', date)
-        router.push(`${basePath}?${params.toString()}`)
+        navigate(`${basePath}?${params.toString()}`)
     }
     const button = 'inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 dark:focus-visible:ring-neutral-500 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800'
 

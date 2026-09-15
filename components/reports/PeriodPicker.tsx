@@ -1,6 +1,7 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
+import { useReportNavigation } from '@/components/reports/ReportNavigation'
 import { useState } from 'react'
 import type { PeriodQuery } from '@/lib/reports/period-params'
 import type { Preset } from '@/lib/reports/dates'
@@ -12,7 +13,7 @@ const PRESETS: { id: Exclude<Preset, 'custom'>; label: string }[] = [
 ]
 
 export default function PeriodPicker({ query, basePath }: { query: PeriodQuery; basePath: string }) {
-    const router = useRouter()
+    const { navigate } = useReportNavigation()
     const searchParams = useSearchParams()
     const [from, setFrom] = useState(query.range.from)
     const [to, setTo] = useState(query.range.to)
@@ -24,7 +25,7 @@ export default function PeriodPicker({ query, basePath }: { query: PeriodQuery; 
         params.delete('from')
         params.delete('to')
         for (const [key, value] of Object.entries(patch)) params.set(key, value)
-        router.push(`${basePath}?${params.toString()}`)
+        navigate(`${basePath}?${params.toString()}`)
     }
 
     const chip = 'inline-flex items-center rounded-md px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 dark:focus-visible:ring-neutral-500'

@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { ReportBody, ReportNavigationProvider } from '@/components/reports/ReportNavigation'
 import { getCurrentAdminContext } from '@/lib/auth/admin-server'
 import { todayInKolkata } from '@/lib/reports/dates'
 import { membersSearchParams, parseMembersParams, type MembersReportQuery, type RawParams } from '@/lib/reports/members-params'
@@ -71,12 +72,16 @@ export default async function MembersReportPage({ searchParams }: { searchParams
     const search = membersSearchParams(query).toString()
 
     return (
-        <MembersReport query={query} controls={controlsFor(query, search)}>
-            {/* Keyed on the full query so a tab, horizon, days, or period change
-                swaps the body for its skeleton instead of holding stale data. */}
-            <Suspense key={search} fallback={<div className="space-y-5 animate-pulse"><MembersTabSkeleton tab={query.tab} /></div>}>
-                <TabBody gymId={gym.id} query={query} />
-            </Suspense>
-        </MembersReport>
+        <ReportNavigationProvider area="members" activeTab={query.tab}>
+            <MembersReport query={query} controls={controlsFor(query, search)}>
+                {/* Keyed on the full query so a tab, horizon, days, or period change
+                    swaps the body for its skeleton instead of holding stale data. */}
+                <ReportBody>
+                    <Suspense key={search} fallback={<div className="space-y-5 animate-pulse"><MembersTabSkeleton tab={query.tab} /></div>}>
+                        <TabBody gymId={gym.id} query={query} />
+                    </Suspense>
+                </ReportBody>
+            </MembersReport>
+        </ReportNavigationProvider>
     )
 }

@@ -1,16 +1,16 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useReportNavigation } from '@/components/reports/ReportNavigation'
 import { HORIZONS, membersSearchParams, type MembersReportQuery } from '@/lib/reports/members-params'
 
 const BASE = '/admin/reports/members'
 
 export default function RenewalsControls({ query }: { query: MembersReportQuery }) {
-    const router = useRouter()
+    const { navigate } = useReportNavigation()
 
     const go = (patch: Partial<Pick<MembersReportQuery, 'horizon' | 'lapsed'>>) => {
         const next = { ...query, ...patch }
-        router.push(`${BASE}?${membersSearchParams(next).toString()}`)
+        navigate(`${BASE}?${membersSearchParams(next).toString()}`)
     }
 
     const chip = 'inline-flex items-center rounded-md px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 dark:focus-visible:ring-neutral-500'

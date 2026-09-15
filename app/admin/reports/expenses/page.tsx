@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { ReportBody, ReportNavigationProvider } from '@/components/reports/ReportNavigation'
 import { getCurrentAdminContext } from '@/lib/auth/admin-server'
 import { todayInKolkata } from '@/lib/reports/dates'
 import { parseExpensesParams, type ExpensesReportQuery, type RawParams } from '@/lib/reports/expenses-params'
@@ -37,13 +38,17 @@ export default async function ExpensesReportPage({ searchParams }: { searchParam
     const periodKey = `${query.preset}:${query.range.from}:${query.range.to}`
 
     return (
-        <ExpensesReport
-            query={query}
-            controls={<><PeriodPicker key={periodKey} query={query} basePath={BASE} /><ExportCsvButton search={search} basePath={BASE} /></>}
-        >
-            <Suspense key={search} fallback={<div className="space-y-5 animate-pulse"><ExpensesTabSkeleton tab={query.tab} /></div>}>
-                <TabBody gymId={gym.id} query={query} />
-            </Suspense>
-        </ExpensesReport>
+        <ReportNavigationProvider area="expenses" activeTab={query.tab}>
+            <ExpensesReport
+                query={query}
+                controls={<><PeriodPicker key={periodKey} query={query} basePath={BASE} /><ExportCsvButton search={search} basePath={BASE} /></>}
+            >
+                <ReportBody>
+                    <Suspense key={search} fallback={<div className="space-y-5 animate-pulse"><ExpensesTabSkeleton tab={query.tab} /></div>}>
+                        <TabBody gymId={gym.id} query={query} />
+                    </Suspense>
+                </ReportBody>
+            </ExpensesReport>
+        </ReportNavigationProvider>
     )
 }

@@ -1,12 +1,12 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useReportNavigation } from '@/components/reports/ReportNavigation'
 import { INACTIVE_DAYS, membersSearchParams, type MembersReportQuery } from '@/lib/reports/members-params'
 
 const BASE = '/admin/reports/members'
 
 export default function DaysChips({ query }: { query: MembersReportQuery }) {
-    const router = useRouter()
+    const { navigate } = useReportNavigation()
 
     const chip = 'inline-flex items-center rounded-md px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 dark:focus-visible:ring-neutral-500'
     const on = 'bg-gray-900 text-white dark:bg-white dark:text-neutral-900'
@@ -18,7 +18,7 @@ export default function DaysChips({ query }: { query: MembersReportQuery }) {
                 const active = query.days === d
                 return (
                     <button key={d} type="button"
-                        onClick={() => router.push(`${BASE}?${membersSearchParams({ ...query, days: d }).toString()}`)}
+                        onClick={() => navigate(`${BASE}?${membersSearchParams({ ...query, days: d }).toString()}`)}
                         className={`${chip} h-7 ${active ? on : off}`} aria-pressed={active}>
                         {d}d
                     </button>
