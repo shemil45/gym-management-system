@@ -56,6 +56,22 @@ const POLL_MS = 5_000
 
 type BuildNote = { startedAt: number; fromVersion: number }
 
+/*
+  A reload aborts the in-flight action fetch a few ms before the document goes
+  away, and that rejection would otherwise clear the note and make the
+  reloaded screen forget the build. Track unload so the catch can tell an
+  abort-on-leave from a real failure.
+*/
+let unloading = false
+if (typeof window !== 'undefined') {
+    const mark = () => {
+        unloading = true
+    }
+    // Both, because which one precedes the fetch abort varies by browser.
+    window.addEventListener('beforeunload', mark)
+    window.addEventListener('pagehide', mark)
+}
+
 function readBuildNote(): BuildNote | null {
     try {
         const raw = sessionStorage.getItem(BUILD_KEY)
@@ -156,13 +172,18 @@ export default function TrainClient({
                 setActive(0)
                 router.refresh()
             }
+            writeBuildNote(null)
+            setBuilding(false)
         } catch (error) {
+            // The action never answered. If that is because the member is
+            // leaving (reload, back), keep the note so the next mount resumes
+            // waiting; the server is still writing the plan.
+            if (unloading) return
+            writeBuildNote(null)
+            setBuilding(false)
             toast.error('Could not reach the coach', {
                 description: error instanceof Error ? error.message : 'Please try again.',
             })
-        } finally {
-            writeBuildNote(null)
-            setBuilding(false)
         }
     }
 
