@@ -52,7 +52,8 @@ Filenames: `members-<tab>-<from>-<to>.csv` for period tabs,
 - members: `id, member_id, full_name, phone, status, membership_plan_id,
   membership_start_date, membership_expiry_date, referred_by, created_at,
   plan:membership_plans(name, price, duration_days),
-  referrer:members!members_referred_by_fkey(full_name)`
+  referrer:members!referred_by(full_name)` (column hint — the
+  constraint-name hint fails on a self-referencing FK)`
 - paid payments, fetched as **all history up to today** (not the selected
   range) so renewal detection can see a renewal paid after the selected
   period (`fetchPaymentRows` from `payments.ts`, which already carries

@@ -16,7 +16,9 @@ const MEMBER_SELECT = [
     'id', 'member_id', 'full_name', 'phone', 'status', 'membership_plan_id',
     'membership_start_date', 'membership_expiry_date', 'referred_by', 'created_at',
     'plan:membership_plans(name, price, duration_days)',
-    'referrer:members!members_referred_by_fkey(full_name)',
+    // Self-referencing FK: PostgREST rejects the constraint-name hint here
+    // (PGRST200), so disambiguate by the referencing column instead.
+    'referrer:members!referred_by(full_name)',
 ].join(', ')
 
 type MemberRawRow = {
