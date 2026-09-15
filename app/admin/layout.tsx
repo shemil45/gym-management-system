@@ -52,17 +52,19 @@ export default async function AdminLayout({
     return (
         <AdminThemeProvider>
             <AdminShell user={{ ...user, ...profile, gym_name: gym.name }}>
-                {platformSession.impersonation ? (
-                    <ImpersonationBanner
-                        gymName={gym.name}
-                        expiresAt={platformSession.impersonation.expires_at}
-                        stopAction={stopImpersonation}
-                    />
-                ) : null}
+                <div className="print:hidden">
+                    {platformSession.impersonation ? (
+                        <ImpersonationBanner
+                            gymName={gym.name}
+                            expiresAt={platformSession.impersonation.expires_at}
+                            stopAction={stopImpersonation}
+                        />
+                    ) : null}
 
-                <HideOnRenewPage>
-                    <AccountNotice gymId={gym.id} />
-                </HideOnRenewPage>
+                    <HideOnRenewPage>
+                        <AccountNotice gymId={gym.id} />
+                    </HideOnRenewPage>
+                </div>
 
                 {children}
             </AdminShell>
