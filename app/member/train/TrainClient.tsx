@@ -42,7 +42,54 @@ import { generateNutritionPlan } from '@/app/member/nutrition/actions'
   startTransition: React 19 entangles navigations with an in-flight async
   transition, which froze the bottom nav for the whole build. Plain state
   keeps the rest of the portal usable while the coach writes.
+
+  Because a member can leave and come back mid-build, the in-flight build is
+  noted in sessionStorage. On return the screen shows the progress card and
+  refreshes until the plan version advances past the one the build started
+  from, then clears the note. That also stops a second build being fired while
+  the first is still running.
 */
+
+const BUILD_KEY = 'm-train-build'
+const BUILD_TTL_MS = 3 * 60_000
+const POLL_MS = 5_000
+
+type BuildNote = { startedAt: number; fromVersion: number }
+
+function readBuildNote(): BuildNote | null {
+    try {
+        const raw = sessionStorage.getItem(BUILD_KEY)
+        if (!raw) return null
+        const note = JSON.parse(raw) as BuildNote
+        if (Date.now() - note.startedAt > BUILD_TTL_MS) {
+            sessionStorage.removeItem(BUILD_KEY)
+            return null
+        }
+        return note
+    } catch {
+        return null
+    }
+}
+
+function writeBuildNote(note: BuildNote | null) {
+    try {
+        if (note) sessionStorage.setItem(BUILD_KEY, JSON.stringify(note))
+        else sessionStorage.removeItem(BUILD_KEY)
+    } catch {
+        // Private mode or storage blocked: the build still runs, it just
+        // will not survive leaving the screen.
+    }
+}
+
+function formatBuiltAt(iso: string | null): string {
+    if (!iso) return 'Built by your coach'
+    const at = new Date(iso)
+    const minutes = (Date.now() - at.getTime()) / 60_000
+    if (minutes < 2) return 'Built just now'
+    if (minutes < 60) return `Built ${Math.round(minutes)} min ago`
+    if (minutes < 60 * 24) return `Built today`
+    return `Built ${at.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`
+}
 
 export default function TrainClient({
     training,
@@ -57,14 +104,40 @@ export default function TrainClient({
     const [active, setActive] = useState(0)
     const [building, setBuilding] = useState(false)
     const autoBuilt = useRef(false)
+    const currentVersion = training.version ?? 0
+
+    // Returned mid-build: pick the note up and keep refreshing until the
+    // plan version moves past where the build started.
+    useEffect(() => {
+        const note = readBuildNote()
+        if (!note) return
+        if (currentVersion > note.fromVersion) {
+            writeBuildNote(null)
+            setBuilding(false)
+            toast.success('Your new plan is ready')
+            return
+        }
+        setBuilding(true)
+        const timer = window.setInterval(() => {
+            if (!readBuildNote()) {
+                window.clearInterval(timer)
+                setBuilding(false)
+                return
+            }
+            router.refresh()
+        }, POLL_MS)
+        return () => window.clearInterval(timer)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentVersion])
 
     async function build() {
         if (!training.hasProfile) {
             router.push('/member/train/profile')
             return
         }
-        if (building) return
+        if (building || readBuildNote()) return
         setBuilding(true)
+        writeBuildNote({ startedAt: Date.now(), fromVersion: currentVersion })
         try {
             const [workout, nutrition] = await Promise.all([
                 generateWorkoutPlan(),
@@ -88,6 +161,7 @@ export default function TrainClient({
                 description: error instanceof Error ? error.message : 'Please try again.',
             })
         } finally {
+            writeBuildNote(null)
             setBuilding(false)
         }
     }
@@ -162,8 +236,14 @@ export default function TrainClient({
                     <BuildingCard />
                 ) : aiTrainerEnabled ? (
                     <div className="flex items-center justify-between gap-3 rounded-[var(--m-r-control)] bg-[var(--m-surface-2)] px-3.5 py-2.5">
-                        <p className="min-w-0 truncate text-[13px] text-[var(--m-ink-2)]">
-                            Built by your coach
+                        <p
+                            className="min-w-0 truncate text-[13px] text-[var(--m-ink-2)]"
+                            suppressHydrationWarning
+                        >
+                            {formatBuiltAt(plan.generatedAt)}
+                            {plan.version ? (
+                                <span className="m-num text-[var(--m-ink-3)]"> · v{plan.version}</span>
+                            ) : null}
                         </p>
                         <div className="flex shrink-0 items-center gap-1.5">
                             <LinkButton href="/member/train/profile" tone="quiet" size="sm">
