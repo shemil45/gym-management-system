@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { IconArrowUp, IconMessageCircle, IconTrash } from '@tabler/icons-react'
@@ -18,6 +18,10 @@ import { clearChatHistory, sendChatMessage } from '@/app/member/ai-trainer/actio
 
   Optimistic send: the member's bubble appears immediately, a typing row holds
   the coach's place, and a failed send marks the bubble instead of dropping it.
+
+  The send is plain state, not a transition: React 19 entangles navigations
+  with an in-flight async transition, which would freeze the bottom nav until
+  Gemini answered.
 */
 
 export type CoachMessage = {
@@ -45,8 +49,8 @@ export default function CoachClient({
 }) {
     const [messages, setMessages] = useState<CoachMessage[]>(initial)
     const [draft, setDraft] = useState('')
-    const [sending, startSend] = useTransition()
-    const [clearing, startClear] = useTransition()
+    const [sending, setSending] = useState(false)
+    const [clearing, setClearing] = useState(false)
     const endRef = useRef<HTMLDivElement>(null)
     const nextId = useRef(0)
 
@@ -60,32 +64,48 @@ export default function CoachClient({
         const id = `u-${nextId.current++}`
         setMessages((prev) => [...prev, { id, role: 'user', content }])
         setDraft('')
+        setSending(true)
 
-        startSend(async () => {
-            const result = await sendChatMessage(content)
-            if ('error' in result) {
+        void (async () => {
+            try {
+                const result = await sendChatMessage(content)
+                if ('error' in result) {
+                    setMessages((prev) =>
+                        prev.map((m) => (m.id === id ? { ...m, failed: true } : m)),
+                    )
+                    toast.error('The coach did not answer', { description: result.error })
+                    return
+                }
+                setMessages((prev) => [
+                    ...prev,
+                    { id: `m-${nextId.current++}`, role: 'model', content: result.reply ?? '' },
+                ])
+            } catch (error) {
                 setMessages((prev) =>
                     prev.map((m) => (m.id === id ? { ...m, failed: true } : m)),
                 )
-                toast.error('The coach did not answer', { description: result.error })
-                return
+                toast.error('Could not reach the coach', {
+                    description: error instanceof Error ? error.message : 'Please try again.',
+                })
+            } finally {
+                setSending(false)
             }
-            setMessages((prev) => [
-                ...prev,
-                { id: `m-${nextId.current++}`, role: 'model', content: result.reply ?? '' },
-            ])
-        })
+        })()
     }
 
-    function clear() {
-        startClear(async () => {
+    async function clear() {
+        if (clearing) return
+        setClearing(true)
+        try {
             const result = await clearChatHistory()
             if ('error' in result) {
                 toast.error('Could not clear the chat', { description: result.error })
                 return
             }
             setMessages([])
-        })
+        } finally {
+            setClearing(false)
+        }
     }
 
     const empty = messages.length === 0

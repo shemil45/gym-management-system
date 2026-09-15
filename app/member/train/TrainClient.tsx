@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import {
@@ -37,6 +37,11 @@ import { generateNutritionPlan } from '@/app/member/nutrition/actions'
   Plan building lives here rather than on the questionnaire so the loading
   state sits where the result appears. The questionnaire redirects back with
   `?build=1` and the effect below picks that up once.
+
+  The generate actions take 15-30s. They are deliberately NOT wrapped in
+  startTransition: React 19 entangles navigations with an in-flight async
+  transition, which froze the bottom nav for the whole build. Plain state
+  keeps the rest of the portal usable while the coach writes.
 */
 
 export default function TrainClient({
@@ -50,15 +55,17 @@ export default function TrainClient({
     const searchParams = useSearchParams()
     const [preview, setPreview] = useState(false)
     const [active, setActive] = useState(0)
-    const [building, startBuild] = useTransition()
+    const [building, setBuilding] = useState(false)
     const autoBuilt = useRef(false)
 
-    function build() {
+    async function build() {
         if (!training.hasProfile) {
             router.push('/member/train/profile')
             return
         }
-        startBuild(async () => {
+        if (building) return
+        setBuilding(true)
+        try {
             const [workout, nutrition] = await Promise.all([
                 generateWorkoutPlan(),
                 generateNutritionPlan(),
@@ -76,7 +83,13 @@ export default function TrainClient({
                 setActive(0)
                 router.refresh()
             }
-        })
+        } catch (error) {
+            toast.error('Could not reach the coach', {
+                description: error instanceof Error ? error.message : 'Please try again.',
+            })
+        } finally {
+            setBuilding(false)
+        }
     }
 
     // Arrive from the questionnaire: build once, then drop the flag from the
@@ -85,7 +98,7 @@ export default function TrainClient({
         if (searchParams.get('build') !== '1' || autoBuilt.current) return
         autoBuilt.current = true
         router.replace('/member/train')
-        if (aiTrainerEnabled && training.hasProfile) build()
+        if (aiTrainerEnabled && training.hasProfile) void build()
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams])
 
@@ -145,10 +158,12 @@ export default function TrainClient({
                             Close preview
                         </button>
                     </div>
+                ) : building ? (
+                    <BuildingCard />
                 ) : aiTrainerEnabled ? (
                     <div className="flex items-center justify-between gap-3 rounded-[var(--m-r-control)] bg-[var(--m-surface-2)] px-3.5 py-2.5">
                         <p className="min-w-0 truncate text-[13px] text-[var(--m-ink-2)]">
-                            {building ? 'Rebuilding your plan' : 'Built by your coach'}
+                            Built by your coach
                         </p>
                         <div className="flex shrink-0 items-center gap-1.5">
                             <LinkButton href="/member/train/profile" tone="quiet" size="sm">
@@ -157,7 +172,6 @@ export default function TrainClient({
                             <Button
                                 tone="quiet"
                                 size="sm"
-                                disabled={building}
                                 onClick={build}
                                 leadingIcon={<IconRefresh size={15} stroke={2} />}
                             >
@@ -268,6 +282,23 @@ export default function TrainClient({
                 {aiTrainerEnabled ? <CoachCard /> : null}
             </Stack>
         </Screen>
+    )
+}
+
+/* Shown in place of the rebuild row while the coach is writing. */
+function BuildingCard() {
+    return (
+        <Card className="flex items-center gap-3 p-4" aria-live="polite">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-[var(--m-accent-wash)] text-[var(--m-accent-wash-ink)]">
+                <IconSparkles size={21} stroke={1.7} className="animate-pulse" />
+            </span>
+            <div className="min-w-0 flex-1">
+                <p className="text-[14.5px] font-semibold">Writing your new plan</p>
+                <p className="mt-0.5 text-[12.5px] text-[var(--m-ink-3)]">
+                    About half a minute. You can leave this screen and come back.
+                </p>
+            </div>
+        </Card>
     )
 }
 

@@ -4,6 +4,8 @@ import { getChatHistory } from '@/app/member/ai-trainer/actions'
 import CoachClient from './CoachClient'
 
 export const metadata = { title: 'Coach' }
+// Plan generation and chat call Gemini; give the server actions room to finish.
+export const maxDuration = 60
 
 export default async function CoachPage() {
     const data = await getMemberPortalData()

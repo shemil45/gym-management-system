@@ -4,6 +4,8 @@ import { EmptyState, LinkButton, Screen } from '@/components/member/ui'
 import TrainClient from './TrainClient'
 
 export const metadata = { title: 'Train' }
+// Plan generation and chat call Gemini; give the server actions room to finish.
+export const maxDuration = 60
 
 export default async function TrainPage() {
     const data = await getMemberPortalData()
