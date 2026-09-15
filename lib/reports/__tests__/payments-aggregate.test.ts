@@ -113,6 +113,8 @@ describe('kpis / deltaPercent', () => {
         expect(deltaPercent(100, 0)).toBeNull()
         expect(deltaPercent(150, 100)).toBe(50)
         expect(deltaPercent(50, 100)).toBe(-50)
+        expect(deltaPercent(-500, -1000)).toBe(50)
+        expect(deltaPercent(-2000, -1000)).toBe(-100)
     })
     it('delta is -100 when the current value drops to zero', () => {
         expect(deltaPercent(0, 100)).toBe(-100)

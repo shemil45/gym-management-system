@@ -56,13 +56,13 @@ export default async function PaymentsReportPage({ searchParams }: { searchParam
         ? (
             <>
                 <DatePager query={query} basePath={BASE} today={today} />
-                <div className="flex gap-2"><PrintButton /><ExportCsvButton query={query} basePath={BASE} /></div>
+                <div className="flex gap-2"><PrintButton /><ExportCsvButton search={toSearchParams(query).toString()} basePath={BASE} /></div>
             </>
         )
         : (
             <>
                 <PeriodPicker key={periodKey} query={query} basePath={BASE} />
-                <ExportCsvButton query={query} basePath={BASE} />
+                <ExportCsvButton search={toSearchParams(query).toString()} basePath={BASE} />
             </>
         )
 

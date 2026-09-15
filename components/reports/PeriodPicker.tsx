@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { toSearchParams, type PaymentsReportQuery } from '@/lib/reports/payments-params'
+import { periodSearchParams, type PeriodQuery } from '@/lib/reports/period-params'
 import type { Preset } from '@/lib/reports/dates'
 
 const PRESETS: { id: Exclude<Preset, 'custom'>; label: string }[] = [
@@ -11,13 +11,13 @@ const PRESETS: { id: Exclude<Preset, 'custom'>; label: string }[] = [
     { id: 'year', label: 'This year' },
 ]
 
-export default function PeriodPicker({ query, basePath }: { query: PaymentsReportQuery; basePath: string }) {
+export default function PeriodPicker({ query, basePath }: { query: PeriodQuery; basePath: string }) {
     const router = useRouter()
     const [from, setFrom] = useState(query.range.from)
     const [to, setTo] = useState(query.range.to)
 
     const go = (patch: Record<string, string>) => {
-        const params = toSearchParams(query)
+        const params = periodSearchParams(query)
         params.delete('from')
         params.delete('to')
         for (const [key, value] of Object.entries(patch)) params.set(key, value)

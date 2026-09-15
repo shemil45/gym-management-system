@@ -38,7 +38,7 @@ Source data available to every area (tenant tables):
   a follow-up list.
 - Staff collections: amount and count per `processed_by`.
 
-## 2. Expenses & Profit / Loss  — coming soon
+## 2. Expenses & Profit / Loss  — shipped (branch worktree-advanced-reports)
 
 - Expenses by category for the period, with itemised list.
 - P&L statement: payments income minus expenses per month, net margin.

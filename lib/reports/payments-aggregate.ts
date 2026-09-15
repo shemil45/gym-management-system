@@ -130,7 +130,7 @@ export function kpis(rows: ReportPaymentRow[]): SummaryKpis {
 
 export function deltaPercent(current: number, previous: number): number | null {
     if (previous === 0) return null
-    return ((current - previous) / previous) * 100
+    return ((current - previous) / Math.abs(previous)) * 100
 }
 
 // ─── By plan ─────────────────────────────────────────────────────────────────

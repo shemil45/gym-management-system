@@ -45,7 +45,7 @@ function toNumber(value: number | string | null | undefined): number {
 
 const PAGE_SIZE = 1000
 
-async function fetchRows(gymId: string, range: DateRange): Promise<ReportPaymentRow[]> {
+export async function fetchPaymentRows(gymId: string, range: DateRange): Promise<ReportPaymentRow[]> {
     const db = getSupabaseAdmin()
 
     function fetchPage(from: number, to: number) {
@@ -107,27 +107,27 @@ export type PendingReport = { rows: ReportPaymentRow[]; totals: { count: number;
 export type StaffReport = { rows: StaffRow[]; total: { txns: number; collected: number; cash: number } }
 
 export async function getDayBook(gymId: string, date: string): Promise<DayBookReport> {
-    const rows = sortForDayBook(await fetchRows(gymId, { from: date, to: date }))
+    const rows = sortForDayBook(await fetchPaymentRows(gymId, { from: date, to: date }))
     return { rows, totals: dayBookTotals(rows) }
 }
 
 export async function getPeriodSummary(gymId: string, query: PaymentsReportQuery): Promise<SummaryReport> {
-    const [current, previous] = await Promise.all([fetchRows(gymId, query.range), fetchRows(gymId, query.previous)])
+    const [current, previous] = await Promise.all([fetchPaymentRows(gymId, query.range), fetchPaymentRows(gymId, query.previous)])
     return { buckets: summarise(current, query.range, query.bucket), kpis: kpis(current), previous: kpis(previous) }
 }
 
 export async function getByPlan(gymId: string, range: DateRange): Promise<PlanReport> {
-    const rows = byPlan(await fetchRows(gymId, range))
+    const rows = byPlan(await fetchPaymentRows(gymId, range))
     return { rows, total: rows.reduce((t, r) => ({ txns: t.txns + r.txns, revenue: t.revenue + r.revenue }), { txns: 0, revenue: 0 }) }
 }
 
 export async function getPending(gymId: string, range: DateRange): Promise<PendingReport> {
-    const rows = pendingRows(await fetchRows(gymId, range))
+    const rows = pendingRows(await fetchPaymentRows(gymId, range))
     return { rows, totals: pendingTotals(rows) }
 }
 
 export async function getByStaff(gymId: string, range: DateRange): Promise<StaffReport> {
-    const rows = byStaff(await fetchRows(gymId, range))
+    const rows = byStaff(await fetchPaymentRows(gymId, range))
     return {
         rows,
         total: rows.reduce(
