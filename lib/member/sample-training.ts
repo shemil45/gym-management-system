@@ -9,6 +9,8 @@ import type { TrainingSummary } from '@/lib/member/portal-data'
 export const SAMPLE_TRAINING: TrainingSummary = {
     hasPlan: true,
     hasProfile: false,
+    version: null,
+    generatedAt: null,
     summary:
         'A four-day upper/lower split built around free weights, with two rest days and one optional conditioning day.',
     today: null,

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { getCurrentGymContext } from '@/lib/auth/gym-context'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { requireAiTrainer } from '@/lib/member/ai-trainer'
 
 type FitnessProfileRow = {
     goal: string | null
@@ -27,6 +28,8 @@ type ChatHistoryRow = {
 export async function sendChatMessage(message: string) {
     const viewer = await getCurrentGymContext()
     if (!viewer.user || !viewer.member || !viewer.gym) return { error: 'Not authenticated' }
+    const access = await requireAiTrainer()
+    if ('error' in access) return { error: access.error }
 
     const db = getSupabaseAdmin()
 
@@ -72,7 +75,7 @@ Be motivating, concise, and specific. Give practical advice. If asked about exer
         // Save assistant reply
         await db.from('chat_messages').insert({ user_id: viewer.user.id, role: 'model', content: reply })
 
-        revalidatePath('/member/ai-trainer')
+        revalidatePath('/member/train/coach')
         return { success: true, reply }
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error'
@@ -99,6 +102,6 @@ export async function clearChatHistory() {
     if (!viewer.user) return { error: 'Not authenticated' }
 
     await getSupabaseAdmin().from('chat_messages').delete().eq('user_id', viewer.user.id)
-    revalidatePath('/member/ai-trainer')
+    revalidatePath('/member/train/coach')
     return { success: true }
 }

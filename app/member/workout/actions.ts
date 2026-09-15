@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { generateJSON } from '@/lib/gemini'
 import { revalidatePath } from 'next/cache'
+import { requireAiTrainer } from '@/lib/member/ai-trainer'
 
 const admin = () => createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -49,9 +50,9 @@ type GenerateWorkoutPlanResult =
     | { error: string }
 
 export async function generateWorkoutPlan(): Promise<GenerateWorkoutPlanResult> {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'Not authenticated' }
+    const access = await requireAiTrainer()
+    if ('error' in access) return { error: access.error }
+    const user = { id: access.userId }
 
     const db = admin()
 
@@ -59,9 +60,21 @@ export async function generateWorkoutPlan(): Promise<GenerateWorkoutPlanResult> 
     const { data: profile } = await db.from('fitness_profiles').select('*').eq('user_id', user.id).single()
     if (!profile) return { error: 'Please complete your fitness profile first.' }
 
-    // Get latest version number
-    const { data: existing } = await db.from('workout_plans').select('version').eq('user_id', user.id).order('version', { ascending: false }).limit(1)
-    const nextVersion = existing && existing.length > 0 ? (existing[0] as VersionRow).version + 1 : 1
+    // Latest version number, plus what it contained: a rebuild with an
+    // unchanged profile would otherwise come back near-identical.
+    const { data: existing } = await db
+        .from('workout_plans')
+        .select('version, plan_data')
+        .eq('user_id', user.id)
+        .order('version', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(1)
+    const previous = (existing?.[0] as (VersionRow & { plan_data: WorkoutPlan | null }) | undefined) ?? null
+    const nextVersion = previous ? previous.version + 1 : 1
+    const previousFocus = (previous?.plan_data?.days ?? [])
+        .map((d) => d.focus)
+        .filter(Boolean)
+        .join(', ')
 
     const typedProfile = profile as FitnessProfileRow
     const prompt = `
@@ -85,7 +98,13 @@ Return a JSON object with this exact shape:
   ]
 }
 
-Include exactly ${typedProfile.days_per_week} training days and add rest days as needed. Exercises should be appropriate for ${typedProfile.experience} level. Be specific with form notes.`
+Include exactly ${typedProfile.days_per_week} training days and add rest days as needed. Exercises should be appropriate for ${typedProfile.experience} level. Be specific with form notes.${
+        previousFocus
+            ? `
+
+This replaces an earlier plan whose days were: ${previousFocus}. Write a genuinely different variation (different split, exercise selection or rep scheme) that still fits the same goal.`
+            : ''
+    }`
 
     try {
         const plan = await generateJSON<WorkoutPlan>(prompt)
@@ -98,7 +117,7 @@ Include exactly ${typedProfile.days_per_week} training days and add rest days as
 
         if (error) return { error: error.message }
 
-        revalidatePath('/member/workout')
+        revalidatePath('/member/train')
         return { success: true, plan: (saved as SavedWorkoutPlanRow).plan_data, version: nextVersion }
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error'

@@ -11,8 +11,8 @@ const MEMBER_PORTAL_REDIRECTS: { source: string; destination: string }[] = [
   { source: "/member/plans", destination: "/member/membership/renew" },
   { source: "/member/workout", destination: "/member/train" },
   { source: "/member/nutrition", destination: "/member/train" },
-  { source: "/member/ai-trainer", destination: "/member/train" },
-  { source: "/member/fitness-profile", destination: "/member/train" },
+  { source: "/member/ai-trainer", destination: "/member/train/coach" },
+  { source: "/member/fitness-profile", destination: "/member/train/profile" },
 ];
 
 const nextConfig: NextConfig = {

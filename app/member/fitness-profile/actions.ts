@@ -30,9 +30,9 @@ export async function saveFitnessProfile(formData: FormData) {
     const { error } = await admin.from('fitness_profiles').upsert(payload, { onConflict: 'user_id' })
     if (error) return { error: error.message }
 
-    revalidatePath('/member/workout')
-    revalidatePath('/member/nutrition')
-    revalidatePath('/member/ai-trainer')
+    revalidatePath('/member/train')
+    revalidatePath('/member/train/profile')
+    revalidatePath('/member/train/coach')
     return { success: true }
 }
 

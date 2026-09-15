@@ -108,6 +108,9 @@ export interface TrainingSummary {
     /** True when the member has generated a plan; false drives the empty state. */
     hasPlan: boolean
     hasProfile: boolean
+    /** Row version of the workout plan shown; the client watches it advance after a rebuild. */
+    version: number | null
+    generatedAt: string | null
     summary: string | null
     sessions: TrainingSession[]
     today: TrainingSession | null
@@ -138,6 +141,12 @@ export interface MemberPortalData {
      * because it belongs to the member, not the program.
      */
     referralsEnabled: boolean
+    /**
+     * Whether the gym's `ai_trainer` feature resolves on. Off hides plan
+     * building and the coach chat; a plan that was already generated stays
+     * readable because it belongs to the member.
+     */
+    aiTrainerEnabled: boolean
 }
 
 /* Rows as they come back from Supabase, before mapping into the read model. */
@@ -188,6 +197,8 @@ interface PlanRow {
 }
 
 interface WorkoutPlanRow {
+    version?: number
+    created_at?: string
     plan_data: {
         summary?: string
         days?: {
@@ -316,7 +327,7 @@ export const getMemberPortalData = cache(async (): Promise<MemberPortalData | nu
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
     const weekStart = new Date(today.getTime() - ((today.getDay() + 6) % 7) * DAY_MS)
 
-    const [checkInsRes, paymentsRes, plansRes, workoutRes, nutritionRes, profileRes, referralsEnabled] =
+    const [checkInsRes, paymentsRes, plansRes, workoutRes, nutritionRes, profileRes, referralsEnabled, aiTrainerEnabled] =
         await Promise.all([
             supabase
                 .from('check_ins')
@@ -340,17 +351,20 @@ export const getMemberPortalData = cache(async (): Promise<MemberPortalData | nu
                 .select('id, name, price, duration_days, description, features')
                 .eq('is_active', true)
                 .order('price', { ascending: true }),
+            // Two builds racing can share a version; created_at breaks the tie.
             loose
                 .from('workout_plans')
-                .select('plan_data, version')
+                .select('plan_data, version, created_at')
                 .eq('user_id', context.user.id)
                 .order('version', { ascending: false })
+                .order('created_at', { ascending: false })
                 .limit(1),
             loose
                 .from('nutrition_plans')
                 .select('plan_data, version')
                 .eq('user_id', context.user.id)
                 .order('version', { ascending: false })
+                .order('created_at', { ascending: false })
                 .limit(1),
             loose
                 .from('fitness_profiles')
@@ -358,6 +372,7 @@ export const getMemberPortalData = cache(async (): Promise<MemberPortalData | nu
                 .eq('user_id', context.user.id)
                 .limit(1),
             gymHasFeature(context.gym.id, 'referrals'),
+            gymHasFeature(context.gym.id, 'ai_trainer'),
         ])
 
     // ---- activity ------------------------------------------------------
@@ -420,7 +435,8 @@ export const getMemberPortalData = cache(async (): Promise<MemberPortalData | nu
     }
 
     // ---- training ------------------------------------------------------
-    const workoutPlan = (workoutRes.data as WorkoutPlanRow[] | null)?.[0]?.plan_data ?? null
+    const workoutRow = (workoutRes.data as WorkoutPlanRow[] | null)?.[0] ?? null
+    const workoutPlan = workoutRow?.plan_data ?? null
     const nutritionPlan =
         (nutritionRes.data as NutritionPlanRow[] | null)?.[0]?.plan_data ?? null
 
@@ -443,6 +459,8 @@ export const getMemberPortalData = cache(async (): Promise<MemberPortalData | nu
     const training: TrainingSummary = {
         hasPlan: sessions.length > 0,
         hasProfile: ((profileRes.data as unknown[] | null)?.length ?? 0) > 0,
+        version: workoutRow?.version ?? null,
+        generatedAt: workoutRow?.created_at ?? null,
         summary: workoutPlan?.summary ? String(workoutPlan.summary) : null,
         sessions,
         today: pickTodaysSession(sessions),
@@ -487,5 +505,6 @@ export const getMemberPortalData = cache(async (): Promise<MemberPortalData | nu
         training,
         credits: Number(memberRow.referral_coins_balance ?? 0),
         referralsEnabled,
+        aiTrainerEnabled,
     }
 })
