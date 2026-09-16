@@ -23,7 +23,7 @@ describe('payments csv builders', () => {
         expect(csv.split('\r\n')[1]).toBe('2026-09-15,15 Sep,1,1500,0,1500,0,0,0,500,1000,50,0')
     })
     it('plan, pending, staff', () => {
-        expect(planCsv({ rows: [{ plan: 'Monthly', txns: 1, revenue: 1500, share: 100, avgTicket: 1500 }], total: { txns: 1, revenue: 1500 } }).split('\r\n')[1]).toBe('Monthly,1,1500,100,1500')
+        expect(planCsv({ rows: [{ plan: 'Monthly', txns: 1, revenue: 1500, share: 100 }], total: { txns: 1, revenue: 1500 } }).split('\r\n')[1]).toBe('Monthly,1,1500,100')
         expect(pendingCsv({ rows: [{ ...row, payment_status: 'pending' }], totals: { count: 1, amount: 1500 } }).split('\r\n')[1]).toBe('2026-09-15,Asha,GYM001,9999999999,Monthly,1500,upi,pending,"a, note"')
         expect(staffCsv({ rows: [{ staff: 'S1', txns: 1, collected: 1500, cash: 0 }], total: { txns: 1, collected: 1500, cash: 0 } }).split('\r\n')[1]).toBe('S1,1,1500,0')
     })

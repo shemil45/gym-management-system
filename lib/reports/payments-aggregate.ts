@@ -146,7 +146,7 @@ export function deltaPercent(current: number, previous: number): number | null {
 
 // ─── By plan ─────────────────────────────────────────────────────────────────
 
-export type PlanRow = { plan: string; txns: number; revenue: number; share: number; avgTicket: number }
+export type PlanRow = { plan: string; txns: number; revenue: number; share: number }
 
 export function byPlan(rows: ReportPaymentRow[]): PlanRow[] {
     const paid = rows.filter(isPaid)
@@ -163,7 +163,6 @@ export function byPlan(rows: ReportPaymentRow[]): PlanRow[] {
         .map(([plan, group]) => ({
             plan, txns: group.txns, revenue: group.revenue,
             share: total ? (group.revenue / total) * 100 : 0,
-            avgTicket: group.revenue / group.txns,
         }))
         .sort((a, b) => b.revenue - a.revenue)
 }

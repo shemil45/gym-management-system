@@ -133,7 +133,7 @@ describe('byPlan', () => {
             row({ plan_name: 'Monthly', amount: 1000, payment_status: 'pending' }),
         ])
         expect(rows.map((r) => r.plan)).toEqual(['Yearly', 'Monthly', 'No plan'])
-        expect(rows[0]).toEqual({ plan: 'Yearly', txns: 1, revenue: 3000, share: 60, avgTicket: 3000 })
+        expect(rows[0]).toEqual({ plan: 'Yearly', txns: 1, revenue: 3000, share: 60 })
     })
 })
 

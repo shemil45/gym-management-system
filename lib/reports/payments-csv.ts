@@ -27,7 +27,7 @@ export function summaryCsv(report: SummaryReport): string {
 }
 
 export function planCsv(report: PlanReport): string {
-    return toCsv(['Plan', 'Txns', 'Revenue', 'Share %', 'Avg ticket'], report.rows.map((r) => [r.plan, r.txns, r.revenue, r.share, r.avgTicket]))
+    return toCsv(['Plan', 'Txns', 'Revenue', 'Share %'], report.rows.map((r) => [r.plan, r.txns, r.revenue, r.share]))
 }
 
 export function pendingCsv(report: PendingReport): string {
