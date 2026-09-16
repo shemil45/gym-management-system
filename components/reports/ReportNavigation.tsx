@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { AttendanceTabSkeleton, ExpensesTabSkeleton, MembersTabSkeleton, PaymentsTabSkeleton } from '@/components/reports/ReportSkeleton'
+import { AttendanceTabSkeleton, ExpensesTabSkeleton, MembersTabSkeleton, PaymentsTabSkeleton, ReferralsTabSkeleton } from '@/components/reports/ReportSkeleton'
 
 // Instant feedback for in-report navigation. A tab click or control change
 // is a React transition: the server keeps the old tree on screen until the
@@ -10,7 +10,7 @@ import { AttendanceTabSkeleton, ExpensesTabSkeleton, MembersTabSkeleton, Payment
 // Routing every navigation through this provider lets the body swap to the
 // target tab's skeleton on click, before the server has replied.
 
-export type ReportArea = 'payments' | 'expenses' | 'members' | 'attendance'
+export type ReportArea = 'payments' | 'expenses' | 'members' | 'attendance' | 'referrals'
 
 type Navigation = {
     area: ReportArea
@@ -52,6 +52,7 @@ function skeletonFor(area: ReportArea, tab: string) {
         case 'expenses': return <ExpensesTabSkeleton tab={tab as Parameters<typeof ExpensesTabSkeleton>[0]['tab']} />
         case 'members': return <MembersTabSkeleton tab={tab as Parameters<typeof MembersTabSkeleton>[0]['tab']} />
         case 'attendance': return <AttendanceTabSkeleton tab={tab as Parameters<typeof AttendanceTabSkeleton>[0]['tab']} />
+        case 'referrals': return <ReferralsTabSkeleton tab={tab as Parameters<typeof ReferralsTabSkeleton>[0]['tab']} />
     }
 }
 

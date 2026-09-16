@@ -8,7 +8,7 @@ function member(o: Partial<ReportMemberRow> = {}): ReportMemberRow {
         id: 'm1', member_code: 'GYM001', full_name: 'Asha', phone: '9999999999', status: 'active',
         plan_id: 'p1', plan_name: 'Monthly', plan_price: 1000, plan_duration_days: 30,
         membership_start_date: '2026-09-01', membership_expiry_date: '2026-09-30',
-        referred_by: null, referrer_name: null, created_at: '2026-09-01T04:00:00Z', is_demo: false,
+        referred_by: null, referrer_name: null, referral_coins_balance: 0, created_at: '2026-09-01T04:00:00Z', is_demo: false,
         ...o,
     }
 }

@@ -175,6 +175,49 @@ export function AttendanceShellSkeleton() {
     )
 }
 
+function ReferralsKpiStripSkeleton() {
+    return (
+        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5" aria-hidden="true">
+            {[0, 1, 2, 3, 4].map((i) => (
+                <div key={i} className="rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-neutral-700 dark:bg-neutral-900">
+                    <div className={`h-3 w-20 ${bone}`} />
+                    <div className={`mt-2 h-6 w-28 ${bone}`} />
+                    <div className={`mt-2 h-3 w-16 ${bone}`} />
+                </div>
+            ))}
+        </div>
+    )
+}
+
+/** What the referrals page shows while a tab's data streams in. */
+export function ReferralsTabSkeleton({ tab }: { tab: 'overview' | 'leaderboard' | 'list' }) {
+    switch (tab) {
+        case 'overview': return <><ReferralsKpiStripSkeleton /><TableSkeleton columns={9} rows={6} /></>
+        case 'leaderboard': return <TableSkeleton columns={8} rows={8} />
+        case 'list': return <TableSkeleton columns={7} rows={8} />
+    }
+}
+
+/** Shell of the referrals report: back link, title, tab bar, controls row. */
+export function ReferralsShellSkeleton() {
+    return (
+        <div className="space-y-5 animate-pulse" aria-busy="true" aria-label="Loading referrals report">
+            <div>
+                <div className={`h-3 w-16 ${bone}`} />
+                <div className={`mt-2 h-6 w-24 ${bone}`} />
+            </div>
+            <div className="flex gap-1 border-b border-gray-200 dark:border-neutral-700">
+                {['w-16', 'w-20', 'w-16'].map((w, i) => <div key={i} className={`mx-3 mb-2 h-4 ${w} ${bone}`} />)}
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className={`h-8 w-64 ${bone}`} />
+                <div className={`h-8 w-28 ${bone}`} />
+            </div>
+            <ReferralsTabSkeleton tab="overview" />
+        </div>
+    )
+}
+
 /** Shell of the reports landing: heading + five area cards. */
 export function ReportsLandingSkeleton() {
     return (

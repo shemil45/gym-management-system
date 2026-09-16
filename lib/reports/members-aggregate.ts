@@ -25,6 +25,7 @@ export type ReportMemberRow = {
     membership_expiry_date: string | null
     referred_by: string | null
     referrer_name: string | null
+    referral_coins_balance: number
     created_at: string
     is_demo: boolean
 }

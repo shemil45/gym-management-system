@@ -1,9 +1,10 @@
 # Advanced Reports — roadmap
 
-Status: agreed inventory, 2026-09-15. Each area below becomes its own spec +
-plan when it is picked up. The tenant admin's old `/admin/reports` page
-(charts only, all rows loaded client-side) is retired in favour of this
-section; areas not yet built are shown as "Coming soon".
+Status: all five areas shipped on branch `worktree-advanced-reports`
+(Payments 2026-09-15, Expenses & P&L 2026-09-15, Members 2026-09-16,
+Attendance 2026-09-16, Referrals 2026-09-16). Each area has its own spec +
+plan under `docs/superpowers/`. The old `/admin/reports` chart page is
+retired; every card on the landing page is live.
 
 Gating: the whole section resolves through the platform flag
 `advanced_reports` (`lib/gym/features.ts`). Per-area sub-flags are not
@@ -61,6 +62,6 @@ Source data available to every area (tenant tables):
   `check_out_time` exists, last visit; sortable.
 - Hour × weekday heat table.
 
-## 5. Referrals  — coming soon (needs `referrals` flag)
+## 5. Referrals  — shipped (branch worktree-advanced-reports; needs `referrals` flag)
 
 - Referrer leaderboard, conversions, coins issued vs redeemed.

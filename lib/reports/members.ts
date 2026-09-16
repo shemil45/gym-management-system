@@ -14,7 +14,7 @@ import {
 
 const MEMBER_SELECT = [
     'id', 'member_id', 'full_name', 'phone', 'status', 'membership_plan_id',
-    'membership_start_date', 'membership_expiry_date', 'referred_by', 'created_at',
+    'membership_start_date', 'membership_expiry_date', 'referred_by', 'referral_coins_balance', 'created_at',
     'plan:membership_plans(name, price, duration_days)',
     // Self-referencing FK: PostgREST rejects the constraint-name hint here
     // (PGRST200), so disambiguate by the referencing column instead.
@@ -31,6 +31,7 @@ type MemberRawRow = {
     membership_start_date: string | null
     membership_expiry_date: string | null
     referred_by: string | null
+    referral_coins_balance: number | string | null
     created_at: string
     plan: { name: string; price: number | string; duration_days: number } | { name: string; price: number | string; duration_days: number }[] | null
     referrer: { full_name: string } | { full_name: string }[] | null
@@ -87,6 +88,7 @@ export async function fetchMembers(gymId: string): Promise<ReportMemberRow[]> {
             membership_expiry_date: row.membership_expiry_date,
             referred_by: row.referred_by,
             referrer_name: referrer?.full_name ?? null,
+            referral_coins_balance: toNumber(row.referral_coins_balance),
             created_at: row.created_at,
             is_demo: demoIds.has(row.id),
         }
