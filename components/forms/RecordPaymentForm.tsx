@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, startTransition } from 'react'
+import { todayInKolkata } from '@/lib/reports/dates'
 import { useRouter } from 'next/navigation'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -60,7 +61,7 @@ export default function RecordPaymentForm({ members, plans, paymentMethods, defa
     const router = useRouter()
     const { isDark } = useAdminTheme()
     const [loading, setLoading] = useState(false)
-    const today = new Date().toISOString().split('T')[0]
+    const today = todayInKolkata()
 
     // Form state
     const [memberSearch, setMemberSearch] = useState('')

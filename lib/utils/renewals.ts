@@ -1,21 +1,24 @@
+import { todayInKolkata } from '@/lib/reports/dates'
+
 type RenewalMember = {
     id: string
     membership_expiry_date?: string | null
 }
 
+/**
+ * Business-day boundaries, always in Asia/Kolkata: computing them from the
+ * server's local (typically UTC) calendar day would put "today" and "this
+ * month" out of sync with the gym's actual wall clock for part of every day.
+ */
 export function getRenewalBoundaries(anchor = new Date()) {
-    const today = new Date(anchor)
-    today.setHours(0, 0, 0, 0)
+    const todayValue = todayInKolkata(anchor)
+    const [year, month] = todayValue.slice(0, 7).split('-').map(Number)
+    const monthStartValue = `${todayValue.slice(0, 7)}-01`
+    const nextMonth = month === 12 ? 1 : month + 1
+    const nextYear = month === 12 ? year + 1 : year
+    const nextMonthStartValue = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`
 
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-    const nextMonthStart = new Date(today.getFullYear(), today.getMonth() + 1, 1)
-
-    return {
-        today,
-        todayValue: today.toISOString().split('T')[0],
-        monthStartValue: monthStart.toISOString().split('T')[0],
-        nextMonthStartValue: nextMonthStart.toISOString().split('T')[0],
-    }
+    return { todayValue, monthStartValue, nextMonthStartValue }
 }
 
 export function getExpiringMembers<T extends RenewalMember>(members: T[], anchor = new Date()) {

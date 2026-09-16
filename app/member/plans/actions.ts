@@ -6,6 +6,7 @@ import { getCurrentGymContext } from '@/lib/auth/gym-context'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { sendMemberWhatsAppNotification } from '@/lib/notifications/service'
 import { creditReferrers, settleMemberPayment } from '@/lib/payments/settle-member-payment'
+import { addDaysIso, todayInKolkata } from '@/lib/reports/dates'
 
 type PurchaseContext = {
     availableCoins: number
@@ -165,10 +166,9 @@ function ensureRazorpayConfig() {
     }
 }
 
-function generateInvoiceNumber(date = new Date()) {
-    const dateStr = date.toISOString().split('T')[0].replace(/-/g, '')
+function generateInvoiceNumber(dateStr = todayInKolkata()) {
     const rand = Math.floor(1000 + Math.random() * 9000)
-    return `INV-${dateStr}-${rand}`
+    return `INV-${dateStr.replace(/-/g, '')}-${rand}`
 }
 
 async function generateReceiptNumber(gymId: string): Promise<string | null> {
@@ -210,14 +210,13 @@ async function getPurchaseContext(planId: string, useReferralCoins: boolean): Pr
         throw new Error('Plan not found')
     }
 
-    const today = new Date()
-    const currentExpiry = member.membership_expiry_date ? new Date(member.membership_expiry_date) : null
-    const startDate = currentExpiry && currentExpiry > today ? currentExpiry : today
-    const expiryDate = new Date(startDate)
-    expiryDate.setDate(expiryDate.getDate() + plan.duration_days)
-
-    const startStr = startDate.toISOString().split('T')[0]
-    const expiryStr = expiryDate.toISOString().split('T')[0]
+    // Dates are computed as Asia/Kolkata calendar strings throughout, not via
+    // Date-object arithmetic: truncating a `new Date()` instant to a date via
+    // `.toISOString()` gives the UTC day, which lags IST by up to 5.5 hours.
+    const todayStr = todayInKolkata()
+    const currentExpiry = member.membership_expiry_date
+    const startStr = currentExpiry && currentExpiry > todayStr ? currentExpiry : todayStr
+    const expiryStr = addDaysIso(startStr, plan.duration_days)
     const availableCoins = member.referral_coins_balance || 0
     const coinsUsed = useReferralCoins ? Math.min(availableCoins, Number(plan.price)) : 0
     const finalAmount = Math.max(0, Number(plan.price) - coinsUsed)
@@ -231,9 +230,9 @@ async function getPurchaseContext(planId: string, useReferralCoins: boolean): Pr
         finalAmount,
         fullName: member.full_name || '',
         gymId: viewer.gym.id,
-        invoiceNumber: generateInvoiceNumber(today),
+        invoiceNumber: generateInvoiceNumber(todayStr),
         memberId: member.id,
-        paymentDate: today.toISOString().split('T')[0],
+        paymentDate: todayStr,
         phone: member.phone || '',
         planDurationDays: plan.duration_days,
         planId: plan.id,

@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { todayInKolkata } from '@/lib/reports/dates'
 import type { InsertTables, QueryResult, UpdateTables } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 import { invalidateGymAdminSummaries } from '@/lib/auth/admin-server'
@@ -24,11 +25,13 @@ export async function recordPayment(formData: FormData) {
     const supabase = await createClient()
 
     try {
+        const { data: { user } } = await supabase.auth.getUser()
+
         const memberId = formData.get('member_id') as string
         const amount = parseFloat(formData.get('amount') as string)
         const paymentMethod = formData.get('payment_method') as string
         const paymentStatus = (formData.get('payment_status') as string) || 'paid'
-        const paymentDate = (formData.get('payment_date') as string) || new Date().toISOString().split('T')[0]
+        const paymentDate = (formData.get('payment_date') as string) || todayInKolkata()
         const planId = formData.get('plan_id') as string | null
         const notes = (formData.get('notes') as string) || null
         const renewMembership = formData.get('renew_membership') === 'true'
@@ -120,6 +123,8 @@ export async function recordPayment(formData: FormData) {
             notes,
             membership_start_date: membershipStartDate,
             membership_end_date: membershipEndDate,
+            membership_plan_id: planId || null,
+            processed_by: user?.id ?? null,
         }
 
         const paymentInsertResult = await supabase

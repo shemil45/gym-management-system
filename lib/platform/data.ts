@@ -3,6 +3,7 @@ import 'server-only'
 import { cache } from 'react'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { resolveEntitlements } from '@/lib/billing/plan-entitlements'
+import { addDaysIso, todayInKolkata } from '@/lib/reports/dates'
 import {
     type FeatureFlag,
     type GymFeatureOverride,
@@ -168,6 +169,10 @@ export async function getPlatformAlerts(): Promise<PlatformAlerts> {
 export async function getPlatformOverview(): Promise<PlatformOverview> {
     const db = service()
     const since30 = new Date(Date.now() - 30 * 86_400_000)
+    // Query bound and chart labels use the Asia/Kolkata calendar date, not
+    // whatever UTC date `since30` happens to fall on.
+    const todayIst = todayInKolkata()
+    const since30DateStr = addDaysIso(todayIst, -30)
 
     const [tenants, paymentsResult, auditResult] = await Promise.all([
         getTenantSummaries(),
@@ -177,7 +182,7 @@ export async function getPlatformOverview(): Promise<PlatformOverview> {
             .from('payments')
             .select('amount, payment_date')
             .eq('payment_status', 'paid')
-            .gte('payment_date', since30.toISOString().slice(0, 10)),
+            .gte('payment_date', since30DateStr),
         db.from('platform_audit_logs').select('*').order('created_at', { ascending: false }).limit(12),
     ])
 
@@ -213,7 +218,7 @@ export async function getPlatformOverview(): Promise<PlatformOverview> {
     // Dense the series so gaps render as zero rather than closing the line
     // across a missing day, which would overstate continuity.
     const revenueSeries = Array.from({ length: 30 }, (_, index) => {
-        const date = new Date(Date.now() - (29 - index) * 86_400_000).toISOString().slice(0, 10)
+        const date = addDaysIso(todayIst, -(29 - index))
         return { date, volume: volumeByDate.get(date) ?? 0 }
     })
 
@@ -290,14 +295,18 @@ export async function getTenantDetail(gymId: string): Promise<TenantDetail> {
     const overrides = (overridesResult.data ?? []) as GymFeatureOverride[]
     const overrideByFlag = new Map(overrides.map((row) => [row.feature_flag_id, row]))
 
-    // Joins are 30 daily buckets of member signups.
+    // Joins are 30 daily buckets of member signups, bucketed by the calendar
+    // day the signup happened on in Asia/Kolkata (a raw slice of the UTC
+    // timestamp would put late-evening/early-morning IST signups on the
+    // wrong side of midnight).
     const joinsByDate = new Map<string, number>()
     for (const member of members) {
-        const day = member.created_at.slice(0, 10)
+        const day = todayInKolkata(new Date(member.created_at))
         joinsByDate.set(day, (joinsByDate.get(day) ?? 0) + 1)
     }
+    const todayIstForTrend = todayInKolkata()
     const memberTrend = Array.from({ length: 30 }, (_, index) => {
-        const date = new Date(Date.now() - (29 - index) * 86_400_000).toISOString().slice(0, 10)
+        const date = addDaysIso(todayIstForTrend, -(29 - index))
         return { date, joined: joinsByDate.get(date) ?? 0 }
     })
 
@@ -405,8 +414,9 @@ export type BillingOverview = {
  */
 export async function getBillingOverview(statusFilter?: SubscriptionInvoice['status']): Promise<BillingOverview> {
     const db = service()
-    const now = new Date()
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+    // Asia/Kolkata month boundary: a UTC-based one would cut over up to 5.5
+    // hours early every month, in the gym's local terms.
+    const monthStart = `${todayInKolkata().slice(0, 7)}-01T00:00:00+05:30`
 
     let recentQuery = db
         .from('gym_subscription_invoices')

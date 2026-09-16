@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { todayInKolkata } from '@/lib/reports/dates'
 import type { QueryResult } from '@/lib/types'
 import ExpenseDashboard from '@/components/financial/ExpenseDashboard'
 import { getActiveImpersonation, getImpersonationOwnedIds } from '@/lib/platform/impersonation-ledger'
@@ -35,15 +36,14 @@ function getPage(value: string | undefined) {
 }
 
 function getPresetDateRange(preset: string | undefined) {
-    const today = new Date()
-    const todayValue = today.toISOString().split('T')[0]
+    const todayValue = todayInKolkata()
 
     if (preset === 'today') {
         return { from: todayValue, to: todayValue }
     }
 
     if (preset === 'month') {
-        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
+        const monthStart = `${todayValue.slice(0, 7)}-01`
         return { from: monthStart, to: todayValue }
     }
 

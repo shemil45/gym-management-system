@@ -6,6 +6,7 @@ import type { DateRange } from '@/lib/reports/dates'
 import type { PaymentsReportQuery } from '@/lib/reports/payments-params'
 import {
     byPlan, byStaff, dayBookTotals, kpis, pendingRows, pendingTotals, sortForDayBook, summarise,
+    SELF_SERVICE_LABEL,
     type DayBookTotals, type PlanRow, type ReportPaymentRow, type StaffRow, type SummaryBucket, type SummaryKpis,
 } from '@/lib/reports/payments-aggregate'
 
@@ -99,7 +100,8 @@ export async function fetchPaymentRows(gymId: string, range: DateRange): Promise
             member_code: member?.member_id ?? null,
             member_phone: member?.phone ?? null,
             plan_name: one(row.membership_plan)?.name ?? null,
-            processor_name: one(row.processor)?.full_name ?? null,
+            processor_name: one(row.processor)?.full_name
+                ?? (row.payment_method === 'online' ? SELF_SERVICE_LABEL : null),
             membership_start_date: row.membership_start_date,
             membership_end_date: row.membership_end_date,
             is_demo: demoIds.has(row.id),

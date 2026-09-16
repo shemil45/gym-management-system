@@ -9,6 +9,14 @@ export const METHOD_LABELS: Record<PaymentMethod, string> = {
     cash: 'Cash', upi: 'UPI', card: 'Card', bank_transfer: 'Bank transfer', online: 'Online',
 }
 
+/**
+ * Shown as `processor_name` when a payment has no `processed_by` and was
+ * paid via the member portal's self-checkout ('online'), so reports can
+ * tell "member paid themselves" apart from a staff-recorded payment that's
+ * simply missing its collector.
+ */
+export const SELF_SERVICE_LABEL = 'Member (self)'
+
 /** One payment as fetched for reports. Joins are flattened to plain strings. */
 export type ReportPaymentRow = {
     id: string
