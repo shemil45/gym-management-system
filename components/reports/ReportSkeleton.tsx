@@ -146,6 +146,35 @@ export function MembersShellSkeleton() {
     )
 }
 
+/** What the attendance page shows while a tab's data streams in. */
+export function AttendanceTabSkeleton({ tab }: { tab: 'footfall' | 'members' | 'heatmap' }) {
+    switch (tab) {
+        case 'footfall': return <><KpiStripSkeleton /><TableSkeleton columns={10} rows={6} footer={false} /></>
+        case 'members': return <TableSkeleton columns={7} rows={8} />
+        case 'heatmap': return <TableSkeleton columns={9} rows={8} footer={false} />
+    }
+}
+
+/** Shell of the attendance report: back link, title, tab bar, controls row. */
+export function AttendanceShellSkeleton() {
+    return (
+        <div className="space-y-5 animate-pulse" aria-busy="true" aria-label="Loading attendance report">
+            <div>
+                <div className={`h-3 w-16 ${bone}`} />
+                <div className={`mt-2 h-6 w-28 ${bone}`} />
+            </div>
+            <div className="flex gap-1 border-b border-gray-200 dark:border-neutral-700">
+                {['w-16', 'w-20', 'w-20'].map((w, i) => <div key={i} className={`mx-3 mb-2 h-4 ${w} ${bone}`} />)}
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className={`h-8 w-64 ${bone}`} />
+                <div className={`h-8 w-28 ${bone}`} />
+            </div>
+            <AttendanceTabSkeleton tab="footfall" />
+        </div>
+    )
+}
+
 /** Shell of the reports landing: heading + five area cards. */
 export function ReportsLandingSkeleton() {
     return (

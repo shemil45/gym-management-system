@@ -53,7 +53,7 @@ Source data available to every area (tenant tables):
 - Plan distribution and status roster snapshot on any date.
 - Inactive members: active membership but no check-in in N days.
 
-## 4. Attendance  — coming soon
+## 4. Attendance  — shipped (branch worktree-advanced-reports)
 
 - Daily footfall table: unique members, total visits, peak hour,
   entry-method split.
