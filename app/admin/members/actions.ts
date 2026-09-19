@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { todayInKolkata } from '@/lib/reports/dates'
 import type { InsertTables, QueryResult, Tables, UpdateTables } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
@@ -138,7 +139,7 @@ export async function createMember(formData: FormData) {
         const effectiveAdmissionFee = allowAdmissionFeeWaiver ? admissionFee : (gymSettingsRow?.default_admission_fee ?? 0)
 
         // Start date defaults to today unless the gym allows staff to override it.
-        const startDate = allowCustomStartDate && requestedStartDate ? new Date(requestedStartDate) : new Date()
+        const startDate = allowCustomStartDate && requestedStartDate ? new Date(requestedStartDate) : new Date(todayInKolkata())
         if (Number.isNaN(startDate.getTime())) {
             return { error: 'Membership start date is invalid.' }
         }
@@ -333,8 +334,10 @@ export async function createMember(formData: FormData) {
             amount: totalAmount,
             admission_fee_amount: effectiveAdmissionFee,
             payment_method: paymentMethod,
-            payment_date: new Date().toISOString().split('T')[0],
+            payment_date: todayInKolkata(),
             notes: 'Initial membership fee',
+            membership_plan_id: planId,
+            processed_by: viewer.user.id,
         }
 
         const paymentInsertResult = await supabase

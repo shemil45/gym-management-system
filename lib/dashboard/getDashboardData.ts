@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { addDaysIso, todayInKolkata } from '@/lib/reports/dates'
 import { getExpiringMembers, getOverdueMembers } from '@/lib/utils/renewals'
 import { getGymMemberCountSummary } from '@/lib/auth/admin-server'
 
@@ -60,13 +61,9 @@ export async function getDashboardData(): Promise<{
         data: { user },
     } = await supabase.auth.getUser()
 
-    const today = new Date().toISOString().split('T')[0]
+    const today = todayInKolkata()
     const monthStart = `${today.slice(0, 7)}-01`
-    const days = Array.from({ length: 365 }, (_, i) => {
-        const d = new Date()
-        d.setDate(d.getDate() - (364 - i))
-        return d.toISOString().split('T')[0]
-    })
+    const days = Array.from({ length: 365 }, (_, i) => addDaysIso(today, -(364 - i)))
 
     const profilePromise = user
         ? supabase.from('profiles').select('full_name, role, phone, photo_url, active_gym_id').eq('id', user.id).maybeSingle()

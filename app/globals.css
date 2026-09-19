@@ -315,3 +315,8 @@
         animation: none;
     }
 }
+
+@media print {
+    html.dark { color-scheme: light; }
+    html.dark body { background: #fff; color: #111; }
+}

@@ -1,4 +1,5 @@
 import { cache } from 'react'
+import { todayInKolkata } from '@/lib/reports/dates'
 import { getCurrentGymContext } from '@/lib/auth/gym-context'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { readThroughGymCache, invalidateGymCache } from '@/lib/cache/durable-cache'
@@ -73,7 +74,7 @@ export async function getGymMemberCountSummary(gymId: string) {
 export async function getGymPaymentTotalsSummary(gymId: string) {
     return readThroughGymCache(gymId, 'payment-totals', ADMIN_SUMMARY_TTL_SECONDS, async () => {
         const admin = getSupabaseAdmin()
-        const today = new Date().toISOString().split('T')[0]
+        const today = todayInKolkata()
         const monthStart = `${today.slice(0, 7)}-01`
 
         const [todayResult, monthResult] = await Promise.all([
@@ -102,7 +103,7 @@ export async function getGymPaymentTotalsSummary(gymId: string) {
 export async function getGymExpiringMembershipsSummary(gymId: string) {
     return readThroughGymCache(gymId, 'expiring-memberships', ADMIN_SUMMARY_TTL_SECONDS, async () => {
         const admin = getSupabaseAdmin()
-        const today = new Date().toISOString().split('T')[0]
+        const today = todayInKolkata()
         const { count } = await admin
             .from('members')
             .select('*', { count: 'exact', head: true })
@@ -117,7 +118,7 @@ export async function getGymExpiringMembershipsSummary(gymId: string) {
 export async function getGymRecentActivitySummary(gymId: string) {
     return readThroughGymCache(gymId, 'recent-activity', ADMIN_SUMMARY_TTL_SECONDS, async () => {
         const admin = getSupabaseAdmin()
-        const today = new Date().toISOString().split('T')[0]
+        const today = todayInKolkata()
         const { count } = await admin
             .from('check_ins')
             .select('*', { count: 'exact', head: true })

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo, useTransition, useRef } from 'react'
+import { todayInKolkata } from '@/lib/reports/dates'
 import SupportDemoBadge from '@/components/platform/SupportDemoBadge'
 import { DEMO_READONLY_MESSAGE } from '@/lib/platform/impersonation-messages'
 import { usePathname, useRouter } from 'next/navigation'
@@ -204,15 +205,14 @@ function getRangeStartDate(range: ChartRange, anchor: Date) {
 }
 
 function getPresetDateRange(preset: string | null) {
-    const today = new Date()
-    const todayValue = today.toISOString().split('T')[0]
+    const todayValue = todayInKolkata()
 
     if (preset === 'today') {
         return { from: todayValue, to: todayValue }
     }
 
     if (preset === 'month') {
-        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
+        const monthStart = `${todayValue.slice(0, 7)}-01`
         return { from: monthStart, to: todayValue }
     }
 
@@ -354,7 +354,7 @@ function AddExpenseModal({ onClose }: { onClose: () => void }) {
     const [category, setCategory] = useState<ExpenseCategory | ''>('')
     const [amount, setAmount] = useState('')
     const [description, setDescription] = useState('')
-    const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0])
+    const [expenseDate, setExpenseDate] = useState(todayInKolkata())
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()

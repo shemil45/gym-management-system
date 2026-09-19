@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { todayInKolkata } from '@/lib/reports/dates'
 import type { InsertTables, QueryResult } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 import { getCurrentGymContext } from '@/lib/auth/gym-context'
@@ -44,7 +45,7 @@ export async function addExpense(formData: FormData) {
     const description = formData.get('description') as string
     const expense_date =
         (formData.get('expense_date') as string) ||
-        new Date().toISOString().split('T')[0]
+        todayInKolkata()
 
     if (!category || !amount || !description) {
         return { error: 'Category, amount, and description are required' }

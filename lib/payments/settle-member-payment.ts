@@ -37,7 +37,7 @@ type PendingRow = {
     notes: string | null
 }
 
-const REFERRER_BONUS_COINS = 500
+export const REFERRER_BONUS_COINS = 500
 
 export async function settleMemberPayment(input: {
     razorpayOrderId: string

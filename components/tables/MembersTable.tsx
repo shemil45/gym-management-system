@@ -1,6 +1,7 @@
 'use client'
 
 import { startTransition, useEffect, useMemo, useRef, useState } from 'react'
+import { todayInKolkata } from '@/lib/reports/dates'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { deleteMember } from '@/app/admin/members/actions'
@@ -194,7 +195,7 @@ export default function MembersTable({ members, plans, currentPage, totalCount, 
     const demo = useMemo(() => new Set(demoIds), [demoIds])
     const isLocked = (id: string) => (readOnlyMode === 'operator' ? !demo.has(id) : demo.has(id))
     const lockTitle = readOnlyMode === 'operator' ? 'Read-only while impersonating' : DEMO_READONLY_MESSAGE
-    const todayValue = new Date().toISOString().split('T')[0]
+    const todayValue = todayInKolkata()
     const initialRenewalFilter = initialFilters?.filter === 'expires' || initialFilters?.filter === 'overdue' || initialFilters?.filter === 'renewals'
         ? initialFilters.filter
         : 'all'

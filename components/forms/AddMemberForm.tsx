@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { todayInKolkata } from '@/lib/reports/dates'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
@@ -49,7 +50,7 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled }: 
     const [paymentAmount, setPaymentAmount] = useState('')
     const [admissionFee, setAdmissionFee] = useState(String(gymSettings.defaultAdmissionFee))
     const [admissionFeeWaived, setAdmissionFeeWaived] = useState(false)
-    const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0])
+    const [startDate, setStartDate] = useState(() => todayInKolkata())
     const [photoError, setPhotoError] = useState<string | null>(null)
     const [loadingMessage, setLoadingMessage] = useState('')
 

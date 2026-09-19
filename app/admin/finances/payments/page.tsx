@@ -3,6 +3,7 @@ import type { QueryResult } from '@/lib/types'
 import PaymentsTable from '@/components/tables/PaymentsTable'
 import { getImpersonationOwnedIds } from '@/lib/platform/impersonation-ledger'
 import { getCurrentGymContext } from '@/lib/auth/gym-context'
+import { todayInKolkata } from '@/lib/reports/dates'
 
 const ITEMS_PER_PAGE = 20
 
@@ -51,15 +52,14 @@ function getPage(value: string | undefined) {
 }
 
 function getPresetDateRange(preset: string | undefined) {
-    const today = new Date()
-    const todayValue = today.toISOString().split('T')[0]
+    const todayValue = todayInKolkata()
 
     if (preset === 'today') {
         return { from: todayValue, to: todayValue }
     }
 
     if (preset === 'month') {
-        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
+        const monthStart = `${todayValue.slice(0, 7)}-01`
         return { from: monthStart, to: todayValue }
     }
 
@@ -165,7 +165,7 @@ export default async function FinancesPaymentsPage({ searchParams }: FinancesPay
     const { data: payments } = paymentsResult as unknown as QueryResult<PaymentTableRow[] | null>
     const totalPayments = paymentsResult.count ?? 0
 
-    const today = new Date().toISOString().split('T')[0]
+    const today = todayInKolkata()
     const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
         .toISOString()
         .split('T')[0]

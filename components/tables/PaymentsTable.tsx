@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useRef, startTransition } from 'react'
+import { todayInKolkata } from '@/lib/reports/dates'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 import { Input } from '@/components/ui/input'
@@ -116,15 +117,14 @@ function formatTime(dateStr: string) {
 }
 
 function getPresetDateRange(preset: string | null) {
-    const today = new Date()
-    const todayValue = today.toISOString().split('T')[0]
+    const todayValue = todayInKolkata()
 
     if (preset === 'today') {
         return { from: todayValue, to: todayValue }
     }
 
     if (preset === 'month') {
-        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
+        const monthStart = `${todayValue.slice(0, 7)}-01`
         return { from: monthStart, to: todayValue }
     }
 
