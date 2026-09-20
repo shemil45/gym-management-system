@@ -92,6 +92,7 @@ export default function ReferralLeadForm({ gymName, gymLogoUrl, gymPhone, gymAdd
                             'This mobile number or email is already on a membership at this gym, so a referral is not needed.',
                             'Speak to the front desk if you think this is a mistake.',
                         ]}
+                        actions={<GymActions gymName={gymName} phone={gymPhone} address={gymAddress} />}
                     />
                 ) : (
                     <>
