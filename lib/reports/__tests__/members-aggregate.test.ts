@@ -3,6 +3,8 @@ import {
     effectiveStatus, windowsFrom, isRenewed, latestPayment, firstPayment,
     joins, joinKpis, renewalsDue, lapsed, retentionBuckets, retentionTotals,
     churned, rosterCounts, planDistribution, inactive, historyRange,
+    joinSummary, joinBuckets, isReactivation, reactivationBuckets, paidSummary, cohortRetention,
+    membershipValue, renewalSummary, inactiveSummary, atRisk,
     type ReportMemberRow, type PaymentStub, type MembershipWindow,
 } from '@/lib/reports/members-aggregate'
 
@@ -353,5 +355,130 @@ describe('inactive', () => {
         expect(rows[0].daysSince).toBeNull()
         expect(rows[1].daysSince).toBeGreaterThan(rows[2].daysSince as number)
         expect(rows[2].daysSince).toBe(14)
+    })
+})
+
+// ═══ Analytics layer ═════════════════════════════════════════════════════════
+
+describe('joinSummary / joinBuckets', () => {
+    const range = { from: '2026-09-01', to: '2026-09-30' }
+    it('splits referral from walk-in and averages known first payments only', () => {
+        const members = [
+            member({ id: 'r', referred_by: 'x', created_at: '2026-09-02T00:00:00Z' }),
+            member({ id: 'w1', created_at: '2026-09-10T00:00:00Z' }),
+            member({ id: 'w2', created_at: '2026-09-20T00:00:00Z' }),
+        ]
+        const rows = joins(members, [stub({ member_id: 'r', amount: 500 }), stub({ member_id: 'w1', amount: 1500 })], range)
+        expect(joinSummary(rows)).toEqual({ joins: 3, referral: 1, walkIn: 2, referralShare: (1 / 3) * 100, withFirstPayment: 2, avgFirstPayment: 1000 })
+        expect(joinSummary([]).avgFirstPayment).toBeNull()
+    })
+    it('buckets joins and reads churn from the same windows as the Retention tab', () => {
+        const members = [member({ id: 'a', created_at: '2026-09-02T00:00:00Z' }), member({ id: 'b', created_at: '2026-09-16T00:00:00Z' })]
+        const rows = joins(members, [], range)
+        const windows = [win({ member_id: 'old', start: '2026-08-01', end: '2026-09-05' })] // ends in Sep, never renewed
+        const buckets = joinBuckets(rows, windows, range, 'month')
+        expect(buckets).toHaveLength(1)
+        expect(buckets[0]).toMatchObject({ joins: 2, referral: 0, walkIn: 2, churned: 1, net: 1 })
+        expect(buckets[0].churned).toBe(retentionBuckets(windows, range, 'month')[0].churned)
+        expect(buckets.reduce((s, b) => s + b.joins, 0)).toBe(rows.length)
+    })
+})
+
+describe('reactivation', () => {
+    it('is the complement of isRenewed: a resumption more than 30 days after the previous window ended', () => {
+        const first = win({ member_id: 'm', start: '2026-01-01', end: '2026-01-31' })
+        const renewal = win({ member_id: 'm', start: '2026-02-15', end: '2026-03-16' })
+        const comeback = win({ member_id: 'm', start: '2026-06-01', end: '2026-06-30' })
+        const all = [first, renewal, comeback]
+        expect(isReactivation(first, all)).toBe(false)
+        expect(isReactivation(renewal, all)).toBe(false)
+        expect(isRenewed(first, all)).toBe(true)
+        expect(isReactivation(comeback, all)).toBe(true)
+        expect(isRenewed(renewal, all)).toBe(false)
+        const buckets = reactivationBuckets(all, { from: '2026-06-01', to: '2026-06-30' }, 'month')
+        expect(buckets[0].reactivated).toBe(1)
+    })
+})
+
+describe('paidSummary', () => {
+    it('sums per member, then averages and takes the median', () => {
+        const summary = paidSummary([
+            stub({ member_id: 'a', amount: 1000 }), stub({ member_id: 'a', amount: 1000 }),
+            stub({ member_id: 'b', amount: 500 }), stub({ member_id: 'c', amount: 3500 }),
+        ])
+        expect(summary).toEqual({ members: 3, average: 2000, median: 2000 })
+        expect(paidSummary([])).toBeNull()
+        expect(paidSummary([stub({ member_id: 'a', amount: 100 }), stub({ member_id: 'b', amount: 300 })])?.median).toBe(200)
+    })
+})
+
+describe('cohortRetention', () => {
+    const today = '2026-09-16'
+    it('tracks each join month across the months since', () => {
+        const members = [
+            member({ id: 'j1', created_at: '2026-07-03T00:00:00Z' }),
+            member({ id: 'j2', created_at: '2026-07-20T00:00:00Z' }),
+            member({ id: 'a1', created_at: '2026-08-05T00:00:00Z' }),
+        ]
+        const windows = [
+            win({ member_id: 'j1', start: '2026-07-03', end: '2026-08-02' }),
+            win({ member_id: 'j1', start: '2026-08-03', end: '2026-09-02' }), // renews into Sep
+            win({ member_id: 'j2', start: '2026-07-20', end: '2026-08-19' }), // lapses after Aug
+            win({ member_id: 'a1', start: '2026-08-05', end: '2026-09-04' }),
+        ]
+        const { rows, months } = cohortRetention(members, windows, { from: '2026-07-01', to: '2026-09-30' }, today)
+        expect(months).toBe(3)
+        expect(rows.map((r) => [r.label, r.members])).toEqual([['Jul 2026', 2], ['Aug 2026', 1]])
+        expect(rows[0].retained).toEqual([100, 100, 50])
+        expect(rows[1].retained).toEqual([100, 100, null])
+    })
+    it('is empty when nobody joined in the range', () => {
+        expect(cohortRetention([member({ created_at: '2025-01-01T00:00:00Z' })], [], { from: '2026-09-01', to: '2026-09-30' }, today)).toEqual({ rows: [], months: 0 })
+    })
+})
+
+describe('membershipValue', () => {
+    it('is members × the plan distribution monthly value', () => {
+        const today = '2026-09-16'
+        const members = [
+            member({ id: 'a', membership_expiry_date: '2026-12-31', plan_price: 1200, plan_duration_days: 30 }),
+            member({ id: 'b', membership_expiry_date: '2026-12-31', plan_price: 1200, plan_duration_days: 30 }),
+            member({ id: 'c', membership_expiry_date: '2026-12-31', plan_name: 'Yearly', plan_id: 'p2', plan_price: 7300, plan_duration_days: 365 } as Partial<ReportMemberRow>),
+            member({ id: 'x', status: 'frozen', membership_expiry_date: '2026-12-31' }),
+        ]
+        const plans = planDistribution(members, today)
+        const value = membershipValue(plans)
+        expect(value.members).toBe(3)
+        expect(value.mrr).toBeCloseTo(2 * 1200 + (7300 * 30) / 365)
+        expect(value.arr).toBeCloseTo(value.mrr * 12)
+    })
+})
+
+describe('renewalSummary / inactiveSummary / atRisk', () => {
+    const today = '2026-09-16'
+    it('counts the three horizons and lapsed windows', () => {
+        const members = [
+            member({ id: 'a', membership_expiry_date: '2026-09-20' }),
+            member({ id: 'b', membership_expiry_date: '2026-09-28' }),
+            member({ id: 'c', membership_expiry_date: '2026-10-10' }),
+            member({ id: 'l', membership_expiry_date: '2026-09-05' }),
+        ]
+        const windows = [win({ member_id: 'l', start: '2026-08-06', end: '2026-09-05' })]
+        const summary = renewalSummary(members, [], windows, { from: '2026-09-01', to: '2026-09-16' }, today)
+        expect(summary).toEqual({ in7: 1, in15: 2, in30: 3, lapsed: 1 })
+    })
+    it('counts inactivity windows from one set of visits and flags those expiring soon', () => {
+        const members = [
+            member({ id: 'fresh', membership_expiry_date: '2026-12-31' }),
+            member({ id: 'quiet', membership_expiry_date: '2026-09-24' }),
+            member({ id: 'gone', membership_expiry_date: '2026-12-31' }),
+            member({ id: 'expired', membership_expiry_date: '2026-01-01' }),
+        ]
+        const visits = new Map([['fresh', '2026-09-15'], ['quiet', '2026-09-05']])
+        expect(inactiveSummary(members, visits, today)).toEqual({ activeBase: 3, over7: 2, over14: 1, over30: 1 })
+        const rows = inactive(members, visits, today, 7)
+        const risk = atRisk(rows, today)
+        expect(risk.map((r) => r.member.id)).toEqual(['quiet'])
+        expect(risk[0]).toMatchObject({ daysLeft: 8, daysSince: 11 })
     })
 })

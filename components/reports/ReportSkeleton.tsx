@@ -150,11 +150,11 @@ function RosterCardsSkeleton() {
 /** What the members page shows while a tab's data streams in. */
 export function MembersTabSkeleton({ tab }: { tab: 'joins' | 'renewals' | 'retention' | 'roster' | 'inactive' }) {
     switch (tab) {
-        case 'joins': return <TableSkeleton columns={6} rows={8} />
-        case 'renewals': return <TableSkeleton columns={6} rows={8} />
-        case 'retention': return <><KpiStripSkeleton /><TableSkeleton columns={5} rows={4} /><TableSkeleton columns={5} rows={5} /></>
-        case 'roster': return <><RosterCardsSkeleton /><TableSkeleton columns={6} rows={4} /></>
-        case 'inactive': return <TableSkeleton columns={6} rows={8} />
+        case 'joins': return <><KpiStripSkeleton columns={5} /><ChartCardSkeleton height={260} /><ChartCardSkeleton height={120} /><TableSkeleton columns={6} rows={8} /></>
+        case 'renewals': return <><KpiStripSkeleton columns={4} /><TableSkeleton columns={6} rows={8} /></>
+        case 'retention': return <><KpiStripSkeleton columns={5} /><ChartCardSkeleton height={240} /><ChartCardSkeleton height={220} /><KpiStripSkeleton /><TableSkeleton columns={8} rows={4} /><TableSkeleton columns={5} rows={4} /><TableSkeleton columns={5} rows={5} /></>
+        case 'roster': return <><KpiStripSkeleton /><div className="grid gap-4 lg:grid-cols-2"><ChartCardSkeleton height={200} /><ChartCardSkeleton height={200} /></div><RosterCardsSkeleton /><TableSkeleton columns={6} rows={4} /></>
+        case 'inactive': return <><KpiStripSkeleton columns={4} /><TableSkeleton columns={5} rows={3} /><TableSkeleton columns={6} rows={8} /></>
     }
 }
 

@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { joinsCsv, renewalsCsv, retentionCsv, rosterCsv, inactiveCsv } from '@/lib/reports/members-csv'
 import type { ReportMemberRow, PaymentStub } from '@/lib/reports/members-aggregate'
-import type { JoinsReport, RenewalsReport, RetentionReport, RosterReport, InactiveReport } from '@/lib/reports/members'
 
 function member(o: Partial<ReportMemberRow> = {}): ReportMemberRow {
     return {
@@ -23,10 +22,8 @@ function stub(o: Partial<PaymentStub> = {}): PaymentStub {
 
 describe('joinsCsv', () => {
     it('has the header and one row per join', () => {
-        const report: JoinsReport = {
+        const report: Parameters<typeof joinsCsv>[0] = {
             rows: [{ member: member({ referrer_name: 'Bob' }), joinDate: '2026-09-15', source: 'referral', firstPayment: stub({ amount: 500, payment_date: '2026-09-16' }) }],
-            kpis: { joins: 1, referralShare: 100 },
-            previous: { joins: 0, referralShare: 0 },
         }
         const lines = joinsCsv(report).split('\r\n')
         expect(lines[0]).toBe('﻿Join date,Member,Member ID,Phone,Plan,Source,Referrer,First payment,First payment date')
@@ -37,10 +34,9 @@ describe('joinsCsv', () => {
 
 describe('renewalsCsv', () => {
     it('upcoming mode', () => {
-        const report: RenewalsReport = {
+        const report: Parameters<typeof renewalsCsv>[0] = {
             mode: 'upcoming',
             rows: [{ member: member(), expiry: '2026-09-30', daysLeft: 14, lastPayment: stub({ amount: 1000, payment_date: '2026-09-01' }) }],
-            horizon: 30,
         }
         const lines = renewalsCsv(report).split('\r\n')
         expect(lines[0]).toBe('﻿Member,Member ID,Phone,Plan,Expiry,Days left,Last payment,Last payment date')
@@ -48,7 +44,7 @@ describe('renewalsCsv', () => {
         expect(lines).toHaveLength(2)
     })
     it('lapsed mode', () => {
-        const report: RenewalsReport = {
+        const report: Parameters<typeof renewalsCsv>[0] = {
             mode: 'lapsed',
             rows: [{ member: member(), endedOn: '2026-08-31', overdueDays: 5, lastPayment: null }],
         }
@@ -61,10 +57,8 @@ describe('renewalsCsv', () => {
 
 describe('retentionCsv', () => {
     it('emits buckets then a blank line then the churned list', () => {
-        const report: RetentionReport = {
+        const report: Parameters<typeof retentionCsv>[0] = {
             buckets: [{ start: '2026-09-01', label: 'Sep 2026', ended: 4, renewed: 3, retention: 75, churned: 1 }],
-            totals: { ended: 4, renewed: 3, retention: 75, churned: 1 },
-            previous: { ended: 2, renewed: 1, retention: 50, churned: 1 },
             churned: [{ member: member(), endedOn: '2026-09-10', overdueDays: 6, lastPayment: stub({ amount: 1000, payment_date: '2026-09-01' }) }],
         }
         const csv = retentionCsv(report)
@@ -81,10 +75,9 @@ describe('retentionCsv', () => {
 
 describe('rosterCsv', () => {
     it('emits status counts then a blank line then the plan table', () => {
-        const report: RosterReport = {
+        const report: Parameters<typeof rosterCsv>[0] = {
             counts: { active: 3, expiring: 1, expired: 2, frozen: 0, inactive: 1, total: 7 },
             plans: [{ plan: 'Monthly', members: 4, share: 100, price: 1000, durationDays: 30, monthlyValue: 1000 }],
-            asOf: '2026-09-16',
         }
         const csv = rosterCsv(report)
         const sections = csv.split('\r\n\r\n')
@@ -101,7 +94,7 @@ describe('rosterCsv', () => {
 
 describe('inactiveCsv', () => {
     it('has the header and one row per member', () => {
-        const report: InactiveReport = {
+        const report: Parameters<typeof inactiveCsv>[0] = {
             rows: [{ member: member(), lastVisit: '2026-08-20', daysSince: 27, expiry: '2026-09-30' }],
             days: 14,
         }
@@ -111,7 +104,7 @@ describe('inactiveCsv', () => {
         expect(lines).toHaveLength(2)
     })
     it('no-visit member renders "No visit in Nd" / "N+" instead of blank cells or "Never"', () => {
-        const report: InactiveReport = { rows: [{ member: member(), lastVisit: null, daysSince: null, expiry: null }], days: 14 }
+        const report: Parameters<typeof inactiveCsv>[0] = { rows: [{ member: member(), lastVisit: null, daysSince: null, expiry: null }], days: 14 }
         const lines = inactiveCsv(report).split('\r\n')
         expect(lines[1]).toBe('Asha,GYM001,9999999999,Monthly,,No visit in 14d,14+')
     })

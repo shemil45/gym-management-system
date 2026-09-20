@@ -37,4 +37,12 @@ describe('membersSearchParams / filename', () => {
         expect(membersSearchParams(inactive).toString()).toBe('tab=inactive&days=7')
         expect(membersExportFilename(inactive)).toBe('members-inactive-7d-2026-09-16.csv')
     })
+    it('carries a non-default comparison on every tab and keeps the default out of the URL', () => {
+        expect(parseMembersParams({}, today).compare).toBe('previous')
+        const none = parseMembersParams({ tab: 'joins', compare: 'none' }, today)
+        expect(none.previous).toBeNull()
+        expect(membersSearchParams(none).toString()).toBe('tab=joins&preset=month&compare=none')
+        expect(membersSearchParams({ ...none, tab: 'roster' }).toString()).toBe('tab=roster&compare=none')
+        expect(membersSearchParams({ ...none, tab: 'inactive' }).toString()).toBe('tab=inactive&days=14&compare=none')
+    })
 })

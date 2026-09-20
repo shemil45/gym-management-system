@@ -1,4 +1,5 @@
-import { chooseBucket, isIsoDate, previousRange, rangeForPreset, type Bucket, type DateRange, type Preset } from '@/lib/reports/dates'
+import { chooseBucket, isIsoDate, rangeForPreset, type Bucket, type DateRange, type Preset } from '@/lib/reports/dates'
+import { COMPARISON_PARAM, DEFAULT_COMPARISON, comparisonRange, parseComparison, type Comparison } from '@/lib/reports/comparison'
 import type { RawParams } from '@/lib/reports/payments-params'
 
 export type { RawParams }
@@ -19,7 +20,10 @@ export type MembersReportQuery = {
     tab: MembersTab
     preset: Preset
     range: DateRange
-    previous: DateRange
+    /** What a period tab compares against. Ranges come from `comparisonRange`. */
+    compare: Comparison
+    /** The comparison window, or null when `compare` is `none`. */
+    previous: DateRange | null
     bucket: Bucket
     horizon: Horizon
     lapsed: boolean
@@ -45,8 +49,9 @@ export function parseMembersParams(raw: RawParams, today: string): MembersReport
     let range: DateRange
     if (preset === 'custom' && isIsoDate(from) && isIsoDate(to) && from <= to) range = { from, to }
     else { preset = preset === 'custom' ? 'month' : preset; range = rangeForPreset(preset, today) }
+    const compare = parseComparison(raw[COMPARISON_PARAM])
     return {
-        tab, preset, range, previous: previousRange(range), bucket: chooseBucket(range),
+        tab, preset, range, compare, previous: comparisonRange(range, compare), bucket: chooseBucket(range),
         horizon: pick(first(raw.horizon), HORIZONS, 30),
         lapsed: first(raw.lapsed) === '1',
         days: pick(first(raw.days), INACTIVE_DAYS, 14),
@@ -74,6 +79,9 @@ export function membersSearchParams(q: MembersReportQuery): URLSearchParams {
         case 'roster':
             break
     }
+    // Carried on every tab so a comparison chosen on New joins is still there
+    // after a detour through the roster. The default stays out of the URL.
+    if (q.compare !== DEFAULT_COMPARISON) params.set(COMPARISON_PARAM, q.compare)
     return params
 }
 

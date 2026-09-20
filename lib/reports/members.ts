@@ -6,11 +6,15 @@ import { addDaysIso, type DateRange } from '@/lib/reports/dates'
 import type { Horizon, InactiveDays, MembersReportQuery } from '@/lib/reports/members-params'
 import { fetchPaymentRows } from '@/lib/reports/payments'
 import {
-    churned, historyRange, inactive, istDate, joinKpis, joins, lapsed,
-    planDistribution, renewalsDue, retentionBuckets, retentionTotals, rosterCounts, windowsFrom,
-    type InactiveRow, type JoinKpis, type JoinRow, type LapsedRow, type PaymentStub,
-    type PlanRow, type RenewalRow, type ReportMemberRow, type RetentionBucket, type RosterCounts,
+    atRisk, churned, cohortRetention, historyRange, inactive, inactiveSummary, istDate, joinBuckets, joinKpis, joinSummary, joins, lapsed,
+    membershipValue, paidSummary, planDistribution, reactivationBuckets, reactivationCount, renewalSummary, renewalsDue,
+    retentionBuckets, retentionTotals, rosterCounts, windowsFrom,
+    type AtRiskRow, type CohortReport, type InactiveRow, type InactiveSummary, type JoinBucket, type JoinKpis, type JoinRow, type JoinSummary,
+    type LapsedRow, type MembershipValue, type PaidSummary, type PaymentStub, type PlanRow, type ReactivationBucket, type RenewalRow,
+    type RenewalSummary, type ReportMemberRow, type RetentionBucket, type RosterCounts,
 } from '@/lib/reports/members-aggregate'
+import type { Comparison } from '@/lib/reports/comparison'
+import { INACTIVE_DAYS } from '@/lib/reports/members-params'
 
 const MEMBER_SELECT = [
     'id', 'member_id', 'full_name', 'phone', 'status', 'membership_plan_id',
@@ -139,27 +143,62 @@ export async function fetchLastVisits(gymId: string, since: string): Promise<Map
     return lastVisits
 }
 
-export type JoinsReport = { rows: JoinRow[]; kpis: JoinKpis; previous: JoinKpis }
-export type RenewalsReport =
+/**
+ * Every report below is built from the fetches the tab already made — the
+ * roster and the all-history paid stubs for the period tabs, the roster alone
+ * for Roster, the roster plus recent check-ins for Inactive. The analytics
+ * fields are further views of those same rows; no tab fetches more than it
+ * did before this layer existed.
+ */
+export type JoinsReport = {
+    rows: JoinRow[]
+    kpis: JoinKpis
+    previous: JoinKpis | null
+    compare: Comparison
+    summary: JoinSummary
+    previousSummary: JoinSummary | null
+    /** Joins and churn per bucket over the selected range. */
+    buckets: JoinBucket[]
+    comparisonBuckets: JoinBucket[] | null
+}
+export type RenewalsReport = (
     | { mode: 'upcoming'; rows: RenewalRow[]; horizon: Horizon }
     | { mode: 'lapsed'; rows: LapsedRow[] }
+) & { summary: RenewalSummary }
 export type RetentionReport = {
     buckets: RetentionBucket[]
     totals: ReturnType<typeof retentionTotals>
-    previous: ReturnType<typeof retentionTotals>
+    previous: ReturnType<typeof retentionTotals> | null
+    compare: Comparison
+    comparisonBuckets: RetentionBucket[] | null
     churned: LapsedRow[]
+    reactivations: ReactivationBucket[]
+    reactivated: number
+    /** Total recorded payments per member, summarised; null with no payments. */
+    paid: PaidSummary | null
+    cohorts: CohortReport
 }
-export type RosterReport = { counts: RosterCounts; plans: PlanRow[]; asOf: string }
-export type InactiveReport = { rows: InactiveRow[]; days: InactiveDays }
+export type RosterReport = { counts: RosterCounts; plans: PlanRow[]; asOf: string; value: MembershipValue }
+export type InactiveReport = { rows: InactiveRow[]; days: InactiveDays; summary: InactiveSummary; atRisk: AtRiskRow[] }
 
 export async function getJoins(gymId: string, query: MembersReportQuery): Promise<JoinsReport> {
     const [members, payments] = await Promise.all([
         fetchMembers(gymId),
         fetchPaidStubs(gymId, historyRange(query.today)),
     ])
+    const windows = windowsFrom(payments)
     const rows = joins(members, payments, query.range)
-    const previousRows = joins(members, payments, query.previous)
-    return { rows, kpis: joinKpis(rows), previous: joinKpis(previousRows) }
+    const previousRows = query.previous ? joins(members, payments, query.previous) : null
+    return {
+        rows,
+        kpis: joinKpis(rows),
+        previous: previousRows ? joinKpis(previousRows) : null,
+        compare: query.compare,
+        summary: joinSummary(rows),
+        previousSummary: previousRows ? joinSummary(previousRows) : null,
+        buckets: joinBuckets(rows, windows, query.range, query.bucket),
+        comparisonBuckets: previousRows && query.previous ? joinBuckets(previousRows, windows, query.previous, query.bucket) : null,
+    }
 }
 
 export async function getRenewals(gymId: string, query: MembersReportQuery): Promise<RenewalsReport> {
@@ -167,11 +206,12 @@ export async function getRenewals(gymId: string, query: MembersReportQuery): Pro
         fetchMembers(gymId),
         fetchPaidStubs(gymId, historyRange(query.today)),
     ])
+    const windows = windowsFrom(payments)
+    const summary = renewalSummary(members, payments, windows, query.range, query.today)
     if (query.lapsed) {
-        const windows = windowsFrom(payments)
-        return { mode: 'lapsed', rows: lapsed(members, windows, payments, query.range, query.today) }
+        return { mode: 'lapsed', rows: lapsed(members, windows, payments, query.range, query.today), summary }
     }
-    return { mode: 'upcoming', rows: renewalsDue(members, payments, query.today, query.horizon), horizon: query.horizon }
+    return { mode: 'upcoming', rows: renewalsDue(members, payments, query.today, query.horizon), horizon: query.horizon, summary }
 }
 
 export async function getRetention(gymId: string, query: MembersReportQuery): Promise<RetentionReport> {
@@ -181,25 +221,38 @@ export async function getRetention(gymId: string, query: MembersReportQuery): Pr
     ])
     const windows = windowsFrom(payments)
     const buckets = retentionBuckets(windows, query.range, query.bucket)
-    const previousBuckets = retentionBuckets(windows, query.previous, query.bucket)
+    const previousBuckets = query.previous ? retentionBuckets(windows, query.previous, query.bucket) : null
+    const reactivations = reactivationBuckets(windows, query.range, query.bucket)
     return {
         buckets,
         totals: retentionTotals(buckets),
-        previous: retentionTotals(previousBuckets),
+        previous: previousBuckets ? retentionTotals(previousBuckets) : null,
+        compare: query.compare,
+        comparisonBuckets: previousBuckets,
         churned: churned(members, windows, payments, query.range),
+        reactivations,
+        reactivated: reactivationCount(reactivations),
+        paid: paidSummary(payments),
+        cohorts: cohortRetention(members, windows, query.range, query.today),
     }
 }
 
 export async function getRoster(gymId: string, today: string): Promise<RosterReport> {
     const members = await fetchMembers(gymId)
-    return { counts: rosterCounts(members, today), plans: planDistribution(members, today), asOf: today }
+    const plans = planDistribution(members, today)
+    return { counts: rosterCounts(members, today), plans, asOf: today, value: membershipValue(plans) }
 }
 
 export async function getInactive(gymId: string, query: MembersReportQuery): Promise<InactiveReport> {
-    // Same cutoff `inactive()` applies internally: a visit before this date
-    // doesn't change whether a member counts as inactive, so there is no
-    // need to fetch it.
-    const cutoff = addDaysIso(query.today, -(query.days - 1))
+    // Visits are fetched back to the widest inactivity window (30 days), not
+    // just the selected one, so the 7 / 14 / 30-day summary can be counted
+    // from one fetch and an inactive member's actual last visit is known when
+    // it fell inside that window. `inactive()` itself is unchanged, so the
+    // member list is identical to before; only `lastVisit` is now populated
+    // where it used to be null.
+    const widest = Math.max(...INACTIVE_DAYS)
+    const cutoff = addDaysIso(query.today, -(widest - 1))
     const [members, lastVisits] = await Promise.all([fetchMembers(gymId), fetchLastVisits(gymId, cutoff)])
-    return { rows: inactive(members, lastVisits, query.today, query.days), days: query.days }
+    const rows = inactive(members, lastVisits, query.today, query.days)
+    return { rows, days: query.days, summary: inactiveSummary(members, lastVisits, query.today), atRisk: atRisk(rows, query.today) }
 }

@@ -339,3 +339,300 @@ export function inactive(members: ReportMemberRow[], lastVisits: Map<string, str
             return a.lastVisit.localeCompare(b.lastVisit)
         })
 }
+
+// ═══ Analytics layer ═════════════════════════════════════════════════════════
+//
+// Everything below is computed from the rows the tabs already fetch — the
+// member roster, the paid-payment stubs, and (for Inactive) recent check-ins.
+// Nothing here fetches, and nothing needs data the report does not hold.
+
+// ─── Joins: growth ───────────────────────────────────────────────────────────
+
+export type JoinSummary = {
+    joins: number
+    referral: number
+    walkIn: number
+    referralShare: number
+    /** Members whose first payment is known; the average is over these only. */
+    withFirstPayment: number
+    /** Null when no join in the period has a first payment. */
+    avgFirstPayment: number | null
+}
+
+export function joinSummary(rows: JoinRow[]): JoinSummary {
+    const referral = rows.filter((r) => r.source === 'referral').length
+    const paid = rows.filter((r): r is JoinRow & { firstPayment: PaymentStub } => r.firstPayment !== null)
+    return {
+        joins: rows.length,
+        referral,
+        walkIn: rows.length - referral,
+        referralShare: rows.length ? (referral / rows.length) * 100 : 0,
+        withFirstPayment: paid.length,
+        avgFirstPayment: paid.length ? paid.reduce((s, r) => s + r.firstPayment.amount, 0) / paid.length : null,
+    }
+}
+
+export type JoinBucket = {
+    start: string
+    label: string
+    joins: number
+    referral: number
+    walkIn: number
+    /** Membership windows that ended in the bucket and were not renewed — the
+     *  same figure as the Retention tab's `churned` column. */
+    churned: number
+    /** joins − churned. Member-count growth, not revenue growth. */
+    net: number
+}
+
+/**
+ * Joins per bucket, with churn from the same windows the Retention tab uses so
+ * that net growth is joins − churned on identical definitions.
+ */
+export function joinBuckets(rows: JoinRow[], windows: MembershipWindow[], range: DateRange, bucket: Bucket): JoinBucket[] {
+    const churnByStart = new Map(retentionBuckets(windows, range, bucket).map((b) => [b.start, b.churned]))
+    const acc = new Map<string, JoinBucket>()
+    for (let start = bucketStart(range.from, bucket); start <= range.to; start = nextBucketStart(start, bucket)) {
+        const churned = churnByStart.get(start) ?? 0
+        acc.set(start, { start, label: bucketLabel(start, bucket), joins: 0, referral: 0, walkIn: 0, churned, net: -churned })
+    }
+    for (const row of rows) {
+        const target = acc.get(bucketStart(row.joinDate, bucket))
+        if (!target) continue
+        target.joins += 1
+        if (row.source === 'referral') target.referral += 1
+        else target.walkIn += 1
+        target.net = target.joins - target.churned
+    }
+    return [...acc.values()]
+}
+
+// ─── Retention: reactivation ─────────────────────────────────────────────────
+
+/**
+ * A window is a reactivation when the same member had an earlier window and
+ * this one starts more than 30 days after that earlier window ended — the
+ * exact complement of `isRenewed`'s 30-day grace, so a window is either a
+ * renewal of its predecessor or a reactivation after it, never both. A
+ * member's first window is neither.
+ */
+export function isReactivation(window: MembershipWindow, all: MembershipWindow[]): boolean {
+    let previous: MembershipWindow | null = null
+    for (const w of all) {
+        if (w.member_id !== window.member_id || w === window || w.start >= window.start) continue
+        if (!previous || w.end > previous.end) previous = w
+    }
+    if (!previous) return false
+    return window.start > addDaysIso(previous.end, 30)
+}
+
+export type ReactivationBucket = { start: string; label: string; reactivated: number }
+
+export function reactivationBuckets(windows: MembershipWindow[], range: DateRange, bucket: Bucket): ReactivationBucket[] {
+    const acc = new Map<string, ReactivationBucket>()
+    for (let start = bucketStart(range.from, bucket); start <= range.to; start = nextBucketStart(start, bucket)) {
+        acc.set(start, { start, label: bucketLabel(start, bucket), reactivated: 0 })
+    }
+    for (const window of windows) {
+        if (window.start < range.from || window.start > range.to) continue
+        if (!isReactivation(window, windows)) continue
+        const target = acc.get(bucketStart(window.start, bucket))
+        if (target) target.reactivated += 1
+    }
+    return [...acc.values()]
+}
+
+export function reactivationCount(buckets: ReactivationBucket[]): number {
+    return buckets.reduce((s, b) => s + b.reactivated, 0)
+}
+
+// ─── Retention: total paid per member ────────────────────────────────────────
+
+export type PaidSummary = {
+    /** Members with at least one paid payment on record. */
+    members: number
+    /** Mean of each member's total recorded payments. */
+    average: number
+    median: number
+}
+
+/**
+ * Total recorded payments attributed to each member, across all history the
+ * report already fetched. This is a backward-looking sum — what members have
+ * actually paid — and nothing more; it is not a prediction of future value.
+ */
+export function totalPaidPerMember(payments: PaymentStub[]): Map<string, number> {
+    const totals = new Map<string, number>()
+    for (const p of payments) totals.set(p.member_id, (totals.get(p.member_id) ?? 0) + p.amount)
+    return totals
+}
+
+export function paidSummary(payments: PaymentStub[]): PaidSummary | null {
+    const totals = [...totalPaidPerMember(payments).values()].sort((a, b) => a - b)
+    if (totals.length === 0) return null
+    const sum = totals.reduce((s, v) => s + v, 0)
+    const mid = Math.floor(totals.length / 2)
+    const median = totals.length % 2 ? totals[mid] : (totals[mid - 1] + totals[mid]) / 2
+    return { members: totals.length, average: sum / totals.length, median }
+}
+
+// ─── Retention: cohorts ──────────────────────────────────────────────────────
+
+export type CohortRow = {
+    /** `yyyy-MM` of the join month. */
+    cohort: string
+    label: string
+    members: number
+    /** Per offset month: share (0–100) of the cohort with a membership window
+     *  covering any day of that calendar month; null for months not yet
+     *  reached. Index 0 is the join month itself. */
+    retained: (number | null)[]
+}
+
+export type CohortReport = { rows: CohortRow[]; months: number }
+
+function monthKey(date: string): string {
+    return date.slice(0, 7)
+}
+
+function addMonthsKey(key: string, months: number): string {
+    return format(addMonths(parseISO(`${key}-01`), months), 'yyyy-MM')
+}
+
+/**
+ * Month-by-month retention of each join cohort, from the membership windows
+ * the Retention tab already holds. Cohorts are members whose join date falls
+ * in the selected range, grouped by join month and capped to the most recent
+ * `maxCohorts`. A member counts as retained in offset month k when any of
+ * their windows overlaps calendar month (cohort + k). Month 0 is below 100%
+ * exactly when some members of the cohort joined without a membership
+ * window in their join month — that is the fact, so it is left as is.
+ */
+export function cohortRetention(
+    members: ReportMemberRow[],
+    windows: MembershipWindow[],
+    range: DateRange,
+    today: string,
+    options: { maxCohorts?: number; maxMonths?: number } = {},
+): CohortReport {
+    const { maxCohorts = 12, maxMonths = 12 } = options
+    const windowsByMember = new Map<string, MembershipWindow[]>()
+    for (const w of windows) {
+        const list = windowsByMember.get(w.member_id)
+        if (list) list.push(w)
+        else windowsByMember.set(w.member_id, [w])
+    }
+
+    const cohorts = new Map<string, string[]>()
+    for (const m of members) {
+        const joined = istDate(m.created_at)
+        if (joined < range.from || joined > range.to) continue
+        const key = monthKey(joined)
+        const list = cohorts.get(key)
+        if (list) list.push(m.id)
+        else cohorts.set(key, [m.id])
+    }
+
+    const keys = [...cohorts.keys()].sort().slice(-maxCohorts)
+    const currentMonth = monthKey(today)
+    const months = keys.length
+        ? Math.min(maxMonths, Math.max(...keys.map((k) => monthsBetween(k, currentMonth)))) + 1
+        : 0
+
+    const rows = keys.map((key) => {
+        const ids = cohorts.get(key) as string[]
+        const retained: (number | null)[] = []
+        for (let k = 0; k < months; k++) {
+            const month = addMonthsKey(key, k)
+            if (month > currentMonth) { retained.push(null); continue }
+            const first = `${month}-01`
+            const last = format(addDays(addMonths(parseISO(first), 1), -1), 'yyyy-MM-dd')
+            const count = ids.filter((id) => (windowsByMember.get(id) ?? []).some((w) => w.start <= last && w.end >= first)).length
+            retained.push((count / ids.length) * 100)
+        }
+        return { cohort: key, label: format(parseISO(`${key}-01`), 'MMM yyyy'), members: ids.length, retained }
+    })
+    return { rows, months }
+}
+
+function monthsBetween(fromKey: string, toKey: string): number {
+    const [fy, fm] = fromKey.split('-').map(Number)
+    const [ty, tm] = toKey.split('-').map(Number)
+    return Math.max(0, (ty - fy) * 12 + (tm - fm))
+}
+
+// ─── Roster: membership value ────────────────────────────────────────────────
+
+export type MembershipValue = {
+    /** Active and expiring members on a plan, i.e. the rows in `planDistribution`. */
+    members: number
+    /**
+     * Σ members × plan monthly value, using the same normalised monthly value
+     * (`price × 30 / duration_days`) the plan distribution shows. It is the
+     * membership base's normalised monthly plan value — not recognised
+     * revenue, and admission fees are not part of it.
+     */
+    mrr: number
+    /** mrr × 12. */
+    arr: number
+}
+
+export function membershipValue(plans: PlanRow[]): MembershipValue {
+    const mrr = plans.reduce((s, p) => s + p.members * p.monthlyValue, 0)
+    return { members: plans.reduce((s, p) => s + p.members, 0), mrr, arr: mrr * 12 }
+}
+
+// ─── Renewals: summary ───────────────────────────────────────────────────────
+
+export type RenewalSummary = { in7: number; in15: number; in30: number; lapsed: number }
+
+/** Counts behind the Renewals chips: expiring within 7 / 15 / 30 days, and
+ *  windows that ended in the selected range without renewing. */
+export function renewalSummary(members: ReportMemberRow[], payments: PaymentStub[], windows: MembershipWindow[], range: DateRange, today: string): RenewalSummary {
+    return {
+        in7: renewalsDue(members, payments, today, 7).length,
+        in15: renewalsDue(members, payments, today, 15).length,
+        in30: renewalsDue(members, payments, today, 30).length,
+        lapsed: lapsed(members, windows, payments, range, today).length,
+    }
+}
+
+// ─── Inactive: summary and at-risk ───────────────────────────────────────────
+
+export type InactiveSummary = {
+    /** Active or expiring members — the base every count is drawn from. */
+    activeBase: number
+    over7: number
+    over14: number
+    over30: number
+}
+
+/** The three inactivity windows at once, from one set of last visits that
+ *  reaches back at least 30 days. */
+export function inactiveSummary(members: ReportMemberRow[], lastVisits: Map<string, string>, today: string): InactiveSummary {
+    const activeBase = members.filter((m) => {
+        const status = effectiveStatus(m, today)
+        return status === 'active' || status === 'expiring'
+    }).length
+    return {
+        activeBase,
+        over7: inactive(members, lastVisits, today, 7).length,
+        over14: inactive(members, lastVisits, today, 14).length,
+        over30: inactive(members, lastVisits, today, 30).length,
+    }
+}
+
+export type AtRiskRow = InactiveRow & { daysLeft: number }
+
+/**
+ * Inactive members whose membership also expires within `horizon` days. Two
+ * facts side by side — no score. A row here is a member to contact, not a
+ * member who has churned.
+ */
+export function atRisk(rows: InactiveRow[], today: string, horizon = 30): AtRiskRow[] {
+    const limit = addDaysIso(today, horizon)
+    return rows
+        .filter((r) => r.expiry !== null && r.expiry >= today && r.expiry <= limit)
+        .map((r) => ({ ...r, daysLeft: daysBetweenInclusive({ from: today, to: r.expiry as string }) - 1 }))
+        .sort((a, b) => a.daysLeft - b.daysLeft || (b.daysSince ?? Number.MAX_SAFE_INTEGER) - (a.daysSince ?? Number.MAX_SAFE_INTEGER))
+}

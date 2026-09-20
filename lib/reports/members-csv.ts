@@ -1,6 +1,6 @@
 import { toCsv, type CsvCell } from '@/lib/reports/csv'
-import { STATUS_LABELS, type EffectiveStatus, type LapsedRow, type PaymentStub, type ReportMemberRow } from '@/lib/reports/members-aggregate'
-import type { InactiveReport, JoinsReport, RenewalsReport, RetentionReport, RosterReport } from '@/lib/reports/members'
+import { STATUS_LABELS, type EffectiveStatus, type LapsedRow, type PaymentStub, type RenewalRow, type ReportMemberRow } from '@/lib/reports/members-aggregate'
+import type { InactiveReport, JoinsReport, RetentionReport, RosterReport } from '@/lib/reports/members'
 
 const round2 = (n: number | null) => (n === null ? null : Math.round(n * 100) / 100)
 
@@ -18,7 +18,7 @@ function lapsedRowsCsv(headers: string[], rows: LapsedRow[]): string {
     return toCsv(headers, rows.map((r) => [...memberCells(r.member), r.endedOn, ...paymentCells(r.lastPayment)]))
 }
 
-export function joinsCsv(report: JoinsReport): string {
+export function joinsCsv(report: Pick<JoinsReport, 'rows'>): string {
     return toCsv(
         ['Join date', 'Member', 'Member ID', 'Phone', 'Plan', 'Source', 'Referrer', 'First payment', 'First payment date'],
         report.rows.map((r) => [
@@ -27,7 +27,7 @@ export function joinsCsv(report: JoinsReport): string {
     )
 }
 
-export function renewalsCsv(report: RenewalsReport): string {
+export function renewalsCsv(report: { mode: 'upcoming'; rows: RenewalRow[] } | { mode: 'lapsed'; rows: LapsedRow[] }): string {
     if (report.mode === 'lapsed') {
         return toCsv(
             ['Member', 'Member ID', 'Phone', 'Plan', 'Ended on', 'Overdue days', 'Last payment', 'Last payment date'],
@@ -40,7 +40,7 @@ export function renewalsCsv(report: RenewalsReport): string {
     )
 }
 
-export function retentionCsv(report: RetentionReport): string {
+export function retentionCsv(report: Pick<RetentionReport, 'buckets' | 'churned'>): string {
     const buckets = toCsv(
         ['Bucket start', 'Period', 'Ended', 'Renewed', 'Retention %', 'Churned'],
         report.buckets.map((b) => [b.start, b.label, b.ended, b.renewed, round2(b.retention), b.churned]),
@@ -49,7 +49,7 @@ export function retentionCsv(report: RetentionReport): string {
     return `${buckets}\r\n\r\n${churnedCsv.replace(/^﻿/, '')}`
 }
 
-export function rosterCsv(report: RosterReport): string {
+export function rosterCsv(report: Pick<RosterReport, 'counts' | 'plans'>): string {
     const order: EffectiveStatus[] = ['active', 'expiring', 'expired', 'frozen', 'inactive']
     const statuses = toCsv(
         ['Status', 'Members'],
@@ -62,7 +62,7 @@ export function rosterCsv(report: RosterReport): string {
     return `${statuses}\r\n\r\n${plans.replace(/^﻿/, '')}`
 }
 
-export function inactiveCsv(report: InactiveReport): string {
+export function inactiveCsv(report: Pick<InactiveReport, 'rows' | 'days'>): string {
     const { days } = report
     return toCsv(
         ['Member', 'Member ID', 'Phone', 'Plan', 'Expiry', 'Last visit', 'Days since'],
