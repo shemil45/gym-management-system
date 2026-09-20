@@ -4,6 +4,7 @@ import { cache } from 'react'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { gymHasFeature } from '@/lib/gym/features'
 import { addDaysIso, rangeForPreset, todayInKolkata } from '@/lib/reports/dates'
+import { countActiveMembers } from '@/lib/reports/member-counts'
 
 // One headline number per landing card. Every value is a COUNT over a column
 // the report modules already read — nothing is derived, estimated or invented.
@@ -39,11 +40,7 @@ export const getLandingStats = cache(async (gymId: string): Promise<LandingStats
             .gte('payment_date', month.from).lte('payment_date', month.to),
         db.from('expenses').select('id', head).eq('gym_id', gymId)
             .gte('expense_date', month.from).lte('expense_date', month.to),
-        // Mirrors `effectiveStatus`: active or expiring = not frozen, not
-        // inactive, and the membership has not run out.
-        db.from('members').select('id', head).eq('gym_id', gymId)
-            .in('status', ['active', 'expired'])
-            .gte('membership_expiry_date', today),
+        countActiveMembers(gymId, today),
         db.from('check_ins').select('id', head).eq('gym_id', gymId)
             .gte('check_in_time', `${month.from}T00:00:00+05:30`)
             .lt('check_in_time', `${addDaysIso(month.to, 1)}T00:00:00+05:30`),
@@ -57,7 +54,7 @@ export const getLandingStats = cache(async (gymId: string): Promise<LandingStats
     return {
         payments: countOf(payments),
         expenses: countOf(expenses),
-        members: countOf(members),
+        members,
         attendance: countOf(checkIns),
         referrals: referrals ? countOf(referrals) : null,
     }

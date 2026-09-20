@@ -11,12 +11,14 @@ export async function GET(request: Request) {
     if (!(await gymHasFeature(gym.id, 'advanced_reports'))) return new Response('Advanced reports are not enabled for this gym', { status: 403 })
 
     const raw: RawParams = Object.fromEntries(new URL(request.url).searchParams.entries())
-    const query = parseExpensesParams(raw, todayInKolkata())
+    const today = todayInKolkata()
+    const query = parseExpensesParams(raw, today)
 
     try {
         let csv: string
         switch (query.tab) {
-            case 'pnl': csv = pnlCsv(await getPnl(gym.id, query)); break
+            // The P&L CSV has no comparison columns, so skip the comparison fetch.
+            case 'pnl': csv = pnlCsv(await getPnl(gym.id, { ...query, previous: null }, today)); break
             case 'categories': csv = categoryCsv(await getByCategory(gym.id, query)); break
             case 'ledger': csv = ledgerCsv(await getLedger(gym.id, query.range)); break
         }

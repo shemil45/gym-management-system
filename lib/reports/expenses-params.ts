@@ -1,4 +1,6 @@
-import { chooseBucket, isIsoDate, previousRange, rangeForPreset, type Bucket, type DateRange, type Preset } from '@/lib/reports/dates'
+import { chooseBucket, isIsoDate, rangeForPreset, type Bucket, type DateRange, type Preset } from '@/lib/reports/dates'
+import { COMPARISON_PARAM, DEFAULT_COMPARISON, comparisonRange, parseComparison, type Comparison } from '@/lib/reports/comparison'
+import { periodSearchParams } from '@/lib/reports/period-params'
 import type { RawParams } from '@/lib/reports/payments-params'
 
 export type { RawParams }
@@ -11,7 +13,16 @@ export const EXPENSES_TABS: { id: ExpensesTab; label: string }[] = [
     { id: 'ledger', label: 'Ledger' },
 ]
 
-export type ExpensesReportQuery = { tab: ExpensesTab; preset: Preset; range: DateRange; previous: DateRange; bucket: Bucket }
+export type ExpensesReportQuery = {
+    tab: ExpensesTab
+    preset: Preset
+    range: DateRange
+    /** What the period is compared against. Ranges come from `comparisonRange`. */
+    compare: Comparison
+    /** The comparison window, or null when `compare` is `none`. */
+    previous: DateRange | null
+    bucket: Bucket
+}
 
 const TABS = new Set<string>(EXPENSES_TABS.map((tab) => tab.id))
 const PRESETS = new Set<string>(['week', 'month', 'year', 'custom'])
@@ -31,7 +42,19 @@ export function parseExpensesParams(raw: RawParams, today: string): ExpensesRepo
         preset = preset === 'custom' ? 'year' : preset
         range = rangeForPreset(preset, today)
     }
-    return { tab, preset, range, previous: previousRange(range), bucket: chooseBucket(range) }
+    const compare = parseComparison(raw[COMPARISON_PARAM])
+    return { tab, preset, range, compare, previous: comparisonRange(range, compare), bucket: chooseBucket(range) }
+}
+
+/**
+ * The shared period params plus the comparison, which is carried on every
+ * tab so it survives a tab switch. The default stays out of the URL so
+ * existing links keep their shape.
+ */
+export function expensesSearchParams(query: ExpensesReportQuery): URLSearchParams {
+    const params = periodSearchParams(query)
+    if (query.compare !== DEFAULT_COMPARISON) params.set(COMPARISON_PARAM, query.compare)
+    return params
 }
 
 export function expensesExportFilename(query: ExpensesReportQuery): string {

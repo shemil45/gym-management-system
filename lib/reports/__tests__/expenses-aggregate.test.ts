@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { pnlBuckets, pnlTotals, pnlKpis, byCategory, sortLedger, ledgerTotals, marginPercent, type ReportExpenseRow } from '@/lib/reports/expenses-aggregate'
+import { pnlBuckets, pnlTotals, pnlKpis, byCategory, sortLedger, ledgerTotals, marginPercent, expenseRatio, costPerActiveMember, expenseRunRate, type ReportExpenseRow } from '@/lib/reports/expenses-aggregate'
 import type { ReportPaymentRow } from '@/lib/reports/payments-aggregate'
 
 function pay(o: Partial<ReportPaymentRow>): ReportPaymentRow {
@@ -64,5 +64,61 @@ describe('ledger', () => {
         const rows = sortLedger([exp({ id: 'a', expense_date: '2026-09-01' }), exp({ id: 'b', expense_date: '2026-09-10', created_at: '2026-09-10T01:00:00Z' }), exp({ id: 'c', expense_date: '2026-09-10', created_at: '2026-09-10T05:00:00Z' })])
         expect(rows.map((r) => r.id)).toEqual(['c', 'b', 'a'])
         expect(ledgerTotals(rows)).toEqual({ count: 3, amount: 900 })
+    })
+})
+
+// ═══ Analytics layer ═════════════════════════════════════════════════════════
+
+describe('expenseRatio / costPerActiveMember', () => {
+    it('is a percentage of positive net income only', () => {
+        expect(expenseRatio(382, 1000)).toBeCloseTo(38.2)
+        expect(expenseRatio(100, 0)).toBeNull()
+        expect(expenseRatio(100, -50)).toBeNull()
+    })
+    it('divides by a known, positive member count', () => {
+        expect(costPerActiveMember(1000, 40)).toBe(25)
+        expect(costPerActiveMember(1000, 0)).toBeNull()
+        expect(costPerActiveMember(1000, null)).toBeNull()
+    })
+})
+
+describe('expenseRunRate', () => {
+    const today = '2026-09-20'
+    const monthToDate = { from: '2026-09-01', to: today }
+
+    it('projects the current month straight-line from elapsed days', () => {
+        const rate = expenseRunRate([exp({ amount: 1000, expense_date: '2026-09-05' }), exp({ amount: 1000, expense_date: '2026-09-15' })], monthToDate, today)
+        expect(rate).toEqual({ recorded: 2000, elapsedDays: 20, daysInMonth: 30, projected: 3000 })
+    })
+    it('is only offered for the current month to date', () => {
+        expect(expenseRunRate([exp({ amount: 1 })], { from: '2026-08-01', to: '2026-08-31' }, today)).toBeNull()
+        expect(expenseRunRate([exp({ amount: 1 })], { from: '2026-01-01', to: today }, today)).toBeNull()
+        expect(expenseRunRate([exp({ amount: 1 })], { from: '2026-09-10', to: today }, today)).toBeNull()
+    })
+    it('needs at least a week of elapsed days', () => {
+        expect(expenseRunRate([exp({ amount: 1 })], { from: '2026-09-01', to: '2026-09-06' }, '2026-09-06')).toBeNull()
+        expect(expenseRunRate([exp({ amount: 700, expense_date: '2026-09-01' })], { from: '2026-09-01', to: '2026-09-07' }, '2026-09-07')?.projected).toBe(3000)
+    })
+    it('has nothing to project on the last day of the month', () => {
+        expect(expenseRunRate([exp({ amount: 1 })], { from: '2026-09-01', to: '2026-09-30' }, '2026-09-30')).toBeNull()
+    })
+    it('ignores rows outside the range', () => {
+        expect(expenseRunRate([exp({ amount: 999, expense_date: '2026-08-31' })], monthToDate, today)?.recorded).toBe(0)
+    })
+})
+
+describe('composition reconciles with the P&L table', () => {
+    it('byCategory totals equal pnlTotals byCategory over the same rows', () => {
+        const range = { from: '2026-09-01', to: '2026-09-30' }
+        const rows = [
+            exp({ amount: 300, category: 'rent', expense_date: '2026-09-02' }),
+            exp({ amount: 120, category: 'utilities', expense_date: '2026-09-10' }),
+            exp({ amount: 80, category: 'utilities', expense_date: '2026-09-25' }),
+        ]
+        const totals = pnlTotals(pnlBuckets([], rows, range, 'week'))
+        const categories = byCategory(rows, [])
+        for (const c of categories) expect(c.total).toBe(totals.byCategory[c.category])
+        expect(categories.reduce((s, c) => s + c.total, 0)).toBe(totals.totalExpenses)
+        expect(expenseRatio(totals.totalExpenses, 1000)).toBe(50)
     })
 })

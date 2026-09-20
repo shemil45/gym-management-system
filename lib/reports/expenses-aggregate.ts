@@ -1,5 +1,5 @@
-import { addDays, addMonths, format, parseISO } from 'date-fns'
-import { bucketLabel, bucketStart, type Bucket, type DateRange } from '@/lib/reports/dates'
+import { addDays, addMonths, format, getDaysInMonth, parseISO } from 'date-fns'
+import { bucketLabel, bucketStart, daysBetweenInclusive, rangeForPreset, type Bucket, type DateRange } from '@/lib/reports/dates'
 import type { ReportPaymentRow } from '@/lib/reports/payments-aggregate'
 
 export type ExpenseCategory = 'utilities' | 'salary' | 'equipment' | 'maintenance' | 'marketing' | 'rent' | 'other'
@@ -163,4 +163,59 @@ export function sortLedger(rows: ReportExpenseRow[]): ReportExpenseRow[] {
 
 export function ledgerTotals(rows: ReportExpenseRow[]): { count: number; amount: number } {
     return { count: rows.length, amount: rows.reduce((s, r) => s + r.amount, 0) }
+}
+
+// ═══ Analytics layer ═════════════════════════════════════════════════════════
+//
+// Derived from the same rows the P&L and category tables use. Nothing here
+// fetches, and none of it introduces accounting concepts the data cannot
+// support: revenue, expenses, net and margin are the whole vocabulary.
+
+/**
+ * Total expenses as a share of net income, 0–100. Null when there is no
+ * positive revenue to measure against — a ratio over zero or negative income
+ * is not a fact worth printing. This is a ratio, not a profitability score.
+ */
+export function expenseRatio(totalExpenses: number, netIncome: number): number | null {
+    return netIncome > 0 ? (totalExpenses / netIncome) * 100 : null
+}
+
+/** Total expenses ÷ active members. Null without a member count. */
+export function costPerActiveMember(totalExpenses: number, activeMembers: number | null): number | null {
+    return activeMembers === null || activeMembers <= 0 ? null : totalExpenses / activeMembers
+}
+
+export type RunRate = {
+    /** Expenses recorded so far this month. */
+    recorded: number
+    elapsedDays: number
+    daysInMonth: number
+    /** recorded ÷ elapsedDays × daysInMonth. A straight-line projection,
+     *  nothing more: it assumes the rest of the month spends at the same daily
+     *  pace as the days already gone. */
+    projected: number
+}
+
+/** Fewest elapsed days before a straight-line projection is worth showing. */
+export const RUN_RATE_MIN_DAYS = 7
+
+/**
+ * A simple month-end projection, offered only when the selected range is the
+ * current calendar month to date and at least `RUN_RATE_MIN_DAYS` have
+ * elapsed. Any other range — a past month, a custom span, the year — returns
+ * null and nothing is shown, rather than projecting something that is not a
+ * partial month.
+ */
+export function expenseRunRate(expenses: ReportExpenseRow[], range: DateRange, today: string): RunRate | null {
+    const monthToDate = rangeForPreset('month', today)
+    if (range.from !== monthToDate.from || range.to !== monthToDate.to) return null
+    const elapsedDays = daysBetweenInclusive(range)
+    if (elapsedDays < RUN_RATE_MIN_DAYS) return null
+    const daysInMonth = getDaysInMonth(parseISO(today))
+    // Nothing to project once the month is complete: recorded is the answer.
+    if (elapsedDays >= daysInMonth) return null
+    const recorded = expenses
+        .filter((row) => row.expense_date >= range.from && row.expense_date <= range.to)
+        .reduce((s, row) => s + row.amount, 0)
+    return { recorded, elapsedDays, daysInMonth, projected: (recorded / elapsedDays) * daysInMonth }
 }

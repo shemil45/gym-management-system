@@ -108,8 +108,8 @@ export function PaymentsShellSkeleton() {
 /** What the expenses page shows while a tab's data streams in. */
 export function ExpensesTabSkeleton({ tab }: { tab: 'pnl' | 'categories' | 'ledger' }) {
     switch (tab) {
-        case 'pnl': return <><KpiStripSkeleton /><TableSkeleton columns={15} rows={6} /></>
-        case 'categories': return <TableSkeleton columns={7} rows={5} />
+        case 'pnl': return <><KpiStripSkeleton columns={5} /><ChartCardSkeleton height={280} /><ChartCardSkeleton height={200} /><TableSkeleton columns={15} rows={6} /></>
+        case 'categories': return <><KpiStripSkeleton /><ChartCardSkeleton height={200} /><TableSkeleton columns={7} rows={5} /></>
         case 'ledger': return <TableSkeleton columns={6} rows={8} />
     }
 }
