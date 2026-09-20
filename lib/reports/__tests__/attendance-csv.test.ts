@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { footfallCsv, byMemberCsv, heatmapCsv } from '@/lib/reports/attendance-csv'
 import type { ReportMemberRow } from '@/lib/reports/members-aggregate'
-import type { FootfallReport, ByMemberReport, HeatmapReport } from '@/lib/reports/attendance'
 
 function member(o: Partial<ReportMemberRow> = {}): ReportMemberRow {
     return {
@@ -15,14 +14,11 @@ function member(o: Partial<ReportMemberRow> = {}): ReportMemberRow {
 
 describe('footfallCsv', () => {
     it('has the header and one row per bucket', () => {
-        const report: FootfallReport = {
+        const report: Parameters<typeof footfallCsv>[0] = {
             buckets: [{
                 start: '2026-09-01', label: '01 Sep', visits: 10, uniqueMembers: 4, days: 1, perDay: 10,
                 peakHour: 18, byMethod: { manual: 2, qr: 5, kiosk: 2, fingerprint: 1 }, avgMinutes: 42.345,
             }],
-            totals: { visits: 10, uniqueMembers: 4, days: 1, perDay: 10, peakHour: 18, byMethod: { manual: 2, qr: 5, kiosk: 2, fingerprint: 1 }, avgMinutes: 42.345 },
-            kpis: { visits: 10, uniqueMembers: 4, perDay: 10 },
-            previous: { visits: 8, uniqueMembers: 3, perDay: 8 },
         }
         const lines = footfallCsv(report).split('\r\n')
         expect(lines[0]).toBe('﻿Bucket start,Period,Visits,Unique members,Days,Per day,Peak hour,Manual,QR,Kiosk,Fingerprint,Avg minutes')
@@ -31,14 +27,11 @@ describe('footfallCsv', () => {
     })
 
     it('renders null peak hour and avg minutes as blank cells', () => {
-        const report: FootfallReport = {
+        const report: Parameters<typeof footfallCsv>[0] = {
             buckets: [{
                 start: '2026-09-01', label: '01 Sep', visits: 0, uniqueMembers: 0, days: 1, perDay: 0,
                 peakHour: null, byMethod: { manual: 0, qr: 0, kiosk: 0, fingerprint: 0 }, avgMinutes: null,
             }],
-            totals: { visits: 0, uniqueMembers: 0, days: 1, perDay: 0, peakHour: null, byMethod: { manual: 0, qr: 0, kiosk: 0, fingerprint: 0 }, avgMinutes: null },
-            kpis: { visits: 0, uniqueMembers: 0, perDay: 0 },
-            previous: { visits: 0, uniqueMembers: 0, perDay: 0 },
         }
         const lines = footfallCsv(report).split('\r\n')
         expect(lines[1]).toBe('2026-09-01,01 Sep,0,0,1,0,,0,0,0,0,')
@@ -47,10 +40,8 @@ describe('footfallCsv', () => {
 
 describe('byMemberCsv', () => {
     it('has the header and one row per member', () => {
-        const report: ByMemberReport = {
+        const report: Parameters<typeof byMemberCsv>[0] = {
             rows: [{ member: member(), visits: 12, avgMinutes: 55.5, lastVisit: '2026-09-15', daysSince: 1 }],
-            sort: 'most',
-            totalVisits: 12,
         }
         const lines = byMemberCsv(report).split('\r\n')
         expect(lines[0]).toBe('﻿Member,Member ID,Phone,Plan,Visits,Avg minutes,Last visit,Days since')
@@ -59,10 +50,8 @@ describe('byMemberCsv', () => {
     })
 
     it('renders null avg minutes / last visit / days since as blank cells', () => {
-        const report: ByMemberReport = {
+        const report: Parameters<typeof byMemberCsv>[0] = {
             rows: [{ member: member(), visits: 0, avgMinutes: null, lastVisit: null, daysSince: null }],
-            sort: 'most',
-            totalVisits: 0,
         }
         const lines = byMemberCsv(report).split('\r\n')
         expect(lines[1]).toBe('Asha,GYM001,9999999999,Monthly,0,,,')
@@ -71,13 +60,11 @@ describe('byMemberCsv', () => {
 
 describe('heatmapCsv', () => {
     it('has the header, one row per hour, and a final Total row', () => {
-        const report: HeatmapReport = {
+        const report: Parameters<typeof heatmapCsv>[0] = {
             hours: [6, 7],
             cells: [[1, 0, 0, 0, 0, 0, 0], [2, 3, 0, 0, 0, 0, 0]],
             rowTotals: [1, 5],
             colTotals: [3, 3, 0, 0, 0, 0, 0],
-            max: 3,
-            busiest: { hour: 7, weekday: 1, count: 3 },
         }
         const lines = heatmapCsv(report).split('\r\n')
         expect(lines[0]).toBe('﻿Hour,Mon,Tue,Wed,Thu,Fri,Sat,Sun,Total')

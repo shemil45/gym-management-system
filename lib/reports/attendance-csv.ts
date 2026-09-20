@@ -5,7 +5,7 @@ const round2 = (n: number | null) => (n === null ? null : Math.round(n * 100) / 
 
 const formatHour = (hour: number) => `${String(hour).padStart(2, '0')}:00`
 
-export function footfallCsv(report: FootfallReport): string {
+export function footfallCsv(report: Pick<FootfallReport, 'buckets'>): string {
     return toCsv(
         ['Bucket start', 'Period', 'Visits', 'Unique members', 'Days', 'Per day', 'Peak hour', 'Manual', 'QR', 'Kiosk', 'Fingerprint', 'Avg minutes'],
         report.buckets.map((b) => [
@@ -15,7 +15,7 @@ export function footfallCsv(report: FootfallReport): string {
     )
 }
 
-export function byMemberCsv(report: ByMemberReport): string {
+export function byMemberCsv(report: Pick<ByMemberReport, 'rows'>): string {
     return toCsv(
         ['Member', 'Member ID', 'Phone', 'Plan', 'Visits', 'Avg minutes', 'Last visit', 'Days since'],
         report.rows.map((r) => [
@@ -25,7 +25,7 @@ export function byMemberCsv(report: ByMemberReport): string {
     )
 }
 
-export function heatmapCsv(report: HeatmapReport): string {
+export function heatmapCsv(report: Pick<HeatmapReport, 'hours' | 'cells' | 'rowTotals' | 'colTotals'>): string {
     const rows: CsvCell[][] = report.hours.map((hour, i) => [
         formatHour(hour), ...report.cells[i], report.rowTotals[i],
     ])

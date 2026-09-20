@@ -181,9 +181,9 @@ export function MembersShellSkeleton() {
 /** What the attendance page shows while a tab's data streams in. */
 export function AttendanceTabSkeleton({ tab }: { tab: 'footfall' | 'members' | 'heatmap' }) {
     switch (tab) {
-        case 'footfall': return <><KpiStripSkeleton /><TableSkeleton columns={10} rows={6} footer={false} /></>
-        case 'members': return <TableSkeleton columns={7} rows={8} />
-        case 'heatmap': return <TableSkeleton columns={9} rows={8} footer={false} />
+        case 'footfall': return <><KpiStripSkeleton columns={6} /><ChartCardSkeleton height={260} /><div className="grid gap-4 lg:grid-cols-2"><ChartCardSkeleton height={160} /><ChartCardSkeleton height={160} /></div><KpiStripSkeleton /><ChartCardSkeleton height={220} /><TableSkeleton columns={10} rows={6} footer={false} /></>
+        case 'members': return <><KpiStripSkeleton columns={5} /><div className="grid gap-4 lg:grid-cols-2"><ChartCardSkeleton height={160} /><ChartCardSkeleton height={160} /></div><TableSkeleton columns={7} rows={8} /></>
+        case 'heatmap': return <><KpiStripSkeleton columns={4} /><TableSkeleton columns={9} rows={8} footer={false} /></>
     }
 }
 

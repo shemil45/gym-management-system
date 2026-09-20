@@ -27,6 +27,9 @@ export type ShareChartProps = {
     variant?: 'bar' | 'donut'
     /** Cap the rows shown; the rest collapse into a single "Other" row. */
     maxItems?: number
+    /** `value` (default) ranks largest first; `given` keeps the caller's order,
+     *  for ordinal categories such as weeks or engagement tiers. */
+    order?: 'value' | 'given'
     title?: string
     subtitle?: string
     height?: number
@@ -36,8 +39,9 @@ export type ShareChartProps = {
 }
 
 /** Ranked, optionally truncated with an "Other" row carrying the remainder. */
-function prepare(data: ShareSlice[], maxItems?: number): ShareSlice[] {
-    const ranked = [...data].filter((slice) => slice.value > 0).sort((a, b) => b.value - a.value)
+function prepare(data: ShareSlice[], maxItems?: number, order: 'value' | 'given' = 'value'): ShareSlice[] {
+    const kept = [...data].filter((slice) => slice.value > 0)
+    const ranked = order === 'value' ? kept.sort((a, b) => b.value - a.value) : kept
     if (!maxItems || ranked.length <= maxItems) return ranked
     const head = ranked.slice(0, maxItems)
     const rest = ranked.slice(maxItems).reduce((sum, slice) => sum + slice.value, 0)
@@ -53,6 +57,7 @@ export default function ShareChart({
     format = 'number',
     variant = 'bar',
     maxItems,
+    order = 'value',
     title,
     subtitle,
     height = 260,
@@ -62,7 +67,7 @@ export default function ShareChart({
 }: ShareChartProps) {
     const palette = useChartPalette()
 
-    const slices = prepare(data, maxItems).map((slice, index) => ({ ...slice, color: slice.color ?? seriesColor(palette, index) }))
+    const slices = prepare(data, maxItems, order).map((slice, index) => ({ ...slice, color: slice.color ?? seriesColor(palette, index) }))
     const total = slices.reduce((sum, slice) => sum + slice.value, 0)
     const isEmpty = slices.length === 0 || total <= 0
 

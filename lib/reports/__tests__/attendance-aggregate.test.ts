@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
     toVisit, footfallBuckets, footfallTotals, footfallKpis, byMember, heatmap,
+    visitFrequency, entryMethodRows, byHour, byWeekday, peakSummary, weekStartsIn, activeWeeks, memberSummary,
+    segmentOf, segments, firstThirtyDays,
     type CheckInRow, type Visit,
 } from '@/lib/reports/attendance-aggregate'
 import type { ReportMemberRow } from '@/lib/reports/members-aggregate'
@@ -218,5 +220,110 @@ describe('heatmap', () => {
         ]
         const h = heatmap(visits)
         expect(h.busiest).toEqual({ hour: 18, weekday: 2, count: 1 })
+    })
+})
+
+// ═══ Analytics layer ═════════════════════════════════════════════════════════
+
+const sep = { from: '2026-09-01', to: '2026-09-30' } // 30 days: Tue 1 Sep … Wed 30 Sep
+
+describe('visitFrequency / entryMethodRows', () => {
+    it('buckets members by visits and sums to the unique-member count', () => {
+        const visits = [
+            ...Array.from({ length: 1 }, () => visit({ member_id: 'a' })),
+            ...Array.from({ length: 3 }, () => visit({ member_id: 'b' })),
+            ...Array.from({ length: 5 }, () => visit({ member_id: 'c' })),
+            ...Array.from({ length: 9 }, () => visit({ member_id: 'd' })),
+        ]
+        const buckets = visitFrequency(visits)
+        expect(buckets.map((b) => [b.id, b.members])).toEqual([['1', 1], ['2-3', 1], ['4-7', 1], ['8+', 1]])
+        expect(buckets.reduce((s, b) => s + b.members, 0)).toBe(footfallKpis(visits, sep).uniqueMembers)
+        expect(buckets.reduce((s, b) => s + b.share, 0)).toBeCloseTo(100)
+    })
+    it('method rows reconcile with the footfall totals', () => {
+        const visits = [visit({ entry_method: 'qr' }), visit({ entry_method: 'qr' }), visit({ entry_method: 'kiosk' })]
+        const totals = footfallTotals([], visits, sep)
+        const rows = entryMethodRows(totals.byMethod)
+        expect(rows[0]).toMatchObject({ method: 'qr', visits: 2, share: (2 / 3) * 100 })
+        expect(rows.reduce((s, r) => s + r.visits, 0)).toBe(totals.visits)
+    })
+})
+
+describe('byHour / byWeekday / peakSummary', () => {
+    it('counts the days of each weekday in the range so per-day is fair', () => {
+        const rows = byWeekday([], sep)
+        // September 2026 has five Tuesdays and Wednesdays, four of everything else.
+        expect(rows.map((r) => r.days)).toEqual([4, 5, 5, 4, 4, 4, 4])
+    })
+    it('finds the busiest hour, the busiest weekday per day, and the weekday/weekend split', () => {
+        const visits = [
+            visit({ date: '2026-09-05', weekday: 5, hour: 18 }), visit({ date: '2026-09-05', weekday: 5, hour: 18 }), // Saturday
+            visit({ date: '2026-09-12', weekday: 5, hour: 7 }),
+            visit({ date: '2026-09-07', weekday: 0, hour: 18 }), // Monday
+        ]
+        const peaks = peakSummary(visits, sep)
+        expect(peaks.busiestHour).toEqual({ hour: 18, visits: 3 })
+        expect(peaks.busiestWeekday).toMatchObject({ weekday: 5, visits: 3, perDay: 0.75 })
+        expect(peaks.weekdayVisits + peaks.weekendVisits).toBe(visits.length)
+        expect(peaks.weekendPerDay).toBeCloseTo(3 / 8)
+        expect(peaks.weekdayPerDay).toBeCloseTo(1 / 22)
+        expect(byHour(visits).reduce((s, h) => s + h.visits, 0)).toBe(visits.length)
+        expect(byHour(visits)[0].hour).toBe(6)
+    })
+    it('reconciles the hour chart with the heat map row totals', () => {
+        const visits = [visit({ hour: 9, weekday: 0 }), visit({ hour: 9, weekday: 3 }), visit({ hour: 21, weekday: 6 })]
+        const hm = heatmap(visits)
+        for (const h of byHour(visits)) expect(h.visits).toBe(hm.rowTotals[hm.hours.indexOf(h.hour)])
+    })
+})
+
+describe('member summary, consistency, segments', () => {
+    const today = '2026-09-30'
+    it('weeks in a range and members who visited in each', () => {
+        expect(weekStartsIn(sep)).toEqual(['2026-08-31', '2026-09-07', '2026-09-14', '2026-09-21', '2026-09-28'])
+        const visits = [visit({ member_id: 'a', date: '2026-09-02' }), visit({ member_id: 'a', date: '2026-09-10' }), visit({ member_id: 'b', date: '2026-09-02' })]
+        expect(activeWeeks(visits, sep).get('a')).toBe(2)
+        expect(activeWeeks(visits, sep).get('b')).toBe(1)
+    })
+    it('summarises gaps from the same rows the table shows', () => {
+        const members = [member({ id: 'a' }), member({ id: 'b' }), member({ id: 'c' })]
+        const visits = [
+            visit({ member_id: 'a', date: '2026-09-29' }),
+            visit({ member_id: 'b', date: '2026-09-15' }),
+            visit({ member_id: 'c', date: '2026-08-31' }), // in the first ISO week but before the range
+            visit({ member_id: 'c', date: '2026-09-01' }),
+        ]
+        const rows = byMember(visits, members, today, 'most')
+        const summary = memberSummary(rows, visits, sep)
+        expect(summary).toMatchObject({ members: 3, gap7: 2, gap14: 2, gap30: 0, everyWeek: 0, weeksInPeriod: 5 })
+        expect(summary.avgVisits).toBeCloseTo(4 / 3)
+    })
+    it('segments by visits per week, with dormant active members counted from the roster', () => {
+        // 30-day range → 4.29 weeks: 13 visits ≈ 3.0/wk, 5 ≈ 1.2/wk, 2 ≈ 0.5/wk.
+        expect(segmentOf(13, sep)).toBe('power')
+        expect(segmentOf(5, sep)).toBe('regular')
+        expect(segmentOf(2, sep)).toBe('occasional')
+        const members = [member({ id: 'p' }), member({ id: 'o' }), member({ id: 'sleeper' }), member({ id: 'gone', status: 'inactive' })]
+        const visits = [...Array.from({ length: 13 }, () => visit({ member_id: 'p' })), visit({ member_id: 'o' })]
+        const rows = byMember(visits, members, today, 'most')
+        expect(segments(rows, members, sep, today).map((s) => [s.id, s.members])).toEqual([['power', 1], ['regular', 0], ['occasional', 1], ['dormant', 1]])
+    })
+})
+
+describe('firstThirtyDays', () => {
+    it('averages week 1–4 visits for members whose first 28 days sit inside the range', () => {
+        const members = [
+            member({ id: 'early', created_at: '2026-09-01T00:00:00Z' }),   // qualifies: 1 Sep + 27 = 28 Sep
+            member({ id: 'late', created_at: '2026-09-10T00:00:00Z' }),    // does not: would need to 7 Oct
+            member({ id: 'old', created_at: '2026-08-01T00:00:00Z' }),
+        ]
+        const visits = [
+            visit({ member_id: 'early', date: '2026-09-01' }), visit({ member_id: 'early', date: '2026-09-03' }), // week 1
+            visit({ member_id: 'early', date: '2026-09-20' }), // week 3
+            visit({ member_id: 'early', date: '2026-09-29' }), // day 28 → outside the window
+            visit({ member_id: 'late', date: '2026-09-11' }),
+        ]
+        expect(firstThirtyDays(visits, members, sep)).toEqual({ cohort: 1, weeks: [2, 0, 1, 0] })
+        expect(firstThirtyDays(visits, members, { from: '2026-09-20', to: '2026-09-30' })).toEqual({ cohort: 0, weeks: [0, 0, 0, 0] })
     })
 })

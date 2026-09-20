@@ -1,6 +1,6 @@
 import { addDays, addMonths, format, parseISO } from 'date-fns'
-import { bucketLabel, bucketStart, daysBetweenInclusive, todayInKolkata, type Bucket, type DateRange } from '@/lib/reports/dates'
-import type { ReportMemberRow } from '@/lib/reports/members-aggregate'
+import { addDaysIso, bucketLabel, bucketStart, daysBetweenInclusive, todayInKolkata, type Bucket, type DateRange } from '@/lib/reports/dates'
+import { effectiveStatus, istDate, type ReportMemberRow } from '@/lib/reports/members-aggregate'
 
 export type EntryMethod = 'manual' | 'qr' | 'kiosk' | 'fingerprint'
 
@@ -234,4 +234,252 @@ export function heatmap(visits: Visit[]): Heatmap {
     }
 
     return { hours, cells, rowTotals, colTotals, max, busiest }
+}
+
+// ═══ Analytics layer ═════════════════════════════════════════════════════════
+//
+// Computed from the `Visit[]` (and, on By member, the roster) the tabs
+// already fetch. Nothing here fetches, and nothing claims a capacity or
+// operating-hours figure the database does not hold: these are relative
+// measures of when and how often members come in.
+
+export const WEEKDAY_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+export const WEEKDAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+export const formatHourLabel = (hour: number) => `${String(hour).padStart(2, '0')}:00`
+
+// ─── Visit frequency ─────────────────────────────────────────────────────────
+
+export type FrequencyBucketId = '1' | '2-3' | '4-7' | '8+'
+
+export const FREQUENCY_BUCKETS: { id: FrequencyBucketId; label: string; min: number; max: number }[] = [
+    { id: '1', label: '1 visit', min: 1, max: 1 },
+    { id: '2-3', label: '2–3 visits', min: 2, max: 3 },
+    { id: '4-7', label: '4–7 visits', min: 4, max: 7 },
+    { id: '8+', label: '8+ visits', min: 8, max: Number.POSITIVE_INFINITY },
+]
+
+export type FrequencyBucket = { id: FrequencyBucketId; label: string; members: number; share: number }
+
+/** How many visits each member made in the selected period, bucketed.
+ *  Members sum to the period's unique-member count. */
+export function visitFrequency(visits: Visit[]): FrequencyBucket[] {
+    const perMember = new Map<string, number>()
+    for (const v of visits) perMember.set(v.member_id, (perMember.get(v.member_id) ?? 0) + 1)
+    const total = perMember.size
+    return FREQUENCY_BUCKETS.map((b) => {
+        const members = [...perMember.values()].filter((n) => n >= b.min && n <= b.max).length
+        return { id: b.id, label: b.label, members, share: total ? (members / total) * 100 : 0 }
+    })
+}
+
+// ─── Entry method ────────────────────────────────────────────────────────────
+
+export type EntryMethodRow = { method: EntryMethod; label: string; visits: number; share: number }
+
+/** The existing per-method counts as rows with a share, largest first. */
+export function entryMethodRows(byMethod: Record<EntryMethod, number>): EntryMethodRow[] {
+    const total = ENTRY_METHODS.reduce((s, m) => s + byMethod[m], 0)
+    return ENTRY_METHODS
+        .map((method) => ({ method, label: ENTRY_METHOD_LABELS[method], visits: byMethod[method], share: total ? (byMethod[method] / total) * 100 : 0 }))
+        .sort((a, b) => b.visits - a.visits)
+}
+
+// ─── Peak periods ────────────────────────────────────────────────────────────
+
+export type HourRow = { hour: number; label: string; visits: number }
+
+/** Visits per hour of day, over the same 06:00–22:00 span the heat map uses,
+ *  widened when visits fall outside it. */
+export function byHour(visits: Visit[]): HourRow[] {
+    let minHour = 6
+    let maxHour = 22
+    for (const v of visits) {
+        if (v.hour < minHour) minHour = v.hour
+        if (v.hour > maxHour) maxHour = v.hour
+    }
+    const counts = new Map<number, number>()
+    for (const v of visits) counts.set(v.hour, (counts.get(v.hour) ?? 0) + 1)
+    const rows: HourRow[] = []
+    for (let h = minHour; h <= maxHour; h++) rows.push({ hour: h, label: formatHourLabel(h), visits: counts.get(h) ?? 0 })
+    return rows
+}
+
+export type WeekdayRow = { weekday: number; label: string; visits: number; days: number; perDay: number }
+
+function countWeekdays(range: DateRange): number[] {
+    const days = [0, 0, 0, 0, 0, 0, 0]
+    for (let d = parseISO(range.from); d <= parseISO(range.to); d = addDays(d, 1)) days[(d.getDay() + 6) % 7] += 1
+    return days
+}
+
+/** Visits per weekday, with the number of such days in the range so a
+ *  period containing five Saturdays and four Sundays compares fairly. */
+export function byWeekday(visits: Visit[], range: DateRange): WeekdayRow[] {
+    const days = countWeekdays(range)
+    const counts = [0, 0, 0, 0, 0, 0, 0]
+    for (const v of visits) if (v.date >= range.from && v.date <= range.to) counts[v.weekday] += 1
+    return counts.map((count, weekday) => ({
+        weekday, label: WEEKDAY_LABELS[weekday], visits: count, days: days[weekday],
+        perDay: days[weekday] ? count / days[weekday] : 0,
+    }))
+}
+
+export type PeakSummary = {
+    busiestHour: { hour: number; visits: number } | null
+    busiestWeekday: { weekday: number; visits: number; perDay: number } | null
+    /** Mon–Fri vs Sat–Sun, as visits per day of that kind. */
+    weekdayPerDay: number
+    weekendPerDay: number
+    weekdayVisits: number
+    weekendVisits: number
+}
+
+export function peakSummary(visits: Visit[], range: DateRange): PeakSummary {
+    const hours = byHour(visits)
+    const busiestHourRow = hours.reduce<HourRow | null>((best, row) => (row.visits > (best?.visits ?? 0) ? row : best), null)
+    const weekdays = byWeekday(visits, range)
+    const busiest = weekdays.reduce<WeekdayRow | null>((best, row) => (row.perDay > (best?.perDay ?? 0) ? row : best), null)
+    const week = weekdays.slice(0, 5)
+    const weekend = weekdays.slice(5)
+    const sum = (rows: WeekdayRow[], key: 'visits' | 'days') => rows.reduce((s, r) => s + r[key], 0)
+    const weekDays = sum(week, 'days')
+    const weekendDays = sum(weekend, 'days')
+    return {
+        busiestHour: busiestHourRow ? { hour: busiestHourRow.hour, visits: busiestHourRow.visits } : null,
+        busiestWeekday: busiest ? { weekday: busiest.weekday, visits: busiest.visits, perDay: busiest.perDay } : null,
+        weekdayVisits: sum(week, 'visits'),
+        weekendVisits: sum(weekend, 'visits'),
+        weekdayPerDay: weekDays ? sum(week, 'visits') / weekDays : 0,
+        weekendPerDay: weekendDays ? sum(weekend, 'visits') / weekendDays : 0,
+    }
+}
+
+// ─── By member: summary, consistency, segments ───────────────────────────────
+
+export type MemberSummary = {
+    members: number
+    avgVisits: number
+    gap7: number
+    gap14: number
+    gap30: number
+    /** Members with a visit in every ISO week the period touches. */
+    everyWeek: number
+    weeksInPeriod: number
+}
+
+/** ISO-week starts (Mondays) the range touches. */
+export function weekStartsIn(range: DateRange): string[] {
+    const starts: string[] = []
+    for (let s = bucketStart(range.from, 'week'); s <= range.to; s = format(addDays(parseISO(s), 7), 'yyyy-MM-dd')) starts.push(s)
+    return starts
+}
+
+/** Distinct weeks in which each member visited. */
+export function activeWeeks(visits: Visit[], range: DateRange): Map<string, number> {
+    const weeks = new Map<string, Set<string>>()
+    for (const v of visits) {
+        if (v.date < range.from || v.date > range.to) continue
+        const set = weeks.get(v.member_id) ?? new Set<string>()
+        set.add(bucketStart(v.date, 'week'))
+        weeks.set(v.member_id, set)
+    }
+    return new Map([...weeks.entries()].map(([id, set]) => [id, set.size]))
+}
+
+export function memberSummary(rows: MemberAttendanceRow[], visits: Visit[], range: DateRange): MemberSummary {
+    const weeksInPeriod = weekStartsIn(range).length
+    const weeks = activeWeeks(visits, range)
+    const totalVisits = rows.reduce((s, r) => s + r.visits, 0)
+    return {
+        members: rows.length,
+        avgVisits: rows.length ? totalVisits / rows.length : 0,
+        gap7: rows.filter((r) => (r.daysSince ?? 0) >= 7).length,
+        gap14: rows.filter((r) => (r.daysSince ?? 0) >= 14).length,
+        gap30: rows.filter((r) => (r.daysSince ?? 0) >= 30).length,
+        everyWeek: rows.filter((r) => (weeks.get(r.member.id) ?? 0) >= weeksInPeriod).length,
+        weeksInPeriod,
+    }
+}
+
+export type Segment = 'power' | 'regular' | 'occasional' | 'dormant'
+
+/**
+ * Segment rules, in visits per week so they mean the same thing whatever the
+ * period length. Stated in the UI verbatim; there is no score behind them.
+ * The thresholds are a starting point — the live data is too thin (a handful
+ * of visiting members) to tune them from, so they are deliberately simple.
+ */
+export const SEGMENT_RULES: { id: Segment; label: string; rule: string; minPerWeek: number }[] = [
+    { id: 'power', label: 'Power', rule: '3 or more visits a week', minPerWeek: 3 },
+    { id: 'regular', label: 'Regular', rule: '1 to 3 visits a week', minPerWeek: 1 },
+    { id: 'occasional', label: 'Occasional', rule: 'Visited, but under once a week', minPerWeek: 0 },
+    { id: 'dormant', label: 'Dormant', rule: 'Active membership, no visit in the period', minPerWeek: -1 },
+]
+
+export type SegmentRow = { id: Segment; label: string; rule: string; members: number; share: number }
+
+export function segmentOf(visitsInPeriod: number, range: DateRange): Exclude<Segment, 'dormant'> {
+    const perWeek = visitsInPeriod / (daysBetweenInclusive(range) / 7)
+    if (perWeek >= 3) return 'power'
+    if (perWeek >= 1) return 'regular'
+    return 'occasional'
+}
+
+/**
+ * Members who visited, by visits-per-week rule, plus active or expiring
+ * members with no visit at all as Dormant. Shares are of the whole
+ * (visitors + dormant), so the four rows describe the active base.
+ */
+export function segments(rows: MemberAttendanceRow[], members: ReportMemberRow[], range: DateRange, today: string): SegmentRow[] {
+    const visited = new Set(rows.map((r) => r.member.id))
+    const counts: Record<Segment, number> = { power: 0, regular: 0, occasional: 0, dormant: 0 }
+    for (const r of rows) counts[segmentOf(r.visits, range)] += 1
+    for (const m of members) {
+        if (visited.has(m.id)) continue
+        const status = effectiveStatus(m, today)
+        if (status === 'active' || status === 'expiring') counts.dormant += 1
+    }
+    const total = Object.values(counts).reduce((s, n) => s + n, 0)
+    return SEGMENT_RULES.map((s) => ({ id: s.id, label: s.label, rule: s.rule, members: counts[s.id], share: total ? (counts[s.id] / total) * 100 : 0 }))
+}
+
+// ─── By member: first 30 days ────────────────────────────────────────────────
+
+export type OnboardingReport = {
+    /** Members whose first four weeks fall entirely inside the fetched range. */
+    cohort: number
+    /** Average visits in week 1, 2, 3 and 4 after joining. */
+    weeks: number[]
+}
+
+/**
+ * Average visits in each of the first four weeks after joining, for members
+ * who joined early enough in the selected range that all 28 days are inside
+ * it — the report only holds this period's visits, so anyone whose first
+ * month straddles the range edge is left out rather than under-counted.
+ */
+export function firstThirtyDays(visits: Visit[], members: ReportMemberRow[], range: DateRange): OnboardingReport {
+    const latestJoin = addDaysIso(range.to, -27)
+    const cohort = members.filter((m) => {
+        const joined = istDate(m.created_at)
+        return joined >= range.from && joined <= latestJoin
+    })
+    const weeks = [0, 0, 0, 0]
+    if (cohort.length === 0) return { cohort: 0, weeks }
+    const byMember = new Map<string, Visit[]>()
+    for (const v of visits) {
+        const list = byMember.get(v.member_id)
+        if (list) list.push(v)
+        else byMember.set(v.member_id, [v])
+    }
+    for (const m of cohort) {
+        const joined = istDate(m.created_at)
+        for (const v of byMember.get(m.id) ?? []) {
+            const day = daysBetweenInclusive({ from: joined, to: v.date }) - 1
+            if (day < 0 || day > 27) continue
+            weeks[Math.floor(day / 7)] += 1
+        }
+    }
+    return { cohort: cohort.length, weeks: weeks.map((n) => n / cohort.length) }
 }

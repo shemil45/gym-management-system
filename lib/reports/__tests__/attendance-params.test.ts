@@ -70,4 +70,11 @@ describe('attendanceExportFilename', () => {
         const q = parseAttendanceParams({ tab: 'members', preset: 'custom', from: '2026-09-01', to: '2026-09-15' }, today)
         expect(attendanceExportFilename(q)).toBe('attendance-members-2026-09-01-2026-09-15.csv')
     })
+    it('carries a non-default comparison on every tab and keeps the default out of the URL', () => {
+        expect(parseAttendanceParams({}, today).compare).toBe('previous')
+        const none = parseAttendanceParams({ tab: 'footfall', compare: 'none' }, today)
+        expect(none.previous).toBeNull()
+        expect(attendanceSearchParams(none).toString()).toBe('tab=footfall&preset=month&compare=none')
+        expect(attendanceSearchParams({ ...none, tab: 'members' }).toString()).toBe('tab=members&preset=month&sort=most&compare=none')
+    })
 })
