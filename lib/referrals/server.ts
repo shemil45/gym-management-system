@@ -90,7 +90,15 @@ export async function getOrCreateReferralLink(memberRowId: string, gymId: string
 }
 
 export type ReferralLinkContext = {
-    gym: { id: string; name: string; slug: string; logoUrl: string | null }
+    gym: {
+        id: string
+        name: string
+        slug: string
+        logoUrl: string | null
+        /** For the confirmation screen's Contact / Directions actions. */
+        contactPhone: string | null
+        address: string | null
+    }
     referrer: { id: string; fullName: string }
 }
 
@@ -109,7 +117,7 @@ export async function resolveReferralLink(gymSlug: string, token: string): Promi
     const db = getSupabaseAdmin()
     const result = await db
         .from('members')
-        .select('id, full_name, status, gym_id, gym:gyms!members_gym_id_fkey(id, name, slug, logo_url, is_active, platform_status)')
+        .select('id, full_name, status, gym_id, gym:gyms!members_gym_id_fkey(id, name, slug, logo_url, is_active, platform_status, contact_phone, address, city, state, postal_code)')
         .eq('referral_token', token)
         .maybeSingle()
     const { data: member } = result as unknown as QueryResult<{
@@ -119,7 +127,19 @@ export async function resolveReferralLink(gymSlug: string, token: string): Promi
         gym_id: string
         gym: GymRow | GymRow[] | null
     } | null>
-    type GymRow = { id: string; name: string; slug: string | null; logo_url: string | null; is_active: boolean; platform_status: string }
+    type GymRow = {
+        id: string
+        name: string
+        slug: string | null
+        logo_url: string | null
+        is_active: boolean
+        platform_status: string
+        contact_phone: string | null
+        address: string | null
+        city: string | null
+        state: string | null
+        postal_code: string | null
+    }
 
     if (!member) return { ok: false, reason: 'not-found' }
     const gym = Array.isArray(member.gym) ? member.gym[0] ?? null : member.gym
@@ -131,7 +151,14 @@ export async function resolveReferralLink(gymSlug: string, token: string): Promi
     return {
         ok: true,
         context: {
-            gym: { id: gym.id, name: gym.name, slug: gym.slug, logoUrl: gym.logo_url },
+            gym: {
+                id: gym.id,
+                name: gym.name,
+                slug: gym.slug,
+                logoUrl: gym.logo_url,
+                contactPhone: gym.contact_phone?.trim() || null,
+                address: [gym.address, gym.city, gym.state, gym.postal_code].map((part) => part?.trim()).filter(Boolean).join(', ') || null,
+            },
             referrer: { id: member.id, fullName: member.full_name },
         },
     }

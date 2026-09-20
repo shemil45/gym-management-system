@@ -3,12 +3,16 @@
 import { useState, useTransition } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { CheckCircle2, Loader2 } from 'lucide-react'
+import { CheckCircle2, Loader2, MapPin, Phone } from 'lucide-react'
 import type { SubmitLeadResult } from '@/lib/referrals/server'
 
 type Props = {
     gymName: string
     gymLogoUrl: string | null
+    /** Gym contact number; null hides the Contact button. */
+    gymPhone: string | null
+    /** Gym street address; null makes Get directions explain it is unavailable. */
+    gymAddress: string | null
     referrerFirstName: string
     validityDays: number
     /** Outcome carried in the URL so a refresh keeps the confirmation. */
@@ -25,7 +29,7 @@ const labelClass = 'block text-xs font-semibold tracking-[0.01em] text-[#191c1e]
  * action so what the visitor sees is exactly what was rejected; the
  * success and "already a member" outcomes replace the form.
  */
-export default function ReferralLeadForm({ gymName, gymLogoUrl, referrerFirstName, validityDays, initialOutcome = null, action }: Props) {
+export default function ReferralLeadForm({ gymName, gymLogoUrl, gymPhone, gymAddress, referrerFirstName, validityDays, initialOutcome = null, action }: Props) {
     const router = useRouter()
     const [pending, startTransition] = useTransition()
     const [fieldError, setFieldError] = useState<{ field: string; message: string } | null>(null)
@@ -79,6 +83,7 @@ export default function ReferralLeadForm({ gymName, gymLogoUrl, referrerFirstNam
                             'Visit the gym to complete your registration.',
                             `Your referral is valid for ${validityDays} days.`,
                         ]}
+                        actions={<GymActions gymName={gymName} phone={gymPhone} address={gymAddress} />}
                     />
                 ) : outcome === 'already-member' ? (
                     <Done
@@ -210,7 +215,7 @@ function Field({ id, label, error, children }: { id: string; label: string; erro
     )
 }
 
-function Done({ title, lines }: { title: string; lines: string[] }) {
+function Done({ title, lines, actions }: { title: string; lines: string[]; actions?: React.ReactNode }) {
     return (
         <div className="text-center" role="status">
             <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300">
@@ -222,6 +227,61 @@ function Done({ title, lines }: { title: string; lines: string[] }) {
                     <p key={line}>{line}</p>
                 ))}
             </div>
+            {actions}
+        </div>
+    )
+}
+
+const actionClass =
+    'flex h-11 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-semibold transition-colors'
+
+/**
+ * Two ways to follow through: call the gym, or open directions to it.
+ * Directions need a stored address; without one the button explains that
+ * instead of opening an empty map.
+ */
+function GymActions({ gymName, phone, address }: { gymName: string; phone: string | null; address: string | null }) {
+    const [directionsNote, setDirectionsNote] = useState<string | null>(null)
+    const directionsHref = address ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${gymName}, ${address}`)}` : null
+
+    return (
+        <div className="mt-6">
+            <div className="flex flex-col gap-2 sm:flex-row">
+                {phone ? (
+                    <a
+                        href={`tel:${phone.replace(/[^\d+]/g, '')}`}
+                        className={`${actionClass} border-transparent bg-black text-white hover:opacity-90 dark:bg-white dark:text-black`}
+                    >
+                        <Phone className="h-4 w-4" aria-hidden="true" />
+                        Contact gym
+                    </a>
+                ) : null}
+                {directionsHref ? (
+                    <a
+                        href={directionsHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`${actionClass} border-[#c6c6cd] bg-white text-[#191c1e] hover:bg-[#f7f9fb] dark:border-[#4c4546] dark:bg-transparent dark:text-[#e4e1e6] dark:hover:bg-[#1f1f22]`}
+                    >
+                        <MapPin className="h-4 w-4" aria-hidden="true" />
+                        Get directions
+                    </a>
+                ) : (
+                    <button
+                        type="button"
+                        onClick={() => setDirectionsNote(`${gymName} has not added its address yet, so directions are unavailable. Ask the gym when you call.`)}
+                        className={`${actionClass} border-[#c6c6cd] bg-white text-[#191c1e] hover:bg-[#f7f9fb] dark:border-[#4c4546] dark:bg-transparent dark:text-[#e4e1e6] dark:hover:bg-[#1f1f22]`}
+                    >
+                        <MapPin className="h-4 w-4" aria-hidden="true" />
+                        Get directions
+                    </button>
+                )}
+            </div>
+            {directionsNote ? (
+                <p role="alert" className="mt-3 text-xs text-[#76777d] dark:text-[#988e90]">
+                    {directionsNote}
+                </p>
+            ) : null}
         </div>
     )
 }

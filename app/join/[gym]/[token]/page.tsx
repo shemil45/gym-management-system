@@ -37,6 +37,8 @@ export default async function JoinPage({ params, searchParams }: { params: Param
         <ReferralLeadForm
             gymName={link.context.gym.name}
             gymLogoUrl={link.context.gym.logoUrl}
+            gymPhone={link.context.gym.contactPhone}
+            gymAddress={link.context.gym.address}
             referrerFirstName={referrerFirstName}
             validityDays={REFERRAL_LEAD_VALIDITY_DAYS}
             initialOutcome={initialOutcome}
