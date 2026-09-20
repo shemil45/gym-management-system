@@ -20,8 +20,8 @@ function referrerScope(total: number, activity: ReferrerSlice[]): string {
     const shown = activity.filter((a) => !a.isOther).length
     const grouped = total - shown
     return grouped > 0
-        ? `Referrals created this period · Showing ${shown} of ${total} referrers by referral count; ${grouped} grouped as Other. The Leaderboard tab lists everyone.`
-        : `Referrals created this period, by the member who referred · All ${total} referrer${total === 1 ? '' : 's'} shown`
+        ? `Referrals started this period · Showing ${shown} of ${total} referrers by referral count; ${grouped} grouped as Other. The Leaderboard tab lists everyone.`
+        : `Referrals started this period, by the member who referred · All ${total} referrer${total === 1 ? '' : 's'} shown`
 }
 
 export default function OverviewAnalytics({ report }: { report: OverviewReport }) {
@@ -41,7 +41,7 @@ export default function OverviewAnalytics({ report }: { report: OverviewReport }
                     title="Time to conversion"
                     subtitle={timing.converted > 0
                         ? `${plural(timing.converted, 'conversion', 'conversions')} this period · average ${timing.avgDays?.toFixed(1)} days · median ${timing.medianDays?.toFixed(0)} days`
-                        : 'Days between a referral being created and applied'}
+                        : 'Days between a lead being submitted and the member registering'}
                     format="number"
                     order="given"
                     data={timing.buckets.map((b) => ({ label: b.label, value: b.referrals, detail: 'referrals' }))}

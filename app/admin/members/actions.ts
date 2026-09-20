@@ -14,6 +14,7 @@ import { canAddMember } from '@/lib/billing/entitlements'
 import { assertActiveSubscription } from '@/lib/billing/gate'
 import { gymHasFeature } from '@/lib/gym/features'
 import { creditReferrers } from '@/lib/payments/settle-member-payment'
+import { checkLeadConvertible, convertReferralLead, creditReferrerBonus } from '@/lib/referrals/server'
 import {
     checkMutationAllowed,
     getActiveImpersonation,
@@ -155,8 +156,25 @@ export async function createMember(formData: FormData) {
         const rawCode = referralsEnabled
             ? (formData.get('referral_code') as string | null)?.trim().toUpperCase()
             : undefined
+        // A referral lead (someone who submitted the member's share link) is
+        // converted by this registration. The id is re-validated against the
+        // viewer's gym here and again, conditionally, at the moment of
+        // conversion; nothing about the lead is trusted from the form.
+        const leadId = referralsEnabled ? (formData.get('referral_lead_id') as string | null)?.trim() || null : null
         let referrerId: string | null = null
-        if (rawCode) {
+        if (leadId) {
+            const lead = await checkLeadConvertible(viewer.gym.id, leadId)
+            if (!lead.ok) {
+                return {
+                    error: lead.reason === 'expired'
+                        ? 'This referral has expired and can no longer be completed. Register the member without the referral if they still want to join.'
+                        : lead.reason === 'not-pending'
+                            ? 'This referral has already been completed or cancelled.'
+                            : 'This referral could not be found for your gym.',
+                }
+            }
+            referrerId = lead.referrerId
+        } else if (rawCode) {
             const referrerResult = await supabase
                 .from('members')
                 .select('id')
@@ -362,15 +380,30 @@ export async function createMember(formData: FormData) {
         }
         if (ledger && initialPayment) await ledger('payment', initialPayment.id)
 
-        // If referred, create a referral record
+        // If referred, convert the lead or create a referral record
         let referralWarning: string | undefined
-        if (referrerId) {
+        if (leadId && referrerId) {
+            // One conditional update is the lock: it only succeeds for a
+            // pending, unexpired lead of this gym, so a second staff member
+            // or an expiry that landed mid-registration cannot double-credit.
+            const converted = await convertReferralLead(viewer.gym.id, leadId, member.id)
+            if (converted) {
+                await creditReferrerBonus(viewer.gym.id, converted.referrerId)
+            } else {
+                referralWarning = 'Member created, but the referral was not converted: it expired or was completed elsewhere while you were registering.'
+                console.warn('[members] Referral lead was not converted after member creation', {
+                    memberId: member.id,
+                    leadId,
+                })
+            }
+        } else if (referrerId) {
             const referralPayload: InsertTables<'referrals'> = {
                 gym_id: viewer.gym.id,
                 referrer_id: referrerId,
                 referred_id: member.id,
                 referral_code: rawCode,
                 status: 'pending',
+                source: 'staff',
             }
 
             const { error: referralError } = await supabase.from('referrals').insert(referralPayload as never)
@@ -409,6 +442,7 @@ export async function createMember(formData: FormData) {
 
         invalidateGymAdminSummaries(viewer.gym.id)
         revalidatePath('/admin/members')
+        if (leadId) revalidatePath('/admin/members/referrals')
         return {
             success: true,
             memberId: member.id,

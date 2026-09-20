@@ -3,18 +3,29 @@ import { bucketLabel, bucketStart, daysBetweenInclusive, type Bucket, type DateR
 import { istDate, type ReportMemberRow } from '@/lib/reports/members-aggregate'
 import type { ReportPaymentRow } from '@/lib/reports/payments-aggregate'
 
-// The app never writes 'expired' today (a referral only moves pending -> applied,
-// via creditReferrers); the column and chip exist for completeness.
-export type ReferralStatus = 'pending' | 'applied' | 'expired'
+import type { ReferralStatus } from '@/lib/referrals/lead'
 
+export type { ReferralStatus }
+
+/**
+ * One referral as the report sees it. `status` is the effective status
+ * (a pending lead past `expires_at` reads as expired). `source` says how it
+ * started: 'link' is a lead the referred person submitted through the
+ * member's share link; 'staff' was recorded at the desk during enrolment.
+ */
 export type ReportReferralRow = {
     id: string
     referrer_id: string
-    referred_id: string
+    /** Null while a link lead has not been registered as a member. */
+    referred_id: string | null
     code: string | null
     status: ReferralStatus
+    source: 'link' | 'staff'
     created_at: string
+    /** Conversion timestamp (column name kept from the earlier 'applied' state). */
     applied_at: string | null
+    expires_at: string | null
+    cancelled_at: string | null
     referrer_name: string | null
     referrer_code: string | null
     referrer_phone: string | null
@@ -37,10 +48,14 @@ function inRange(date: string, range: DateRange): boolean {
 export type OverviewBucket = {
     start: string
     label: string
+    /** Referrals started in the bucket: link leads submitted plus desk-recorded. */
     created: number
+    /** The subset of `created` that came in through a share link. */
+    leads: number
     converted: number
     pending: number
     expired: number
+    cancelled: number
     conversion: number | null
     coinsIssued: number
     coinsRedeemed: number
@@ -55,7 +70,7 @@ export function overviewBuckets(
 ): OverviewBucket[] {
     const acc = new Map<string, Omit<OverviewBucket, 'conversion'>>()
     for (let start = bucketStart(range.from, bucket); start <= range.to; start = nextBucketStart(start, bucket)) {
-        acc.set(start, { start, label: bucketLabel(start, bucket), created: 0, converted: 0, pending: 0, expired: 0, coinsIssued: 0, coinsRedeemed: 0 })
+        acc.set(start, { start, label: bucketLabel(start, bucket), created: 0, leads: 0, converted: 0, pending: 0, expired: 0, cancelled: 0, coinsIssued: 0, coinsRedeemed: 0 })
     }
 
     for (const referral of referrals) {
@@ -64,8 +79,10 @@ export function overviewBuckets(
             const target = acc.get(bucketStart(createdDate, bucket))
             if (target) {
                 target.created += 1
+                if (referral.source === 'link') target.leads += 1
                 if (referral.status === 'pending') target.pending += 1
                 if (referral.status === 'expired') target.expired += 1
+                if (referral.status === 'cancelled') target.cancelled += 1
             }
         }
         if (referral.applied_at) {
@@ -94,26 +111,71 @@ export function overviewTotals(buckets: OverviewBucket[]): Omit<OverviewBucket, 
     const sum = buckets.reduce(
         (t, b) => ({
             created: t.created + b.created,
+            leads: t.leads + b.leads,
             converted: t.converted + b.converted,
             pending: t.pending + b.pending,
             expired: t.expired + b.expired,
+            cancelled: t.cancelled + b.cancelled,
             coinsIssued: t.coinsIssued + b.coinsIssued,
             coinsRedeemed: t.coinsRedeemed + b.coinsRedeemed,
         }),
-        { created: 0, converted: 0, pending: 0, expired: 0, coinsIssued: 0, coinsRedeemed: 0 },
+        { created: 0, leads: 0, converted: 0, pending: 0, expired: 0, cancelled: 0, coinsIssued: 0, coinsRedeemed: 0 },
     )
     return { ...sum, conversion: sum.created ? (sum.converted / sum.created) * 100 : null }
 }
 
-export type OverviewKpis = { referrals: number; conversions: number; coinsIssued: number; coinsRedeemed: number }
+export type OverviewKpis = {
+    /** Referrals started in the period (leads submitted + desk-recorded). */
+    referrals: number
+    /** Leads submitted through a share link in the period. */
+    leads: number
+    /** Referrals converted in the period (by conversion date). */
+    conversions: number
+    /** Of the referrals started in the period, how many are still open. */
+    pending: number
+    expired: number
+    cancelled: number
+    coinsIssued: number
+    coinsRedeemed: number
+}
 
 export function overviewKpis(referrals: ReportReferralRow[], payments: ReportPaymentRow[], range: DateRange, bonus: number): OverviewKpis {
-    const created = referrals.filter((r) => inRange(istDate(r.created_at), range)).length
+    const started = referrals.filter((r) => inRange(istDate(r.created_at), range))
     const conversions = referrals.filter((r) => r.applied_at !== null && inRange(istDate(r.applied_at), range)).length
     const coinsRedeemed = payments
         .filter((p) => p.payment_status === 'paid' && inRange(p.payment_date, range))
         .reduce((s, p) => s + p.referral_coins_used, 0)
-    return { referrals: created, conversions, coinsIssued: conversions * bonus, coinsRedeemed }
+    return {
+        referrals: started.length,
+        leads: started.filter((r) => r.source === 'link').length,
+        conversions,
+        pending: started.filter((r) => r.status === 'pending').length,
+        expired: started.filter((r) => r.status === 'expired').length,
+        cancelled: started.filter((r) => r.status === 'cancelled').length,
+        coinsIssued: conversions * bonus,
+        coinsRedeemed,
+    }
+}
+
+// ─── Link funnel ─────────────────────────────────────────────────────────────
+
+export type LinkFunnel = {
+    /** Members who opened their referral page (and so hold a link) in the period. */
+    linksGenerated: number
+    /** All-time landing-page opens across the roster — a point-in-time figure, not a period total. */
+    linkVisits: number
+}
+
+/**
+ * How many members generated a share link in the period. A generated link
+ * is not a referral: it only becomes one when a friend submits the form,
+ * which is what `created`/`leads` count.
+ */
+export function linkFunnel(members: ReportMemberRow[], range: DateRange): LinkFunnel {
+    return {
+        linksGenerated: members.filter((m) => m.referral_token_created_at !== null && inRange(istDate(m.referral_token_created_at), range)).length,
+        linkVisits: members.reduce((s, m) => s + m.referral_link_visits, 0),
+    }
 }
 
 export function outstandingBalance(members: ReportMemberRow[]): number {
@@ -187,8 +249,16 @@ export function referralList(referrals: ReportReferralRow[], range: DateRange, s
 // ─── Funnel ──────────────────────────────────────────────────────────────────
 
 export type Funnel = {
+    /** Members who generated a share link in the period. Not a referral yet. */
+    linksGenerated: number
+    /** Referrals started: leads submitted through a link plus desk-recorded. */
     created: number
+    /** The subset of `created` submitted through a link. */
+    leads: number
     converted: number
+    pending: number
+    expired: number
+    cancelled: number
     /** converted ÷ created, 0–100; null when nothing was created. */
     rate: number | null
     /** Derived: converted × bonus. There is no per-reward transaction to count. */
@@ -196,11 +266,20 @@ export type Funnel = {
     bonus: number
 }
 
-/** Created → Converted, from the same totals the Overview table and KPIs show. */
-export function funnel(totals: Pick<OverviewBucket, 'created' | 'converted'>, bonus: number): Funnel {
+/** Links shared → leads submitted → converted, from the same totals the Overview table and KPIs show. */
+export function funnel(
+    totals: Pick<OverviewBucket, 'created' | 'leads' | 'converted' | 'pending' | 'expired' | 'cancelled'>,
+    links: Pick<LinkFunnel, 'linksGenerated'>,
+    bonus: number,
+): Funnel {
     return {
+        linksGenerated: links.linksGenerated,
         created: totals.created,
+        leads: totals.leads,
         converted: totals.converted,
+        pending: totals.pending,
+        expired: totals.expired,
+        cancelled: totals.cancelled,
         rate: totals.created ? (totals.converted / totals.created) * 100 : null,
         coinsIssued: totals.converted * bonus,
         bonus,

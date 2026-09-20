@@ -23,9 +23,9 @@ export function overviewInsight(report: OverviewReport): Insight | null {
             ? { text: `Referral conversion was ${rate.toFixed(1)}% this period, compared with ${previousRate.toFixed(1)}% in ${basisFor(report.compare)}.`, tone: rate >= previousRate ? 'positive' : 'negative' }
             : null,
         rate !== null
-            ? { text: `${plural(totals.converted, 'referred member', 'referred members')} converted during this period, from ${plural(totals.created, 'referral', 'referrals')} created.`, tone: 'neutral' }
+            ? { text: `${plural(totals.converted, 'referred member', 'referred members')} converted during this period, from ${plural(totals.created, 'referral', 'referrals')} started.`, tone: 'neutral' }
             : null,
-        previous ? changeInsight('Referrals created', totals.created, previous.referrals, { basis: basisFor(report.compare) }) : null,
+        previous ? changeInsight('Referrals started', totals.created, previous.referrals, { basis: basisFor(report.compare) }) : null,
         timing.medianDays !== null
             ? { text: `Median time to conversion was ${plural(Math.round(timing.medianDays), 'day', 'days')}.`, tone: 'neutral' }
             : null,

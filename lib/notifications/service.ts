@@ -208,7 +208,7 @@ async function getLatestAppliedReferral(memberId: string) {
         .from('referrals')
         .select('referred:members!referrals_referred_id_fkey(full_name)')
         .eq('referrer_id', memberId)
-        .eq('status', 'applied')
+        .eq('status', 'converted')
         .order('applied_at', { ascending: false, nullsFirst: false })
         .limit(1)
         .maybeSingle()

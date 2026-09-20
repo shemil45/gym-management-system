@@ -7,16 +7,17 @@ import { fetchMembers } from '@/lib/reports/members'
 import { fetchPaymentRows } from '@/lib/reports/payments'
 import type { ReferralsReportQuery } from '@/lib/reports/referrals-params'
 import {
-    conversionTiming, funnel, joinMix, joinMixBuckets, leaderboard, leaderboardTotals, outstandingBalance, overviewBuckets, overviewKpis,
+    conversionTiming, funnel, joinMix, joinMixBuckets, leaderboard, leaderboardTotals, linkFunnel, outstandingBalance, overviewBuckets, overviewKpis,
     overviewTotals, referralList, referredRevenue, referrerActivity,
-    type ConversionTiming, type Funnel, type JoinMix, type JoinMixBucket, type LeaderRow, type LeaderboardTotals, type ListRow,
+    type ConversionTiming, type Funnel, type JoinMix, type JoinMixBucket, type LeaderRow, type LeaderboardTotals, type LinkFunnel, type ListRow,
     type ListStatus, type OverviewBucket, type OverviewKpis, type ReferralStatus, type ReferredRevenue, type ReferrerSlice,
     type ReportReferralRow,
 } from '@/lib/reports/referrals-aggregate'
 import type { Comparison } from '@/lib/reports/comparison'
+import { effectiveReferralStatus } from '@/lib/referrals/lead'
 
 const SELECT = [
-    'id', 'referrer_id', 'referred_id', 'referral_code', 'status', 'created_at', 'applied_at',
+    'id', 'referrer_id', 'referred_id', 'referral_code', 'status', 'source', 'created_at', 'applied_at', 'expires_at', 'cancelled_at', 'referred_name',
     'referrer:members!referrer_id(full_name, member_id, phone)',
     'referred:members!referred_id(full_name, member_id)',
 ].join(', ')
@@ -24,11 +25,15 @@ const SELECT = [
 type RawRow = {
     id: string
     referrer_id: string
-    referred_id: string
+    referred_id: string | null
     referral_code: string | null
     status: ReferralStatus
+    source: 'link' | 'staff'
     created_at: string
     applied_at: string | null
+    expires_at: string | null
+    cancelled_at: string | null
+    referred_name: string | null
     referrer: { full_name: string; member_id: string; phone: string } | { full_name: string; member_id: string; phone: string }[] | null
     referred: { full_name: string; member_id: string } | { full_name: string; member_id: string }[] | null
 }
@@ -45,13 +50,19 @@ function toRow(row: RawRow): ReportReferralRow {
         referrer_id: row.referrer_id,
         referred_id: row.referred_id,
         code: row.referral_code,
-        status: row.status,
+        // Effective, not stored: a pending lead past its expiry is expired
+        // here even if the daily sweep has not flipped the row yet.
+        status: effectiveReferralStatus(row),
+        source: row.source,
         created_at: row.created_at,
         applied_at: row.applied_at,
+        expires_at: row.expires_at,
+        cancelled_at: row.cancelled_at,
         referrer_name: referrer?.full_name ?? null,
         referrer_code: referrer?.member_id ?? null,
         referrer_phone: referrer?.phone ?? null,
-        referred_name: referred?.full_name ?? null,
+        // A lead carries its own name until it becomes a member.
+        referred_name: referred?.full_name ?? row.referred_name ?? null,
         referred_code: referred?.member_id ?? null,
     }
 }
@@ -114,6 +125,7 @@ export type OverviewReport = {
     comparisonBuckets: OverviewBucket[] | null
     bonus: number
     funnel: Funnel
+    links: LinkFunnel
     timing: ConversionTiming
     /** The period's referrers, same rows the Leaderboard tab shows. */
     referrers: LeaderRow[]
@@ -140,6 +152,7 @@ export async function getOverview(gymId: string, query: ReferralsReportQuery): P
     const prev = query.previous
     const compared = previousReferrals !== null && previousPayments !== null && prev !== null
     const referrers = leaderboard(currentReferrals, members, query.range, REFERRER_BONUS_COINS)
+    const links = linkFunnel(members, query.range)
     return {
         buckets,
         totals,
@@ -149,7 +162,8 @@ export async function getOverview(gymId: string, query: ReferralsReportQuery): P
         compare: query.compare,
         comparisonBuckets: compared ? overviewBuckets(previousReferrals, previousPayments, prev, query.bucket, REFERRER_BONUS_COINS) : null,
         bonus: REFERRER_BONUS_COINS,
-        funnel: funnel(totals, REFERRER_BONUS_COINS),
+        funnel: funnel(totals, links, REFERRER_BONUS_COINS),
+        links,
         timing: conversionTiming(currentReferrals, query.range),
         referrers,
         activity: referrerActivity(referrers),

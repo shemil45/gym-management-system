@@ -13,13 +13,14 @@ export const REFERRALS_TABS: { id: ReferralsTab; label: string }[] = [
     { id: 'list', label: 'Referrals' },
 ]
 
-export type ListStatus = 'all' | 'pending' | 'applied' | 'expired'
+export type ListStatus = 'all' | 'pending' | 'converted' | 'expired' | 'cancelled'
 
 export const LIST_STATUSES: { id: ListStatus; label: string }[] = [
     { id: 'all', label: 'All' },
     { id: 'pending', label: 'Pending' },
-    { id: 'applied', label: 'Applied' },
+    { id: 'converted', label: 'Converted' },
     { id: 'expired', label: 'Expired' },
+    { id: 'cancelled', label: 'Cancelled' },
 ]
 
 export type ReferralsReportQuery = {

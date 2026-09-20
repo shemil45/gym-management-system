@@ -26,6 +26,10 @@ export type ReportMemberRow = {
     referred_by: string | null
     referrer_name: string | null
     referral_coins_balance: number
+    /** When the member first opened their referral link (null: never). */
+    referral_token_created_at: string | null
+    /** Landing-page opens of the member's referral link, all time. */
+    referral_link_visits: number
     created_at: string
     is_demo: boolean
 }

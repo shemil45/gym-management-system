@@ -6,7 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { AnimatedThemeToggler } from '@/components/ui/animated-theme-toggler'
 import { useAdminTheme } from '@/components/layout/AdminThemeContext'
-import { Bell, LogOut, Menu } from 'lucide-react'
+import { LogOut, Menu } from 'lucide-react'
+import AdminNotificationBell from '@/components/layout/AdminNotificationBell'
 
 interface AdminHeaderProps {
     user: {
@@ -79,6 +80,14 @@ export default function AdminHeader({ user, onMenuClick }: AdminHeaderProps) {
                         aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
                     />
 
+                    <AdminNotificationBell
+                        className={`relative h-10 w-10 rounded-full p-0 ${
+                            isDark
+                                ? 'border border-[#2a2a2a] bg-[#1c1c1c] text-white hover:bg-[#222222] hover:text-white'
+                                : 'border border-[#e7e9ee] bg-white text-[#45464d] hover:bg-[#eef0f2]'
+                        }`}
+                    />
+
                     <Button
                         type="button"
                         onClick={() => void handleLogout()}
@@ -130,18 +139,13 @@ export default function AdminHeader({ user, onMenuClick }: AdminHeaderProps) {
                         aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
                     />
 
-                    <Button
-                        variant="ghost"
-                        size="icon"
+                    <AdminNotificationBell
                         className={`relative h-9 w-9 rounded-full ${
                             isDark
                                 ? 'border border-[#2a2a2a] bg-[#1c1c1c] text-white hover:bg-[#222222] hover:text-white'
                                 : 'text-[#45464d] hover:bg-[#eef0f2] hover:text-[#191c1e]'
                         }`}
-                    >
-                        <Bell className="h-4 w-4" />
-                        <span className={`absolute right-2 top-2 h-2 w-2 rounded-full bg-[#10b981] ring-1 ${isDark ? 'ring-[#171717]' : 'ring-[#f7f9fb]'}`} />
-                    </Button>
+                    />
 
                     <Button
                         type="button"

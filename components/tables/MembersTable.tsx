@@ -30,6 +30,7 @@ import {
     Loader2,
     SlidersHorizontal,
     X,
+    Gift,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/date'
 import { toast } from 'sonner'
@@ -59,6 +60,8 @@ interface MembersTableProps {
     totalCount: number
     demoIds?: string[]
     readOnlyMode?: 'tenant' | 'operator'
+    /** Null hides the referral-leads entry (program off for this gym). */
+    pendingReferralLeads?: number | null
     initialFilters?: {
         q?: string
         status?: string
@@ -187,7 +190,7 @@ function PaginationBar({
     )
 }
 
-export default function MembersTable({ members, plans, currentPage, totalCount, demoIds, readOnlyMode = 'tenant', initialFilters }: MembersTableProps) {
+export default function MembersTable({ members, plans, currentPage, totalCount, demoIds, readOnlyMode = 'tenant', initialFilters, pendingReferralLeads = null }: MembersTableProps) {
     const router = useRouter()
     const pathname = usePathname()
     const { isDark } = useAdminTheme()
@@ -620,6 +623,26 @@ export default function MembersTable({ members, plans, currentPage, totalCount, 
                     {/* Header Row */}
                     <div className="mb-4 sm:mb-5 flex items-center justify-between gap-3">
                         <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Members</h1>
+                        <div className="flex items-center gap-2">
+                        {pendingReferralLeads !== null && pendingReferralLeads !== undefined ? (
+                            <Link
+                                href="/admin/members/referrals"
+                                aria-label={`Referral leads, ${pendingReferralLeads} pending`}
+                                className={`relative inline-flex h-12 shrink-0 items-center justify-center gap-1.5 rounded-full border px-0 text-sm font-medium transition-colors sm:rounded-xl sm:px-4 ${
+                                    isDark
+                                        ? 'border-[#2a2a2a] bg-[#1c1c1c] text-gray-200 hover:bg-[#222222]'
+                                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                                } w-12 sm:w-auto`}
+                            >
+                                <Gift className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                <span className="hidden sm:inline">Referral leads</span>
+                                {pendingReferralLeads > 0 ? (
+                                    <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white sm:static sm:ml-0.5">
+                                        {pendingReferralLeads > 99 ? '99+' : pendingReferralLeads}
+                                    </span>
+                                ) : null}
+                            </Link>
+                        ) : null}
                         <Button
                             type="button"
                             onClick={handleOpenAddMember}
@@ -629,6 +652,7 @@ export default function MembersTable({ members, plans, currentPage, totalCount, 
                             {openingAddMember ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-5 w-5" />}
                             <span className="ml-1 hidden sm:inline">{openingAddMember ? 'Opening...' : 'Add Member'}</span>
                         </Button>
+                        </div>
                     </div>
 
                     <div className="flex gap-2 sm:gap-3">

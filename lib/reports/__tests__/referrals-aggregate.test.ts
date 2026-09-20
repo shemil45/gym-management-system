@@ -17,8 +17,11 @@ function referral(o: Partial<ReportReferralRow> = {}): ReportReferralRow {
         referred_id: 'm-referred',
         code: 'CODE1',
         status: 'pending',
+        source: 'staff',
         created_at: '2026-01-10T10:00:00Z',
         applied_at: null,
+        expires_at: null,
+        cancelled_at: null,
         referrer_name: 'Referrer',
         referrer_code: 'GYM001',
         referrer_phone: '9000000000',
@@ -71,6 +74,8 @@ function member(o: Partial<ReportMemberRow> = {}): ReportMemberRow {
         referred_by: null,
         referrer_name: null,
         referral_coins_balance: 0,
+        referral_token_created_at: null,
+        referral_link_visits: 0,
         created_at: '2026-01-01T00:00:00Z',
         is_demo: false,
         ...o,
@@ -79,7 +84,7 @@ function member(o: Partial<ReportMemberRow> = {}): ReportMemberRow {
 
 describe('overviewBuckets', () => {
     it('counts conversion by applied_at even when the referral was created before the range, and conversion is null when nothing was created in that bucket', () => {
-        const a = referral({ id: 'a', status: 'applied', created_at: '2025-12-20T10:00:00Z', applied_at: '2026-01-05T10:00:00Z' })
+        const a = referral({ id: 'a', status: 'converted', created_at: '2025-12-20T10:00:00Z', applied_at: '2026-01-05T10:00:00Z' })
         const buckets = overviewBuckets([a], [], JAN_MAR, 'month', BONUS)
         const jan = buckets.find((b) => b.start === '2026-01-01')!
         expect(jan.created).toBe(0)
@@ -121,7 +126,7 @@ describe('overviewTotals', () => {
     it('sums buckets and recomputes conversion from the totals', () => {
         const buckets = overviewBuckets(
             [
-                referral({ id: 'a', status: 'applied', created_at: '2025-12-20T10:00:00Z', applied_at: '2026-01-05T10:00:00Z' }),
+                referral({ id: 'a', status: 'converted', created_at: '2025-12-20T10:00:00Z', applied_at: '2026-01-05T10:00:00Z' }),
                 referral({ id: 'b', status: 'pending', created_at: '2026-01-10T10:00:00Z' }),
             ],
             [],
@@ -143,7 +148,7 @@ describe('overviewTotals', () => {
 
 describe('overviewKpis', () => {
     it('computes referrals/conversions/coins over the range directly', () => {
-        const a = referral({ id: 'a', status: 'applied', created_at: '2025-12-20T10:00:00Z', applied_at: '2026-01-05T10:00:00Z' })
+        const a = referral({ id: 'a', status: 'converted', created_at: '2025-12-20T10:00:00Z', applied_at: '2026-01-05T10:00:00Z' })
         const b = referral({ id: 'b', status: 'pending', created_at: '2026-01-10T10:00:00Z' })
         const paid = payment({ id: 'p1', payment_date: '2026-01-15', payment_status: 'paid', referral_coins_used: 200 })
         const kpis = overviewKpis([a, b], [paid], JAN_MAR, BONUS)
@@ -168,9 +173,9 @@ describe('leaderboard', () => {
             member({ id: 'r2', full_name: 'Bob', referral_coins_balance: 500 }),
         ]
         const referrals = [
-            referral({ id: 'a1', referrer_id: 'r1', status: 'applied', created_at: '2026-01-05T00:00:00Z', applied_at: '2026-01-10T00:00:00Z' }),
+            referral({ id: 'a1', referrer_id: 'r1', status: 'converted', created_at: '2026-01-05T00:00:00Z', applied_at: '2026-01-10T00:00:00Z' }),
             referral({ id: 'a2', referrer_id: 'r1', status: 'pending', created_at: '2026-01-06T00:00:00Z' }),
-            referral({ id: 'b1', referrer_id: 'r2', status: 'applied', created_at: '2026-01-07T00:00:00Z', applied_at: '2026-01-12T00:00:00Z' }),
+            referral({ id: 'b1', referrer_id: 'r2', status: 'converted', created_at: '2026-01-07T00:00:00Z', applied_at: '2026-01-12T00:00:00Z' }),
         ]
         const rows = leaderboard(referrals, members, JAN_MAR, BONUS)
         expect(rows).toHaveLength(2)
@@ -189,9 +194,9 @@ describe('leaderboard', () => {
         ]
         const referrals = [
             // r1: 1 converted, 1 referral
-            referral({ id: 'a1', referrer_id: 'r1', status: 'applied', created_at: '2026-01-01T00:00:00Z', applied_at: '2026-01-02T00:00:00Z' }),
+            referral({ id: 'a1', referrer_id: 'r1', status: 'converted', created_at: '2026-01-01T00:00:00Z', applied_at: '2026-01-02T00:00:00Z' }),
             // r2: 1 converted, 1 referral, name sorts before Zed on tie
-            referral({ id: 'b1', referrer_id: 'r2', status: 'applied', created_at: '2026-01-01T00:00:00Z', applied_at: '2026-01-02T00:00:00Z' }),
+            referral({ id: 'b1', referrer_id: 'r2', status: 'converted', created_at: '2026-01-01T00:00:00Z', applied_at: '2026-01-02T00:00:00Z' }),
             // referrer not in the roster
             referral({ id: 'c1', referrer_id: 'ghost', status: 'pending', created_at: '2026-01-01T00:00:00Z' }),
         ]
@@ -204,7 +209,7 @@ describe('referralList', () => {
     it('includes only referrals created in range, filters by status, newest first', () => {
         const inRange = referral({ id: 'in', status: 'pending', created_at: '2026-02-01T00:00:00Z' })
         const outOfRange = referral({ id: 'out', status: 'pending', created_at: '2025-12-01T00:00:00Z' })
-        const applied = referral({ id: 'applied', status: 'applied', created_at: '2026-03-01T00:00:00Z', applied_at: '2026-03-05T00:00:00Z' })
+        const applied = referral({ id: 'applied', status: 'converted', created_at: '2026-03-01T00:00:00Z', applied_at: '2026-03-05T00:00:00Z' })
         const rows = referralList([inRange, outOfRange, applied], JAN_MAR, 'pending')
         expect(rows.map((r) => r.id)).toEqual(['in'])
     })
@@ -217,7 +222,7 @@ describe('referralList', () => {
     })
 
     it('computes daysToConvert from created to applied in IST days, null when pending', () => {
-        const applied = referral({ id: 'applied', status: 'applied', created_at: '2026-01-01T00:00:00Z', applied_at: '2026-01-04T00:00:00Z' })
+        const applied = referral({ id: 'applied', status: 'converted', created_at: '2026-01-01T00:00:00Z', applied_at: '2026-01-04T00:00:00Z' })
         const pending = referral({ id: 'pending', status: 'pending', created_at: '2026-01-05T00:00:00Z', applied_at: null })
         const rows = referralList([applied, pending], JAN_MAR, 'all')
         const appliedRow = rows.find((r) => r.id === 'applied')!
@@ -234,15 +239,15 @@ const q1 = { from: '2026-01-01', to: '2026-03-31' }
 describe('funnel / netCoins reconcile with the overview', () => {
     it('funnel counts equal the overview totals and coins issued is conversions × bonus', () => {
         const referrals = [
-            referral({ id: 'a', created_at: '2026-01-10T10:00:00Z', applied_at: '2026-01-12T10:00:00Z', status: 'applied' }),
+            referral({ id: 'a', created_at: '2026-01-10T10:00:00Z', applied_at: '2026-01-12T10:00:00Z', status: 'converted' }),
             referral({ id: 'b', created_at: '2026-02-10T10:00:00Z' }),
-            referral({ id: 'c', created_at: '2026-02-11T10:00:00Z', applied_at: '2026-03-20T10:00:00Z', status: 'applied' }),
+            referral({ id: 'c', created_at: '2026-02-11T10:00:00Z', applied_at: '2026-03-20T10:00:00Z', status: 'converted' }),
         ]
         const buckets = overviewBuckets(referrals, [], q1, 'month', BONUS)
         const totals = overviewTotals(buckets)
         const kpis = overviewKpis(referrals, [], q1, BONUS)
-        const f = funnel(totals, BONUS)
-        expect(f).toEqual({ created: 3, converted: 2, rate: (2 / 3) * 100, coinsIssued: 1000, bonus: BONUS })
+        const f = funnel(totals, { linksGenerated: 5 }, BONUS)
+        expect(f).toEqual({ linksGenerated: 5, created: 3, leads: 0, converted: 2, pending: 1, expired: 0, cancelled: 0, rate: (2 / 3) * 100, coinsIssued: 1000, bonus: BONUS })
         expect(f.created).toBe(kpis.referrals)
         expect(f.converted).toBe(kpis.conversions)
         expect(f.coinsIssued).toBe(kpis.coinsIssued)
@@ -257,7 +262,7 @@ describe('funnel / netCoins reconcile with the overview', () => {
         const totals = overviewTotals(buckets)
         expect(totals.conversion).toBeNull()
         for (const b of buckets) expect(b.conversion).toBeNull()
-        expect(funnel(totals, BONUS)).toEqual({ created: 0, converted: 0, rate: null, coinsIssued: 0, bonus: BONUS })
+        expect(funnel(totals, { linksGenerated: 0 }, BONUS)).toEqual({ linksGenerated: 0, created: 0, leads: 0, converted: 0, pending: 0, expired: 0, cancelled: 0, rate: null, coinsIssued: 0, bonus: BONUS })
         expect(conversionTiming([], q1)).toMatchObject({ converted: 0, avgDays: null, medianDays: null })
         expect(joinMix([], q1).share).toBeNull()
         expect(leaderboardTotals([]).conversion).toBeNull()
@@ -267,13 +272,13 @@ describe('funnel / netCoins reconcile with the overview', () => {
 describe('conversionTiming', () => {
     it('uses the list column formula and buckets converted referrals', () => {
         const rows = [
-            referral({ id: 'same', created_at: '2026-01-10T03:00:00Z', applied_at: '2026-01-10T12:00:00Z', status: 'applied' }),
-            referral({ id: 'two', created_at: '2026-01-10T03:00:00Z', applied_at: '2026-01-12T03:00:00Z', status: 'applied' }),
-            referral({ id: 'ten', created_at: '2026-01-01T03:00:00Z', applied_at: '2026-01-11T03:00:00Z', status: 'applied' }),
-            referral({ id: 'long', created_at: '2025-11-01T03:00:00Z', applied_at: '2026-02-01T03:00:00Z', status: 'applied' }),
+            referral({ id: 'same', created_at: '2026-01-10T03:00:00Z', applied_at: '2026-01-10T12:00:00Z', status: 'converted' }),
+            referral({ id: 'two', created_at: '2026-01-10T03:00:00Z', applied_at: '2026-01-12T03:00:00Z', status: 'converted' }),
+            referral({ id: 'ten', created_at: '2026-01-01T03:00:00Z', applied_at: '2026-01-11T03:00:00Z', status: 'converted' }),
+            referral({ id: 'long', created_at: '2025-11-01T03:00:00Z', applied_at: '2026-02-01T03:00:00Z', status: 'converted' }),
             referral({ id: 'pending', created_at: '2026-01-05T03:00:00Z' }),
-            referral({ id: 'outside', created_at: '2025-12-01T03:00:00Z', applied_at: '2025-12-05T03:00:00Z', status: 'applied' }),
-            referral({ id: 'bad', created_at: '2026-01-20T03:00:00Z', applied_at: '2026-01-15T03:00:00Z', status: 'applied' }),
+            referral({ id: 'outside', created_at: '2025-12-01T03:00:00Z', applied_at: '2025-12-05T03:00:00Z', status: 'converted' }),
+            referral({ id: 'bad', created_at: '2026-01-20T03:00:00Z', applied_at: '2026-01-15T03:00:00Z', status: 'converted' }),
         ]
         for (const r of rows) {
             const listed = referralList([r], { from: '2025-01-01', to: '2026-12-31' }, 'all')[0].daysToConvert
@@ -317,7 +322,7 @@ describe('referrerActivity / leaderboardTotals', () => {
         const members = Array.from({ length: 10 }, (_, i) => member({ id: `m${i}`, full_name: `Member ${i}` }))
         const referrals = members.flatMap((m, i) => Array.from({ length: 10 - i }, (_, k) => referral({
             id: `${m.id}-${k}`, referrer_id: m.id, created_at: '2026-01-10T10:00:00Z',
-            ...(k === 0 ? { applied_at: '2026-01-12T10:00:00Z', status: 'applied' as const } : {}),
+            ...(k === 0 ? { applied_at: '2026-01-12T10:00:00Z', status: 'converted' as const } : {}),
         })))
         const rows = leaderboard(referrals, members, q1, BONUS)
         const totals = leaderboardTotals(rows)
@@ -339,11 +344,11 @@ describe('funnel rate reconciles with the overview KPIs', () => {
         it(`${created} created, ${converted} converted → ${rate === null ? 'no rate' : `${rate}%`}`, () => {
             const referrals = Array.from({ length: created }, (_, i) => referral({
                 id: `f${i}`, created_at: '2026-02-01T10:00:00Z',
-                ...(i < converted ? { applied_at: '2026-02-03T10:00:00Z', status: 'applied' as const } : {}),
+                ...(i < converted ? { applied_at: '2026-02-03T10:00:00Z', status: 'converted' as const } : {}),
             }))
             const totals = overviewTotals(overviewBuckets(referrals, [], q1, 'month', BONUS))
             const kpis = overviewKpis(referrals, [], q1, BONUS)
-            const f = funnel(totals, BONUS)
+            const f = funnel(totals, { linksGenerated: 0 }, BONUS)
             expect(f.created).toBe(kpis.referrals)
             expect(f.converted).toBe(kpis.conversions)
             expect(f.rate).toBe(rate)

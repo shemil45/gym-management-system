@@ -19,6 +19,7 @@ import { INACTIVE_DAYS } from '@/lib/reports/members-params'
 const MEMBER_SELECT = [
     'id', 'member_id', 'full_name', 'phone', 'status', 'membership_plan_id',
     'membership_start_date', 'membership_expiry_date', 'referred_by', 'referral_coins_balance', 'created_at',
+    'referral_token_created_at', 'referral_link_visits',
     'plan:membership_plans(name, price, duration_days)',
     // Self-referencing FK: PostgREST rejects the constraint-name hint here
     // (PGRST200), so disambiguate by the referencing column instead.
@@ -36,6 +37,8 @@ type MemberRawRow = {
     membership_expiry_date: string | null
     referred_by: string | null
     referral_coins_balance: number | string | null
+    referral_token_created_at: string | null
+    referral_link_visits: number | null
     created_at: string
     plan: { name: string; price: number | string; duration_days: number } | { name: string; price: number | string; duration_days: number }[] | null
     referrer: { full_name: string } | { full_name: string }[] | null
@@ -93,6 +96,8 @@ export async function fetchMembers(gymId: string): Promise<ReportMemberRow[]> {
             referred_by: row.referred_by,
             referrer_name: referrer?.full_name ?? null,
             referral_coins_balance: toNumber(row.referral_coins_balance),
+            referral_token_created_at: row.referral_token_created_at ?? null,
+            referral_link_visits: toNumber(row.referral_link_visits),
             created_at: row.created_at,
             is_demo: demoIds.has(row.id),
         }
