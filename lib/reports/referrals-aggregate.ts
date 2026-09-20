@@ -189,14 +189,22 @@ export function referralList(referrals: ReportReferralRow[], range: DateRange, s
 export type Funnel = {
     created: number
     converted: number
+    /** converted ÷ created, 0–100; null when nothing was created. */
+    rate: number | null
     /** Derived: converted × bonus. There is no per-reward transaction to count. */
     coinsIssued: number
     bonus: number
 }
 
-/** Created → Converted, from the same totals the Overview table shows. */
+/** Created → Converted, from the same totals the Overview table and KPIs show. */
 export function funnel(totals: Pick<OverviewBucket, 'created' | 'converted'>, bonus: number): Funnel {
-    return { created: totals.created, converted: totals.converted, coinsIssued: totals.converted * bonus, bonus }
+    return {
+        created: totals.created,
+        converted: totals.converted,
+        rate: totals.created ? (totals.converted / totals.created) * 100 : null,
+        coinsIssued: totals.converted * bonus,
+        bonus,
+    }
 }
 
 /** Coins issued in the period less coins redeemed in it — a net movement,

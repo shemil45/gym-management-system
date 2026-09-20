@@ -1,20 +1,31 @@
 import { formatCurrency } from '@/lib/utils/currency'
 import { comparisonSuffix } from '@/lib/reports/comparison'
 import type { OverviewReport } from '@/lib/reports/referrals'
+import type { ReferrerSlice } from '@/lib/reports/referrals-aggregate'
 import { overviewInsight } from '@/lib/reports/referrals-insights'
 import ShareChart from '@/components/reports/charts/ShareChart'
 import KpiStrip from '@/components/reports/kpi/KpiStrip'
 import type { KpiCardProps } from '@/components/reports/kpi/KpiCard'
 import InsightBar from '@/components/reports/InsightBar'
 import ReferralTrend from '@/components/reports/referrals/ReferralTrend'
+import ConversionFunnel from '@/components/reports/referrals/ConversionFunnel'
 
 /**
  * Trend → Created / Converted and conversion timing → activity by referrer →
  * referred-member figures → one insight, then the existing overview table.
  * Every number reads `OverviewReport`, built from the same rows as the table.
  */
+/** Says exactly who the referrer chart covers — everyone, or the largest few with the rest grouped. */
+function referrerScope(total: number, activity: ReferrerSlice[]): string {
+    const shown = activity.filter((a) => !a.isOther).length
+    const grouped = total - shown
+    return grouped > 0
+        ? `Referrals created this period · Showing ${shown} of ${total} referrers by referral count; ${grouped} grouped as Other. The Leaderboard tab lists everyone.`
+        : `Referrals created this period, by the member who referred · All ${total} referrer${total === 1 ? '' : 's'} shown`
+}
+
 export default function OverviewAnalytics({ report }: { report: OverviewReport }) {
-    const { funnel, timing, activity, referred, previousReferred, joinMix, previousJoinMix } = report
+    const { funnel, timing, activity, referrers, referred, previousReferred, joinMix, previousJoinMix } = report
     const suffix = comparisonSuffix(report.compare)
     const delta = (current: number | null, prev: number | null | undefined): Pick<KpiCardProps, 'delta'> =>
         current === null || prev === null || prev === undefined ? {} : { delta: { current, previous: prev, suffix } }
@@ -25,17 +36,7 @@ export default function OverviewAnalytics({ report }: { report: OverviewReport }
             <ReferralTrend buckets={report.buckets} comparisonBuckets={report.comparisonBuckets} compare={report.compare} />
 
             <div className="grid gap-4 lg:grid-cols-2">
-                <ShareChart
-                    title="Created → converted"
-                    subtitle={`Referrals created this period and how many converted. Each conversion credits ${funnel.bonus} coins, so ${funnel.coinsIssued} coins were issued — a derived figure, not a reward ledger.`}
-                    format="number"
-                    order="given"
-                    data={[
-                        { label: 'Created', value: funnel.created, detail: 'referrals' },
-                        { label: 'Converted', value: funnel.converted, detail: 'applied' },
-                    ]}
-                    emptyMessage="No referrals created in this period"
-                />
+                <ConversionFunnel funnel={funnel} />
                 <ShareChart
                     title="Time to conversion"
                     subtitle={timing.converted > 0
@@ -50,11 +51,11 @@ export default function OverviewAnalytics({ report }: { report: OverviewReport }
 
             <ShareChart
                 title="Referral activity by referrer"
-                subtitle={activity.some((a) => a.isOther) ? 'Referrals created this period; the largest referrers shown, the rest combined. The Leaderboard tab lists everyone.' : 'Referrals created this period, by the member who referred'}
+                subtitle={referrerScope(referrers.length, activity)}
                 format="number"
                 data={activity.map((a) => ({
                     label: a.label, value: a.referrals,
-                    detail: `${a.converted} converted${a.conversion !== null ? ` · ${a.conversion.toFixed(0)}%` : ''}`,
+                    detail: `${a.converted} converted${a.conversion !== null ? ` · ${a.conversion.toFixed(0)}% conversion` : ''}`,
                 }))}
                 emptyMessage="No referrals in this period"
             />

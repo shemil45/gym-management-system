@@ -242,7 +242,7 @@ describe('funnel / netCoins reconcile with the overview', () => {
         const totals = overviewTotals(buckets)
         const kpis = overviewKpis(referrals, [], q1, BONUS)
         const f = funnel(totals, BONUS)
-        expect(f).toEqual({ created: 3, converted: 2, coinsIssued: 1000, bonus: BONUS })
+        expect(f).toEqual({ created: 3, converted: 2, rate: (2 / 3) * 100, coinsIssued: 1000, bonus: BONUS })
         expect(f.created).toBe(kpis.referrals)
         expect(f.converted).toBe(kpis.conversions)
         expect(f.coinsIssued).toBe(kpis.coinsIssued)
@@ -257,7 +257,7 @@ describe('funnel / netCoins reconcile with the overview', () => {
         const totals = overviewTotals(buckets)
         expect(totals.conversion).toBeNull()
         for (const b of buckets) expect(b.conversion).toBeNull()
-        expect(funnel(totals, BONUS)).toEqual({ created: 0, converted: 0, coinsIssued: 0, bonus: BONUS })
+        expect(funnel(totals, BONUS)).toEqual({ created: 0, converted: 0, rate: null, coinsIssued: 0, bonus: BONUS })
         expect(conversionTiming([], q1)).toMatchObject({ converted: 0, avgDays: null, medianDays: null })
         expect(joinMix([], q1).share).toBeNull()
         expect(leaderboardTotals([]).conversion).toBeNull()
@@ -330,5 +330,53 @@ describe('referrerActivity / leaderboardTotals', () => {
         // Leaderboard referrals equal the overview's created count when every
         // referrer is a known member.
         expect(totals.referrals).toBe(overviewKpis(referrals, [], q1, BONUS).referrals)
+    })
+})
+
+describe('funnel rate reconciles with the overview KPIs', () => {
+    const cases: [number, number, number | null][] = [[2, 2, 100], [10, 4, 40], [10, 0, 0], [0, 0, null]]
+    for (const [created, converted, rate] of cases) {
+        it(`${created} created, ${converted} converted → ${rate === null ? 'no rate' : `${rate}%`}`, () => {
+            const referrals = Array.from({ length: created }, (_, i) => referral({
+                id: `f${i}`, created_at: '2026-02-01T10:00:00Z',
+                ...(i < converted ? { applied_at: '2026-02-03T10:00:00Z', status: 'applied' as const } : {}),
+            }))
+            const totals = overviewTotals(overviewBuckets(referrals, [], q1, 'month', BONUS))
+            const kpis = overviewKpis(referrals, [], q1, BONUS)
+            const f = funnel(totals, BONUS)
+            expect(f.created).toBe(kpis.referrals)
+            expect(f.converted).toBe(kpis.conversions)
+            expect(f.rate).toBe(rate)
+            expect(f.rate).toBe(totals.conversion)
+            if (f.rate !== null) expect(Number.isFinite(f.rate)).toBe(true)
+        })
+    }
+})
+
+describe('referrerActivity scope', () => {
+    const build = (n: number) => {
+        const members = Array.from({ length: n }, (_, i) => member({ id: `m${i}`, full_name: `Member ${i}` }))
+        const referrals = members.flatMap((m, i) => Array.from({ length: n - i }, (_, k) => referral({ id: `${m.id}-${k}`, referrer_id: m.id, created_at: '2026-01-10T10:00:00Z' })))
+        return leaderboard(referrals, members, q1, BONUS)
+    }
+    it('4 referrers → all four shown, no Other', () => {
+        const activity = referrerActivity(build(4), 8)
+        expect(activity).toHaveLength(4)
+        expect(activity.some((a) => a.isOther)).toBe(false)
+    })
+    it('8 referrers → all eight shown, no Other', () => {
+        const activity = referrerActivity(build(8), 8)
+        expect(activity).toHaveLength(8)
+        expect(activity.some((a) => a.isOther)).toBe(false)
+    })
+    it('10 referrers → eight shown and two grouped as Other', () => {
+        const rows = build(10)
+        const activity = referrerActivity(rows, 8)
+        expect(activity.filter((a) => !a.isOther)).toHaveLength(8)
+        const other = activity.find((a) => a.isOther)
+        expect(other?.label).toBe('Other (2)')
+        // The two smallest referrers made 2 and 1 referrals.
+        expect(other?.referrals).toBe(3)
+        expect(activity.reduce((s, a) => s + a.referrals, 0)).toBe(rows.reduce((s, r) => s + r.referrals, 0))
     })
 })
