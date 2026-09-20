@@ -3,6 +3,10 @@
 import { Printer } from 'lucide-react'
 import { useReportNavigation } from '@/components/reports/ReportNavigation'
 
+/**
+ * Shared across every report area. Lived under payments/ while the day book
+ * was the only printable view; nothing about it was payments-specific.
+ */
 export default function PrintButton() {
     // Disabled while a navigation is in flight: the visible table is still
     // the loading skeleton at that point, and window.print() would capture

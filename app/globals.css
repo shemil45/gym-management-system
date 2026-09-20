@@ -319,4 +319,23 @@
 @media print {
     html.dark { color-scheme: light; }
     html.dark body { background: #fff; color: #111; }
+
+    /* Report charts carry their meaning in fills, which browsers strip by
+       default when printing. */
+    .recharts-wrapper,
+    .recharts-surface {
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
+
+    /* Heat cells shade via a --heat alpha. Dark mode fills them white, which
+       would vanish on paper, so print always uses dark ink over white and
+       caps the alpha low enough to keep the count readable. Relative
+       intensity between cells is preserved. */
+    .report-heat-cell {
+        background-color: rgb(17 24 39 / calc(var(--heat, 0) * 0.45)) !important;
+        color: #111 !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
 }

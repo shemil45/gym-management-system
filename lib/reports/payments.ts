@@ -2,22 +2,29 @@ import 'server-only'
 
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { getImpersonationOwnedIds } from '@/lib/platform/impersonation-ledger'
-import type { DateRange } from '@/lib/reports/dates'
+import { todayInKolkata, type DateRange } from '@/lib/reports/dates'
 import type { PaymentsReportQuery } from '@/lib/reports/payments-params'
 import {
-    byPlan, byStaff, dayBookTotals, kpis, pendingRows, pendingTotals, sortForDayBook, summarise,
+    ageing, byMethod, byPlan, byStaff, dayBookTotals, kpis, newVsRenewal, payingMembers, pendingRows, pendingTotals,
+    planAnalysis, revenueConcentration, sortForDayBook, splitOutstanding, staffMethods, statusKpis, summarise,
+    unassignedCollections,
     SELF_SERVICE_LABEL,
-    type DayBookTotals, type PlanRow, type ReportPaymentRow, type StaffRow, type SummaryBucket, type SummaryKpis,
+    type AgeBucket, type Concentration, type DayBookTotals, type KindRow, type MethodRow, type OutstandingSplit,
+    type PayingMembers, type PlanAnalysisRow, type ReportPaymentRow, type StaffMethodRow, type StaffRow,
+    type StatusKpis, type SummaryBucket, type SummaryKpis,
 } from '@/lib/reports/payments-aggregate'
+import type { Comparison } from '@/lib/reports/comparison'
 
 const SELECT = [
     'id', 'amount', 'admission_fee_amount', 'referral_coins_used', 'payment_method', 'payment_status',
     'payment_date', 'created_at', 'receipt_number', 'invoice_number', 'notes',
     'member_id', 'membership_start_date', 'membership_end_date',
-    'member:members(full_name, member_id, phone)',
+    'member:members(full_name, member_id, phone, created_at)',
     'membership_plan:membership_plans(name)',
     'processor:profiles!payments_processed_by_fkey(full_name)',
 ].join(', ')
+
+type MemberEmbed = { full_name: string; member_id: string; phone: string; created_at: string }
 
 type RawRow = {
     id: string
@@ -34,7 +41,7 @@ type RawRow = {
     member_id: string
     membership_start_date: string | null
     membership_end_date: string | null
-    member: { full_name: string; member_id: string; phone: string } | { full_name: string; member_id: string; phone: string }[] | null
+    member: MemberEmbed | MemberEmbed[] | null
     membership_plan: { name: string } | { name: string }[] | null
     processor: { full_name: string } | { full_name: string }[] | null
 }
@@ -99,6 +106,7 @@ export async function fetchPaymentRows(gymId: string, range: DateRange): Promise
             member_name: member?.full_name ?? null,
             member_code: member?.member_id ?? null,
             member_phone: member?.phone ?? null,
+            member_joined: member ? todayInKolkata(new Date(member.created_at)) : null,
             plan_name: one(row.membership_plan)?.name ?? null,
             processor_name: one(row.processor)?.full_name
                 ?? (row.payment_method === 'online' ? SELF_SERVICE_LABEL : null),
@@ -110,10 +118,48 @@ export async function fetchPaymentRows(gymId: string, range: DateRange): Promise
 }
 
 export type DayBookReport = { rows: ReportPaymentRow[]; totals: DayBookTotals }
-export type SummaryReport = { buckets: SummaryBucket[]; kpis: SummaryKpis; previous: SummaryKpis }
-export type PlanReport = { rows: PlanRow[]; total: { txns: number; revenue: number } }
-export type PendingReport = { rows: ReportPaymentRow[]; totals: { count: number; amount: number } }
-export type StaffReport = { rows: StaffRow[]; total: { txns: number; collected: number; cash: number } }
+
+/**
+ * Everything the Summary tab shows, all derived from two fetches: the selected
+ * range and (unless comparison is off) the comparison range. `buckets`, `kpis`
+ * and `previous` are the original fields the table and CSV read; the rest is
+ * the analytics layer computed from the very same rows.
+ */
+export type SummaryReport = {
+    buckets: SummaryBucket[]
+    kpis: SummaryKpis
+    previous: SummaryKpis | null
+    compare: Comparison
+    /** Comparison period bucketed the same way, or null with no comparison. */
+    comparisonBuckets: SummaryBucket[] | null
+    status: StatusKpis
+    previousStatus: StatusKpis | null
+    methods: MethodRow[]
+    membership: KindRow[]
+    perMember: PayingMembers
+    concentration: Concentration | null
+}
+export type PlanReport = {
+    rows: PlanAnalysisRow[]
+    total: { txns: number; revenue: number }
+    /** Comparison-period totals, or null with no comparison. */
+    previousTotal: { txns: number; revenue: number } | null
+    compare: Comparison
+}
+export type PendingReport = {
+    /** Pending and failed together, newest first — what the CSV exports. */
+    rows: ReportPaymentRow[]
+    totals: { count: number; amount: number }
+    split: OutstandingSplit
+    ageing: AgeBucket[]
+    today: string
+}
+export type StaffReport = {
+    rows: StaffRow[]
+    total: { txns: number; collected: number; cash: number }
+    methods: StaffMethodRow[]
+    unassigned: { txns: number; amount: number }
+}
 
 export async function getDayBook(gymId: string, date: string): Promise<DayBookReport> {
     const rows = sortForDayBook(await fetchPaymentRows(gymId, { from: date, to: date }))
@@ -121,27 +167,59 @@ export async function getDayBook(gymId: string, date: string): Promise<DayBookRe
 }
 
 export async function getPeriodSummary(gymId: string, query: PaymentsReportQuery): Promise<SummaryReport> {
-    const [current, previous] = await Promise.all([fetchPaymentRows(gymId, query.range), fetchPaymentRows(gymId, query.previous)])
-    return { buckets: summarise(current, query.range, query.bucket), kpis: kpis(current), previous: kpis(previous) }
+    const [current, comparison] = await Promise.all([
+        fetchPaymentRows(gymId, query.range),
+        query.previous ? fetchPaymentRows(gymId, query.previous) : Promise.resolve(null),
+    ])
+    return {
+        buckets: summarise(current, query.range, query.bucket),
+        kpis: kpis(current),
+        previous: comparison ? kpis(comparison) : null,
+        compare: query.compare,
+        comparisonBuckets: comparison && query.previous ? summarise(comparison, query.previous, query.bucket) : null,
+        status: statusKpis(current),
+        previousStatus: comparison ? statusKpis(comparison) : null,
+        methods: byMethod(current),
+        membership: newVsRenewal(current, query.range),
+        perMember: payingMembers(current),
+        concentration: revenueConcentration(current),
+    }
 }
 
-export async function getByPlan(gymId: string, range: DateRange): Promise<PlanReport> {
-    const rows = byPlan(await fetchPaymentRows(gymId, range))
-    return { rows, total: rows.reduce((t, r) => ({ txns: t.txns + r.txns, revenue: t.revenue + r.revenue }), { txns: 0, revenue: 0 }) }
+const planTotal = (rows: { txns: number; revenue: number }[]) =>
+    rows.reduce((t, r) => ({ txns: t.txns + r.txns, revenue: t.revenue + r.revenue }), { txns: 0, revenue: 0 })
+
+export async function getByPlan(gymId: string, query: PaymentsReportQuery): Promise<PlanReport> {
+    const [current, comparison] = await Promise.all([
+        fetchPaymentRows(gymId, query.range),
+        query.previous ? fetchPaymentRows(gymId, query.previous) : Promise.resolve(null),
+    ])
+    const rows = byPlan(current)
+    const previousRows = comparison ? byPlan(comparison) : null
+    return {
+        rows: planAnalysis(rows, previousRows),
+        total: planTotal(rows),
+        previousTotal: previousRows ? planTotal(previousRows) : null,
+        compare: query.compare,
+    }
 }
 
-export async function getPending(gymId: string, range: DateRange): Promise<PendingReport> {
-    const rows = pendingRows(await fetchPaymentRows(gymId, range))
-    return { rows, totals: pendingTotals(rows) }
+export async function getPending(gymId: string, range: DateRange, today: string): Promise<PendingReport> {
+    const all = await fetchPaymentRows(gymId, range)
+    const rows = pendingRows(all)
+    return { rows, totals: pendingTotals(rows), split: splitOutstanding(all), ageing: ageing(all, today), today }
 }
 
 export async function getByStaff(gymId: string, range: DateRange): Promise<StaffReport> {
-    const rows = byStaff(await fetchPaymentRows(gymId, range))
+    const all = await fetchPaymentRows(gymId, range)
+    const rows = byStaff(all)
     return {
         rows,
         total: rows.reduce(
             (t, r) => ({ txns: t.txns + r.txns, collected: t.collected + r.collected, cash: t.cash + r.cash }),
             { txns: 0, collected: 0, cash: 0 },
         ),
+        methods: staffMethods(all),
+        unassigned: unassignedCollections(all),
     }
 }

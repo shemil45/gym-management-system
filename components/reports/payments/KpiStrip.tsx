@@ -1,22 +1,52 @@
 import { formatCurrency } from '@/lib/utils/currency'
-import type { SummaryKpis } from '@/lib/reports/payments-aggregate'
-import DeltaBadge from '@/components/reports/DeltaBadge'
+import { comparisonSuffix } from '@/lib/reports/comparison'
+import type { SummaryReport } from '@/lib/reports/payments'
+import KpiStrip from '@/components/reports/kpi/KpiStrip'
+import type { KpiCardProps } from '@/components/reports/kpi/KpiCard'
 
-export default function KpiStrip({ current, previous }: { current: SummaryKpis; previous: SummaryKpis }) {
-    const items = [
-        { label: 'Collected', value: formatCurrency(current.collected), cur: current.collected, prev: previous.collected },
-        { label: 'Transactions', value: String(current.txns), cur: current.txns, prev: previous.txns },
-        { label: 'Avg ticket', value: formatCurrency(current.avgTicket), cur: current.avgTicket, prev: previous.avgTicket },
-    ]
+/**
+ * The six Summary KPIs. Collected / Transactions / Avg ticket are the original
+ * three, unchanged in meaning (paid rows only). The other three come from
+ * `statusKpis` over the same rows.
+ */
+export default function PaymentsKpiStrip({ report }: { report: SummaryReport }) {
+    const { kpis, previous, status, previousStatus } = report
+    const suffix = comparisonSuffix(report.compare)
+
+    // With comparison off there is no basis, so the cards carry no delta.
+    const delta = (current: number, prev: number | null | undefined, invert?: boolean): Pick<KpiCardProps, 'delta'> =>
+        prev === null || prev === undefined ? {} : { delta: { current, previous: prev, invert, suffix } }
+
+    const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+
     return (
-        <dl className="grid gap-3 sm:grid-cols-3">
-            {items.map((item) => (
-                <div key={item.label} className="rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-neutral-700 dark:bg-neutral-900">
-                    <dt className="text-xs font-medium text-gray-500 dark:text-neutral-400">{item.label}</dt>
-                    <dd className="mt-1 text-xl font-semibold tabular-nums text-gray-900 dark:text-white">{item.value}</dd>
-                    <div className="mt-1"><DeltaBadge current={item.cur} previous={item.prev} /></div>
-                </div>
-            ))}
-        </dl>
+        <KpiStrip
+            columns={6}
+            items={[
+                { label: 'Total collected', value: formatCurrency(kpis.collected), ...delta(kpis.collected, previous?.collected) },
+                { label: 'Transactions', value: String(kpis.txns), ...delta(kpis.txns, previous?.txns) },
+                { label: 'Avg ticket', value: formatCurrency(kpis.avgTicket), ...delta(kpis.avgTicket, previous?.avgTicket) },
+                {
+                    label: 'Successful payments',
+                    value: status.successRate === null ? '—' : `${status.successRate.toFixed(1)}%`,
+                    description: `${status.successful} of ${plural(status.attempts, 'attempt', 'attempts')}`,
+                    ...(status.successRate !== null && previousStatus?.successRate !== null && previousStatus?.successRate !== undefined
+                        ? delta(status.successRate, previousStatus.successRate)
+                        : {}),
+                },
+                {
+                    label: 'Failed payments',
+                    value: String(status.failed),
+                    description: status.failed > 0 ? formatCurrency(status.failedAmount) : undefined,
+                    ...delta(status.failed, previousStatus?.failed, true),
+                },
+                {
+                    label: 'Pending amount',
+                    value: formatCurrency(status.pendingAmount),
+                    description: status.pending > 0 ? plural(status.pending, 'payment', 'payments') : undefined,
+                    ...delta(status.pendingAmount, previousStatus?.pendingAmount, true),
+                },
+            ]}
+        />
     )
 }

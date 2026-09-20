@@ -27,6 +27,13 @@ describe('parsePaymentsParams', () => {
     it('takes the first value of an array param', () => {
         expect(parsePaymentsParams({ tab: ['staff', 'plans'] }, today).tab).toBe('staff')
     })
+    it('defaults the comparison to the previous period and reads compare=', () => {
+        expect(parsePaymentsParams({}, today).compare).toBe('previous')
+        const none = parsePaymentsParams({ tab: 'summary', compare: 'none' }, today)
+        expect(none.compare).toBe('none')
+        expect(none.previous).toBeNull()
+        expect(parsePaymentsParams({ compare: 'bogus' }, today).compare).toBe('previous')
+    })
 })
 
 describe('toSearchParams / exportFilename', () => {
@@ -43,5 +50,13 @@ describe('toSearchParams / exportFilename', () => {
     it('presets keep only the preset', () => {
         const q = parsePaymentsParams({ tab: 'plans', preset: 'week' }, today)
         expect(toSearchParams(q).toString()).toBe('tab=plans&preset=week')
+    })
+    it('carries a non-default comparison on every tab, the day book included', () => {
+        const summary = parsePaymentsParams({ tab: 'summary', compare: 'none' }, today)
+        expect(toSearchParams(summary).toString()).toBe('tab=summary&preset=month&compare=none')
+        const daybook = parsePaymentsParams({ tab: 'daybook', compare: 'none' }, today)
+        expect(toSearchParams(daybook).toString()).toBe(`tab=daybook&date=${today}&compare=none`)
+        // Switching tab through toSearchParams keeps it.
+        expect(toSearchParams({ ...summary, tab: 'staff' }).toString()).toBe('tab=staff&preset=month&compare=none')
     })
 })

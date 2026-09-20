@@ -11,15 +11,17 @@ export async function GET(request: Request) {
     if (!(await gymHasFeature(gym.id, 'advanced_reports'))) return new Response('Advanced reports are not enabled for this gym', { status: 403 })
 
     const raw: RawParams = Object.fromEntries(new URL(request.url).searchParams.entries())
-    const query = parsePaymentsParams(raw, todayInKolkata())
+    const today = todayInKolkata()
+    const query = parsePaymentsParams(raw, today)
 
     try {
         let csv: string
         switch (query.tab) {
             case 'daybook': csv = dayBookCsv(await getDayBook(gym.id, query.date)); break
-            case 'summary': csv = summaryCsv(await getPeriodSummary(gym.id, query)); break
-            case 'plans': csv = planCsv(await getByPlan(gym.id, query.range)); break
-            case 'pending': csv = pendingCsv(await getPending(gym.id, query.range)); break
+            // The CSVs carry no comparison columns, so skip the comparison fetch.
+            case 'summary': csv = summaryCsv(await getPeriodSummary(gym.id, { ...query, previous: null })); break
+            case 'plans': csv = planCsv(await getByPlan(gym.id, { ...query, previous: null })); break
+            case 'pending': csv = pendingCsv(await getPending(gym.id, query.range, today)); break
             case 'staff': csv = staffCsv(await getByStaff(gym.id, query.range)); break
         }
         return new Response(csv, {

@@ -3,7 +3,7 @@ import { pnlBuckets, pnlTotals, pnlKpis, byCategory, sortLedger, ledgerTotals, m
 import type { ReportPaymentRow } from '@/lib/reports/payments-aggregate'
 
 function pay(o: Partial<ReportPaymentRow>): ReportPaymentRow {
-    return { id: Math.random().toString(36).slice(2), amount: 1000, admission_fee_amount: null, referral_coins_used: 0, payment_method: 'cash', payment_status: 'paid', payment_date: '2026-09-15', created_at: '2026-09-15T04:00:00Z', receipt_number: null, invoice_number: null, notes: null, member_id: 'm1', member_name: 'A', member_code: 'G1', member_phone: null, plan_name: null, processor_name: null, membership_start_date: null, membership_end_date: null, is_demo: false, ...o }
+    return { id: Math.random().toString(36).slice(2), amount: 1000, admission_fee_amount: null, referral_coins_used: 0, payment_method: 'cash', payment_status: 'paid', payment_date: '2026-09-15', created_at: '2026-09-15T04:00:00Z', receipt_number: null, invoice_number: null, notes: null, member_id: 'm1', member_name: 'A', member_code: 'G1', member_phone: null, member_joined: null, plan_name: null, processor_name: null, membership_start_date: null, membership_end_date: null, is_demo: false, ...o }
 }
 function exp(o: Partial<ReportExpenseRow>): ReportExpenseRow {
     return { id: Math.random().toString(36).slice(2), amount: 300, category: 'rent', description: 'x', expense_date: '2026-09-15', created_at: '2026-09-15T04:00:00Z', receipt_url: null, adder_name: 'S1', is_demo: false, ...o }

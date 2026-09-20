@@ -44,6 +44,7 @@ function payment(o: Partial<ReportPaymentRow> = {}): ReportPaymentRow {
         member_name: 'Member',
         member_code: 'GYM001',
         member_phone: '9000000000',
+        member_joined: null,
         plan_name: 'Monthly',
         processor_name: null,
         membership_start_date: null,

@@ -1,7 +1,8 @@
 import {
-    chooseBucket, isIsoDate, previousRange, rangeForPreset,
+    chooseBucket, isIsoDate, rangeForPreset,
     type Bucket, type DateRange, type Preset,
 } from '@/lib/reports/dates'
+import { COMPARISON_PARAM, DEFAULT_COMPARISON, comparisonRange, parseComparison, type Comparison } from '@/lib/reports/comparison'
 
 export type PaymentsTab = 'daybook' | 'summary' | 'plans' | 'pending' | 'staff'
 
@@ -20,7 +21,10 @@ export type PaymentsReportQuery = {
     date: string
     preset: Preset
     range: DateRange
-    previous: DateRange
+    /** What the period is compared against. Ranges come from `comparisonRange`. */
+    compare: Comparison
+    /** The comparison window, or null when `compare` is `none`. */
+    previous: DateRange | null
     bucket: Bucket
 }
 
@@ -51,20 +55,25 @@ export function parsePaymentsParams(raw: RawParams, today: string): PaymentsRepo
         range = rangeForPreset(preset, today)
     }
 
-    return { tab, date, preset, range, previous: previousRange(range), bucket: chooseBucket(range) }
+    const compare = parseComparison(raw[COMPARISON_PARAM])
+    return { tab, date, preset, range, compare, previous: comparisonRange(range, compare), bucket: chooseBucket(range) }
 }
 
 export function toSearchParams(query: PaymentsReportQuery): URLSearchParams {
     const params = new URLSearchParams({ tab: query.tab })
     if (query.tab === 'daybook') {
         params.set('date', query.date)
-        return params
+    } else {
+        params.set('preset', query.preset)
+        if (query.preset === 'custom') {
+            params.set('from', query.range.from)
+            params.set('to', query.range.to)
+        }
     }
-    params.set('preset', query.preset)
-    if (query.preset === 'custom') {
-        params.set('from', query.range.from)
-        params.set('to', query.range.to)
-    }
+    // Carried on every tab, the day book included, so a comparison chosen on
+    // Summary is still there after a detour through the day book. The default
+    // stays out of the URL to keep existing links and tests unchanged.
+    if (query.compare !== DEFAULT_COMPARISON) params.set(COMPARISON_PARAM, query.compare)
     return params
 }
 

@@ -4,10 +4,42 @@
 
 const bone = 'rounded bg-gray-200 dark:bg-neutral-800'
 
-export function KpiStripSkeleton() {
+/**
+ * Loading state for any chart in the reports area. Used by ChartFrame so a
+ * chart waiting on data looks like every other loading surface here rather
+ * than introducing a second loading design.
+ */
+export function ChartSkeleton({ height = 260 }: { height?: number }) {
+    // Fixed heights rather than random ones: a skeleton that changes shape
+    // between renders reads as content loading twice.
+    const bars = [52, 74, 38, 88, 61, 96, 44, 70, 83, 57, 92, 66]
     return (
-        <div className="grid gap-3 sm:grid-cols-3" aria-hidden="true">
-            {[0, 1, 2].map((i) => (
+        <div className="flex animate-pulse items-end gap-2" style={{ height }} aria-hidden="true">
+            {bars.map((percent, index) => (
+                <div key={index} className={`flex-1 ${bone}`} style={{ height: `${percent}%` }} />
+            ))}
+        </div>
+    )
+}
+
+/** A chart inside its card, for tab bodies that lead with one. */
+export function ChartCardSkeleton({ height = 260 }: { height?: number }) {
+    return (
+        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900" aria-hidden="true">
+            <div className={`mb-3 h-4 w-32 ${bone}`} />
+            <ChartSkeleton height={height} />
+        </div>
+    )
+}
+
+const KPI_COLUMNS: Record<number, string> = {
+    2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-2 lg:grid-cols-4', 5: 'sm:grid-cols-3 lg:grid-cols-5', 6: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6',
+}
+
+export function KpiStripSkeleton({ columns = 3 }: { columns?: 2 | 3 | 4 | 5 | 6 }) {
+    return (
+        <div className={`grid gap-3 ${KPI_COLUMNS[columns]}`} aria-hidden="true">
+            {Array.from({ length: columns }, (_, i) => i).map((i) => (
                 <div key={i} className="rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-neutral-700 dark:bg-neutral-900">
                     <div className={`h-3 w-20 ${bone}`} />
                     <div className={`mt-2 h-6 w-28 ${bone}`} />
@@ -46,10 +78,10 @@ export function TableSkeleton({ columns = 6, rows = 8, footer = true }: { column
 export function PaymentsTabSkeleton({ tab }: { tab: 'daybook' | 'summary' | 'plans' | 'pending' | 'staff' }) {
     switch (tab) {
         case 'daybook': return <TableSkeleton columns={11} rows={8} />
-        case 'summary': return <><KpiStripSkeleton /><TableSkeleton columns={12} rows={7} /></>
-        case 'plans': return <TableSkeleton columns={5} rows={4} />
-        case 'pending': return <TableSkeleton columns={8} rows={5} />
-        case 'staff': return <TableSkeleton columns={4} rows={4} />
+        case 'summary': return <><KpiStripSkeleton columns={6} /><ChartCardSkeleton height={280} /><div className="grid gap-4 lg:grid-cols-2"><ChartCardSkeleton height={200} /><ChartCardSkeleton height={200} /></div><TableSkeleton columns={12} rows={7} /></>
+        case 'plans': return <><KpiStripSkeleton /><ChartCardSkeleton height={200} /><TableSkeleton columns={5} rows={4} /></>
+        case 'pending': return <><KpiStripSkeleton /><ChartCardSkeleton height={180} /><TableSkeleton columns={9} rows={4} /><TableSkeleton columns={9} rows={3} /></>
+        case 'staff': return <><KpiStripSkeleton columns={4} /><div className="grid gap-4 lg:grid-cols-2"><ChartCardSkeleton height={200} /><ChartCardSkeleton height={200} /></div><TableSkeleton columns={4} rows={4} /></>
     }
 }
 
@@ -232,13 +264,14 @@ export function ReportsLandingSkeleton() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {Array.from({ length: 5 }).map((_, i) => (
                     <div key={i} className="rounded-xl border border-gray-200 bg-white p-5 dark:border-neutral-700 dark:bg-neutral-900">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-start justify-between">
                             <div className={`h-9 w-9 rounded-lg ${bone}`} />
-                            <div className={`h-4 w-4 ${bone}`} />
+                            <div className={`mt-1 h-4 w-4 ${bone}`} />
                         </div>
                         <div className={`mt-4 h-4 w-28 ${bone}`} />
-                        <div className={`mt-2 h-3 w-full ${bone}`} />
+                        <div className={`mt-2.5 h-3 w-full ${bone}`} />
                         <div className={`mt-1.5 h-3 w-4/5 ${bone}`} />
+                        <div className={`mt-6 h-3 w-24 ${bone}`} />
                     </div>
                 ))}
             </div>

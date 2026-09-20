@@ -1,4 +1,4 @@
-import { addDays, differenceInCalendarDays, format, parseISO, startOfMonth, startOfWeek, startOfYear, isValid } from 'date-fns'
+import { addDays, differenceInCalendarDays, format, parseISO, startOfMonth, startOfWeek, startOfYear, subYears, isValid } from 'date-fns'
 
 export type Bucket = 'day' | 'week' | 'month'
 export type Preset = 'week' | 'month' | 'year' | 'custom'
@@ -43,6 +43,15 @@ export function previousRange(range: DateRange): DateRange {
     const length = daysBetweenInclusive(range)
     const to = addDaysIso(range.from, -1)
     return { from: addDaysIso(to, -(length - 1)), to }
+}
+
+/**
+ * The same calendar span one year earlier — the second comparison basis
+ * alongside `previousRange`. A 29 Feb edge lands on 28 Feb, which is what
+ * date-fns does and what a gym would read as "the same day last year".
+ */
+export function sameRangeLastYear(range: DateRange): DateRange {
+    return { from: toIso(subYears(parseISO(range.from), 1)), to: toIso(subYears(parseISO(range.to), 1)) }
 }
 
 export function chooseBucket(range: DateRange): Bucket {

@@ -1,6 +1,10 @@
+'use client'
+
+import { useMemo, useState } from 'react'
+import { Search } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils/currency'
 import { formatDate } from '@/lib/utils/date'
-import { METHOD_LABELS, PAYMENT_METHODS } from '@/lib/reports/payments-aggregate'
+import { METHOD_LABELS, PAYMENT_METHODS, type PaymentStatus } from '@/lib/reports/payments-aggregate'
 import type { DayBookReport } from '@/lib/reports/payments'
 import SupportDemoBadge from '@/components/platform/SupportDemoBadge'
 
@@ -20,14 +24,69 @@ function timeOf(iso: string) {
     return new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })
 }
 
+type StatusFilter = 'all' | PaymentStatus
+const STATUS_FILTERS: { id: StatusFilter; label: string }[] = [
+    { id: 'all', label: 'All' }, { id: 'paid', label: 'Paid' }, { id: 'pending', label: 'Pending' }, { id: 'failed', label: 'Failed' }, { id: 'refunded', label: 'Refunded' },
+]
+
+/**
+ * The operational ledger for one day. Stays a ledger on purpose — the Summary
+ * tab is the analytical view. The filter bar narrows what is on screen for
+ * finding a row; the footer totals are always for the whole day, and the
+ * print and CSV output are unaffected by the filter.
+ */
 export default function DayBookTable({ report, date, gymName }: { report: DayBookReport; date: string; gymName: string }) {
     const { rows, totals } = report
+    const [search, setSearch] = useState('')
+    const [status, setStatus] = useState<StatusFilter>('all')
+
+    const visible = useMemo(() => {
+        const needle = search.trim().toLowerCase()
+        return rows.filter((row) => {
+            if (status !== 'all' && row.payment_status !== status) return false
+            if (!needle) return true
+            return [row.member_name, row.member_code, row.member_phone, row.plan_name, row.receipt_number, row.invoice_number, row.processor_name, row.notes]
+                .some((field) => field?.toLowerCase().includes(needle))
+        })
+    }, [rows, search, status])
+    const filtered = search.trim() !== '' || status !== 'all'
+
+    const chip = 'inline-flex h-7 items-center rounded-md px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 dark:focus-visible:ring-neutral-500'
+    const on = 'bg-gray-900 text-white dark:bg-white dark:text-neutral-900'
+    const off = 'text-gray-600 hover:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
+
     return (
         <section className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-neutral-700 dark:bg-neutral-900 print:border-0 print:bg-white print:text-black">
             <header className="hidden print:block print:text-black px-3 pt-3">
                 <p className="text-base font-semibold">{gymName} — Payments day book</p>
                 <p className="text-sm">{formatDate(date, 'EEEE, dd MMM yyyy')}</p>
             </header>
+
+            {rows.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 px-3 py-2 print:hidden dark:border-neutral-700">
+                    <label className="relative block">
+                        <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400 dark:text-neutral-500" aria-hidden="true" />
+                        <input
+                            type="search"
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="Find member, receipt, plan…"
+                            aria-label="Search this day's payments"
+                            className="h-8 w-56 rounded-md border border-gray-200 bg-white pl-7 pr-2 text-xs text-gray-900 placeholder:text-gray-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white dark:placeholder:text-neutral-500 dark:focus-visible:ring-neutral-500"
+                        />
+                    </label>
+                    <div className="flex items-center gap-2">
+                        {filtered && <span className="text-xs text-gray-500 dark:text-neutral-400">{visible.length} of {rows.length}</span>}
+                        <div className="flex rounded-lg border border-gray-200 p-0.5 dark:border-neutral-700" role="group" aria-label="Status">
+                            {STATUS_FILTERS.map((option) => (
+                                <button key={option.id} type="button" onClick={() => setStatus(option.id)} aria-pressed={status === option.id} className={`${chip} ${status === option.id ? on : off}`}>
+                                    {option.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="overflow-x-auto">
                 <table className="min-w-full">
@@ -42,7 +101,10 @@ export default function DayBookTable({ report, date, gymName }: { report: DayBoo
                         {rows.length === 0 && (
                             <tr><td colSpan={11} className={`${td} py-10 text-center text-gray-500 dark:text-neutral-400`}>No payments on this day<span className="mt-1 block text-xs text-gray-400 dark:text-neutral-500">Use the arrows above to move between days.</span></td></tr>
                         )}
-                        {rows.map((row, index) => (
+                        {rows.length > 0 && visible.length === 0 && (
+                            <tr><td colSpan={11} className={`${td} py-10 text-center text-gray-500 dark:text-neutral-400`}>No payments match<span className="mt-1 block text-xs text-gray-400 dark:text-neutral-500">Clear the search or choose another status.</span></td></tr>
+                        )}
+                        {visible.map((row, index) => (
                             <tr key={row.id} className="transition-colors hover:bg-gray-50 dark:hover:bg-neutral-800/50">
                                 <td className={`${td} tabular-nums text-gray-400 dark:text-neutral-500`}>{index + 1}</td>
                                 <td className={`${td} whitespace-nowrap tabular-nums`}>{timeOf(row.created_at)}</td>
@@ -68,6 +130,7 @@ export default function DayBookTable({ report, date, gymName }: { report: DayBoo
             </div>
 
             <footer className="border-t border-gray-200 bg-gray-50/60 dark:bg-neutral-800/40 px-3 py-3 dark:border-neutral-700">
+                {filtered && <p className="mb-2 text-xs text-gray-500 dark:text-neutral-400 print:hidden">Totals are for the whole day, not the filtered rows.</p>}
                 <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
                     {PAYMENT_METHODS.map((method) => (
                         <div key={method}>
