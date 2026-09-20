@@ -65,10 +65,12 @@ leads), so reusing either one is caught. In order:
    the visitor sees "You are already an existing member of [gym]". Only
    the referring gym's members count: being a member elsewhere is fine.
 2. A **pending, unexpired lead** exists for the same phone or email in this
-   gym → no lead; the visitor sees "You have already been referred by
-   [referrer]". The first referral stands while it is open, so re-submitting
-   under another member's link cannot reassign it. After expiry/cancellation
-   a fresh submission starts a new lead.
+   gym → no new lead; the visitor lands on the same confirmation screen,
+   which names who referred them (when it was another member) and shows the
+   existing referral's real expiry date and days left — the expiry is never
+   reset. The first referral stands while it is open, so re-submitting under
+   another member's link cannot reassign it. After expiry/cancellation a
+   fresh submission starts a new lead.
 3. Otherwise → new pending lead, 14 days from now.
 
 Staff-side: `createMember` still rejects a duplicate email within the gym,

@@ -17,6 +17,10 @@ type Props = {
     validityDays: number
     /** Outcome carried in the URL so a refresh keeps the confirmation. */
     initialOutcome?: 'submitted' | 'already-member' | null
+    /** ISO date (yyyy-mm-dd) the referral expires; shown on the confirmation. */
+    initialExpiresAt?: string | null
+    /** First name of an earlier referrer, when the open referral is theirs. */
+    initialReferredBy?: string | null
     action: (formData: FormData) => Promise<SubmitLeadResult>
 }
 
@@ -29,19 +33,30 @@ const labelClass = 'block text-xs font-semibold tracking-[0.01em] text-[#191c1e]
  * action so what the visitor sees is exactly what was rejected; the
  * success and "already a member" outcomes replace the form.
  */
-export default function ReferralLeadForm({ gymName, gymLogoUrl, gymPhone, gymAddress, referrerFirstName, validityDays, initialOutcome = null, action }: Props) {
+export default function ReferralLeadForm({
+    gymName, gymLogoUrl, gymPhone, gymAddress, referrerFirstName, validityDays, initialOutcome = null, initialExpiresAt = null, initialReferredBy = null, action,
+}: Props) {
     const router = useRouter()
     const [pending, startTransition] = useTransition()
     const [fieldError, setFieldError] = useState<{ field: string; message: string } | null>(null)
     const [formError, setFormError] = useState<string | null>(null)
     const [outcome, setOutcomeState] = useState<'submitted' | 'already-member' | null>(initialOutcome)
-    const [referredBy, setReferredBy] = useState<string | null>(null)
+    const [expiresAt, setExpiresAt] = useState<string | null>(initialExpiresAt)
+    const [referredBy, setReferredBy] = useState<string | null>(initialReferredBy)
 
     // The outcome is written to the URL as well as state, so a refresh (or
     // the back button) shows the confirmation instead of an empty form.
-    function setOutcome(next: 'submitted' | 'already-member') {
+    function setOutcome(next: 'submitted' | 'already-member', detail?: { expiresAt: string | null; referredBy?: string | null }) {
         setOutcomeState(next)
-        router.replace(`?done=${next === 'submitted' ? '1' : 'member'}`, { scroll: false })
+        const params = new URLSearchParams({ done: next === 'submitted' ? '1' : 'member' })
+        if (next === 'submitted') {
+            const until = detail?.expiresAt ? detail.expiresAt.slice(0, 10) : null
+            setExpiresAt(until)
+            setReferredBy(detail?.referredBy ?? null)
+            if (until) params.set('until', until)
+            if (detail?.referredBy) params.set('by', detail.referredBy)
+        }
+        router.replace(`?${params.toString()}`, { scroll: false })
     }
     // A logo that fails to load is dropped rather than shown as a broken image.
     const [logoFailed, setLogoFailed] = useState(false)
@@ -51,7 +66,6 @@ export default function ReferralLeadForm({ gymName, gymLogoUrl, gymPhone, gymAdd
         const formData = new FormData(event.currentTarget)
         setFieldError(null)
         setFormError(null)
-        setReferredBy(null)
         startTransition(async () => {
             let result: SubmitLeadResult
             try {
@@ -61,12 +75,17 @@ export default function ReferralLeadForm({ gymName, gymLogoUrl, gymPhone, gymAdd
                 return
             }
             if (result.ok) {
-                setOutcome('submitted')
+                setOutcome('submitted', { expiresAt: result.expiresAt })
                 return
             }
             if (result.kind === 'validation') setFieldError({ field: result.field, message: result.message })
             else if (result.kind === 'already-member') setOutcome('already-member')
-            else if (result.kind === 'already-referred') setReferredBy(result.referrerName)
+            else if (result.kind === 'already-referred') {
+                // An open referral already exists: same confirmation, with its
+                // own expiry and the referrer who actually holds it.
+                const first = result.referrerName.trim().split(/\s+/)[0] || null
+                setOutcome('submitted', { expiresAt: result.expiresAt, referredBy: first && first !== referrerFirstName ? first : null })
+            }
             else if (result.kind === 'link-invalid') setFormError('This referral link is no longer valid. Ask your friend to share it again.')
             else setFormError(result.message)
         })
@@ -79,9 +98,11 @@ export default function ReferralLeadForm({ gymName, gymLogoUrl, gymPhone, gymAdd
                     <Done
                         title="You're all set!"
                         lines={[
-                            `Your details have been shared with ${gymName}.`,
+                            referredBy
+                                ? `You have already been referred to ${gymName} by ${referredBy}; your details are with the gym.`
+                                : `Your details have been shared with ${gymName}.`,
                             'Visit the gym to complete your registration.',
-                            `Your referral is valid for ${validityDays} days.`,
+                            expiryLine(expiresAt, validityDays),
                         ]}
                         actions={<GymActions gymName={gymName} phone={gymPhone} address={gymAddress} />}
                     />
@@ -115,21 +136,12 @@ export default function ReferralLeadForm({ gymName, gymLogoUrl, gymPhone, gymAdd
                             </p>
                         </div>
 
-                        {formError || referredBy ? (
+                        {formError ? (
                             <div
                                 role="alert"
                                 className="mb-5 rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300"
                             >
-                                {referredBy ? (
-                                    <>
-                                        <p className="font-semibold">You have already been referred by {referredBy}.</p>
-                                        <p className="mt-0.5">
-                                            This mobile number or email already has an open referral at {gymName}. Visit the gym to complete your registration.
-                                        </p>
-                                    </>
-                                ) : (
-                                    formError
-                                )}
+                                {formError}
                             </div>
                         ) : null}
 
@@ -214,6 +226,20 @@ function Field({ id, label, error, children }: { id: string; label: string; erro
             ) : null}
         </div>
     )
+}
+
+/**
+ * "Expires on 4 Oct 2026 (in 14 days)" from the referral's real expiry, so
+ * an existing referral shows the days it actually has left rather than a
+ * fresh fourteen. Falls back to the validity period when no date is known.
+ */
+function expiryLine(expiresAt: string | null, validityDays: number): string {
+    if (!expiresAt) return `Your referral expires in ${validityDays} days.`
+    const expires = new Date(`${expiresAt.slice(0, 10)}T23:59:59`)
+    const days = Math.max(0, Math.ceil((expires.getTime() - Date.now()) / 86_400_000))
+    const date = expires.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+    const left = days === 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`
+    return `Your referral expires on ${date} (${left}).`
 }
 
 function Done({ title, lines, actions }: { title: string; lines: string[]; actions?: React.ReactNode }) {

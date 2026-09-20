@@ -183,7 +183,7 @@ export type SubmitLeadResult =
     | { ok: false; kind: 'validation'; field: keyof LeadFormInput; message: string }
     | { ok: false; kind: 'already-member' }
     /** A pending, unexpired lead already exists for this phone or email at this gym. */
-    | { ok: false; kind: 'already-referred'; referrerName: string }
+    | { ok: false; kind: 'already-referred'; referrerName: string; expiresAt: string | null }
     | { ok: false; kind: 'link-invalid' }
     | { ok: false; kind: 'error'; message: string }
 
@@ -243,7 +243,7 @@ export async function submitReferralLead(gymSlug: string, token: string, input: 
     const now = new Date()
     const existing = await findActiveLead(gym.id, form.phone, form.email)
 
-    if (existing) return { ok: false, kind: 'already-referred', referrerName: referrerNameOf(existing) }
+    if (existing) return { ok: false, kind: 'already-referred', referrerName: referrerNameOf(existing), expiresAt: existing.expires_at }
 
     const expiresAt = leadExpiryFrom(now).toISOString()
     const payload: InsertTables<'referrals'> = {
@@ -266,7 +266,7 @@ export async function submitReferralLead(gymSlug: string, token: string, input: 
         // Unique violation: someone submitted the same phone/email between
         // our check and our insert. Report it as the existing referral.
         const raced = await findActiveLead(gym.id, form.phone, form.email)
-        if (raced) return { ok: false, kind: 'already-referred', referrerName: referrerNameOf(raced) }
+        if (raced) return { ok: false, kind: 'already-referred', referrerName: referrerNameOf(raced), expiresAt: raced.expires_at }
         console.error('[referrals] Lead insert failed', { gymId: gym.id, error: insertError })
         return { ok: false, kind: 'error', message: 'Could not save your details right now. Please try again.' }
     }

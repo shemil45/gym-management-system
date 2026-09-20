@@ -1,11 +1,11 @@
 import type { Metadata } from 'next'
 import { resolveReferralLink, recordReferralLinkVisit } from '@/lib/referrals/server'
-import { REFERRAL_LEAD_VALIDITY_DAYS } from '@/lib/referrals/lead'
+import { REFERRAL_LEAD_VALIDITY_DAYS, leadExpiryFrom } from '@/lib/referrals/lead'
 import ReferralLeadForm from '@/components/referrals/ReferralLeadForm'
 import { submitLead } from './actions'
 
 type Params = Promise<{ gym: string; token: string }>
-type Search = Promise<{ done?: string }>
+type Search = Promise<{ done?: string; until?: string; by?: string }>
 
 export const dynamic = 'force-dynamic'
 
@@ -21,14 +21,19 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
  * referrer's first name, and the form posts nothing that identifies either.
  */
 export default async function JoinPage({ params, searchParams }: { params: Params; searchParams: Search }) {
-    const [{ gym, token }, { done }] = await Promise.all([params, searchParams])
+    const [{ gym, token }, { done, until, by }] = await Promise.all([params, searchParams])
     const link = await resolveReferralLink(gym, token)
 
     if (!link.ok) return <InvalidLink reason={link.reason} />
 
     // `?done=` is set by the form after a submission so a refresh stays on
-    // the confirmation. It reveals nothing: the details are already saved.
+    // the confirmation; `until` is the referral's expiry and `by` the first
+    // name of whoever referred them when it was not this link's member.
+    // None of it is sensitive: the details are already saved.
     const initialOutcome = done === '1' ? 'submitted' : done === 'member' ? 'already-member' : null
+    const untilDate = until && /^\d{4}-\d{2}-\d{2}$/.test(until) ? until : null
+    const initialExpiresAt = initialOutcome === 'submitted' ? untilDate ?? leadExpiryFrom(new Date()).toISOString().slice(0, 10) : null
+    const initialReferredBy = initialOutcome === 'submitted' && by ? by.slice(0, 40) : null
     if (!initialOutcome) await recordReferralLinkVisit(link.context.referrer.id)
     const referrerFirstName = link.context.referrer.fullName.trim().split(/\s+/)[0] || 'A member'
     const action = submitLead.bind(null, gym, token)
@@ -42,6 +47,8 @@ export default async function JoinPage({ params, searchParams }: { params: Param
             referrerFirstName={referrerFirstName}
             validityDays={REFERRAL_LEAD_VALIDITY_DAYS}
             initialOutcome={initialOutcome}
+            initialExpiresAt={initialExpiresAt}
+            initialReferredBy={initialReferredBy}
             action={action}
         />
     )

@@ -99,9 +99,10 @@ describe('referral lead workflow (live)', () => {
 
     it('17. a second submission for the same phone or email is refused, naming the referrer', async () => {
         const byPhone = await submitReferralLead(GYM_A_SLUG, token, { fullName: 'E2E Friend Again', phone: PHONE, email: `other-${STAMP}@example.test` })
-        expect(byPhone).toEqual({ ok: false, kind: 'already-referred', referrerName: 'Vishnu Raj' })
+        expect(byPhone).toMatchObject({ ok: false, kind: 'already-referred', referrerName: 'Vishnu Raj' })
+        expect(byPhone.ok === false && byPhone.kind === 'already-referred' ? byPhone.expiresAt : null).toBeTruthy()
         const byEmail = await submitReferralLead(GYM_A_SLUG, token, { fullName: 'E2E Friend Again', phone: `+919${STAMP}0009`, email: EMAIL })
-        expect(byEmail).toEqual({ ok: false, kind: 'already-referred', referrerName: 'Vishnu Raj' })
+        expect(byEmail).toMatchObject({ ok: false, kind: 'already-referred', referrerName: 'Vishnu Raj' })
         const { data: rows } = await db.from('referrals').select('id').eq('gym_id', GYM_A).eq('status', 'pending').or(`referred_phone.eq.${PHONE},referred_email.eq.${EMAIL}`)
         expect(rows).toHaveLength(1)
         expect(rows![0].id).toBe(leadId)
