@@ -119,14 +119,16 @@ export const GENDER_LABELS = {
 // Referral statuses
 export const REFERRAL_STATUSES = {
     PENDING: 'pending',
-    APPLIED: 'applied',
+    CONVERTED: 'converted',
     EXPIRED: 'expired',
+    CANCELLED: 'cancelled',
 } as const
 
 export const REFERRAL_STATUS_LABELS = {
     pending: 'Pending',
-    applied: 'Applied',
+    converted: 'Converted',
     expired: 'Expired',
+    cancelled: 'Cancelled',
 }
 
 // Reward types

@@ -14,7 +14,9 @@ type CheckInMethod = 'manual' | 'qr' | 'kiosk' | 'fingerprint'
 type PaymentMethod = 'cash' | 'card' | 'upi' | 'bank_transfer' | 'online'
 type PaymentStatus = 'paid' | 'pending' | 'failed' | 'refunded'
 type ExpenseCategory = 'utilities' | 'salary' | 'equipment' | 'maintenance' | 'marketing' | 'rent' | 'other'
-type ReferralStatus = 'pending' | 'applied' | 'expired'
+type ReferralStatus = 'pending' | 'converted' | 'expired' | 'cancelled'
+type ReferralSource = 'link' | 'staff'
+type GymNotificationType = 'referral_lead'
 type NotificationType =
     | 'payment_reminder'
     | 'membership_expiring'
@@ -320,6 +322,9 @@ export interface Database {
                     status: MemberStatus
                     referral_coins_balance: number
                     referred_by: string | null
+                    referral_token: string | null
+                    referral_token_created_at: string | null
+                    referral_link_visits: number
                     notes: string | null
                     created_at: string
                     updated_at: string
@@ -344,6 +349,9 @@ export interface Database {
                     status?: MemberStatus
                     referral_coins_balance?: number
                     referred_by?: string | null
+                    referral_token?: string | null
+                    referral_token_created_at?: string | null
+                    referral_link_visits?: number
                     notes?: string | null
                     created_at?: string
                     updated_at?: string
@@ -368,6 +376,9 @@ export interface Database {
                     status?: MemberStatus
                     referral_coins_balance?: number
                     referred_by?: string | null
+                    referral_token?: string | null
+                    referral_token_created_at?: string | null
+                    referral_link_visits?: number
                     notes?: string | null
                     created_at?: string
                     updated_at?: string
@@ -519,9 +530,17 @@ export interface Database {
                     id: string
                     gym_id: string
                     referrer_id: string
-                    referred_id: string
+                    referred_id: string | null
                     referral_code: string | null
                     status: ReferralStatus
+                    source: ReferralSource
+                    referred_name: string | null
+                    referred_phone: string | null
+                    referred_email: string | null
+                    submitted_at: string | null
+                    expires_at: string | null
+                    cancelled_at: string | null
+                    cancelled_by: string | null
                     created_at: string
                     applied_at: string | null
                 }
@@ -529,9 +548,17 @@ export interface Database {
                     id?: string
                     gym_id?: string
                     referrer_id: string
-                    referred_id: string
+                    referred_id?: string | null
                     referral_code?: string | null
                     status?: ReferralStatus
+                    source?: ReferralSource
+                    referred_name?: string | null
+                    referred_phone?: string | null
+                    referred_email?: string | null
+                    submitted_at?: string | null
+                    expires_at?: string | null
+                    cancelled_at?: string | null
+                    cancelled_by?: string | null
                     created_at?: string
                     applied_at?: string | null
                 }
@@ -539,11 +566,54 @@ export interface Database {
                     id?: string
                     gym_id?: string
                     referrer_id?: string
-                    referred_id?: string
+                    referred_id?: string | null
                     referral_code?: string | null
                     status?: ReferralStatus
+                    source?: ReferralSource
+                    referred_name?: string | null
+                    referred_phone?: string | null
+                    referred_email?: string | null
+                    submitted_at?: string | null
+                    expires_at?: string | null
+                    cancelled_at?: string | null
+                    cancelled_by?: string | null
                     created_at?: string
                     applied_at?: string | null
+                }
+            }
+            gym_notifications: {
+                Row: {
+                    id: string
+                    gym_id: string
+                    type: GymNotificationType
+                    title: string
+                    body: string
+                    href: string | null
+                    referral_id: string | null
+                    read_at: string | null
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    gym_id: string
+                    type: GymNotificationType
+                    title: string
+                    body: string
+                    href?: string | null
+                    referral_id?: string | null
+                    read_at?: string | null
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    gym_id?: string
+                    type?: GymNotificationType
+                    title?: string
+                    body?: string
+                    href?: string | null
+                    referral_id?: string | null
+                    read_at?: string | null
+                    created_at?: string
                 }
             }
             notification_logs: {
@@ -1138,6 +1208,10 @@ export interface Database {
             [_ in never]: never
         }
         Functions: {
+            expire_referral_leads: {
+                Args: never
+                Returns: number
+            }
             current_gym_id: {
                 Args: never
                 Returns: string

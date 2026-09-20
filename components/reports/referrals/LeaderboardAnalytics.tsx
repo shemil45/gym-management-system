@@ -19,7 +19,7 @@ export default function LeaderboardAnalytics({ report }: { report: LeaderboardRe
                 items={[
                     { label: 'Referrers', value: String(totals.referrers), description: 'Members with a referral this period' },
                     { label: 'Referrals', value: String(totals.referrals) },
-                    { label: 'Converted', value: String(totals.converted), description: 'Of those referrals, applied so far' },
+                    { label: 'Converted', value: String(totals.converted), description: 'Of those referrals, registered so far' },
                     { label: 'Conversion rate', value: totals.conversion === null ? '—' : `${totals.conversion.toFixed(1)}%`, description: 'Converted ÷ referrals' },
                 ]}
             />

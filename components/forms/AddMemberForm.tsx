@@ -16,7 +16,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
-import { Loader2, Upload, ImageIcon, Camera } from 'lucide-react'
+import { Loader2, Upload, ImageIcon, Camera, Gift, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { createMember } from '@/app/admin/members/actions'
 import ReferrerPicker from '@/components/forms/ReferrerPicker'
@@ -32,9 +32,24 @@ interface AddMemberFormProps {
     }
     /** Gym's `referrals` feature. Off hides the referred-by field. */
     referralsEnabled: boolean
+    /**
+     * A referral lead being completed. `pending` prefills and converts on
+     * save; any other status shows why it cannot be, and the form behaves as
+     * a plain registration.
+     */
+    lead?: {
+        id: string
+        status: 'pending' | 'converted' | 'expired' | 'cancelled' | 'missing'
+        fullName: string
+        phone: string
+        email: string
+        referrerName: string
+        expiresAt: string | null
+    } | null
 }
 
-export default function AddMemberForm({ plans, gymSettings, referralsEnabled }: AddMemberFormProps) {
+export default function AddMemberForm({ plans, gymSettings, referralsEnabled, lead = null }: AddMemberFormProps) {
+    const activeLead = lead && lead.status === 'pending' ? lead : null
     const router = useRouter()
     const { isDark } = useAdminTheme()
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -43,7 +58,7 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled }: 
     const [loading, setLoading] = useState(false)
     const [selectedPlan, setSelectedPlan] = useState('')
     const [paymentMethod, setPaymentMethod] = useState('')
-    const [phone, setPhone] = useState('+91')
+    const [phone, setPhone] = useState(activeLead?.phone || '+91')
     const [gender, setGender] = useState<'male' | 'female' | 'other'>('male')
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
     const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
@@ -162,9 +177,41 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled }: 
     return (
         <div className="space-y-6">
             {/* Page Header */}
-            <h1 className="text-3xl font-bold text-gray-900">Add New Member</h1>
+            <h1 className="text-3xl font-bold text-gray-900">{activeLead ? 'Complete Registration' : 'Add New Member'}</h1>
+
+            {activeLead ? (
+                <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+                    <Gift className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                    <div>
+                        <p className="font-semibold">Referral lead · referred by {activeLead.referrerName}</p>
+                        <p className="mt-0.5 text-xs opacity-80">
+                            Name, phone and email are filled in from their submission. Saving this member converts the referral
+                            {activeLead.expiresAt ? ` (valid until ${new Date(activeLead.expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })})` : ''}.
+                        </p>
+                    </div>
+                </div>
+            ) : lead ? (
+                <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                    <div>
+                        <p className="font-semibold">
+                            {lead.status === 'expired'
+                                ? 'This referral has expired'
+                                : lead.status === 'converted'
+                                    ? 'This referral was already completed'
+                                    : lead.status === 'cancelled'
+                                        ? 'This referral was cancelled'
+                                        : 'Referral not found'}
+                        </p>
+                        <p className="mt-0.5 text-xs opacity-80">
+                            It cannot be converted. You can still register the member below as a normal registration.
+                        </p>
+                    </div>
+                </div>
+            ) : null}
 
             <form onSubmit={handleSubmit}>
+                {activeLead ? <input type="hidden" name="referral_lead_id" value={activeLead.id} /> : null}
                 {/* Single white card */}
                 <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-6 space-y-6">
 
@@ -244,6 +291,7 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled }: 
                                 id="full_name"
                                 name="full_name"
                                 placeholder="Enter full name"
+                                defaultValue={activeLead?.fullName ?? ''}
                                 required
                                 disabled={loading}
                                 className="h-10 border-gray-300 text-sm"
@@ -260,6 +308,7 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled }: 
                                 name="email"
                                 type="email"
                                 placeholder="email@example.com"
+                                defaultValue={activeLead?.email ?? ''}
                                 required
                                 disabled={loading}
                                 className="h-10 border-gray-300 text-sm"
@@ -334,7 +383,7 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled }: 
                         </div>
 
                         {/* Referrer: search-and-confirm, never free text */}
-                        {referralsEnabled ? <ReferrerPicker disabled={loading} /> : null}
+                        {referralsEnabled && !activeLead ? <ReferrerPicker disabled={loading} /> : null}
                     </div>
 
                     {/* ── Emergency Contact ── */}

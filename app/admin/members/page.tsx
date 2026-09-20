@@ -3,6 +3,8 @@ import MembersTable from '@/components/tables/MembersTable'
 import { getRenewalBoundaries } from '@/lib/utils/renewals'
 import { getActiveImpersonation, getImpersonationOwnedIds } from '@/lib/platform/impersonation-ledger'
 import { getCurrentGymContext } from '@/lib/auth/gym-context'
+import { gymHasFeature } from '@/lib/gym/features'
+import { countPendingReferralLeads } from '@/lib/referrals/server'
 
 const ITEMS_PER_PAGE = 20
 
@@ -120,6 +122,7 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
     const { gym } = await getCurrentGymContext()
     const impersonation = await getActiveImpersonation(gym?.id)
     const demoIds = gym ? Array.from(await getImpersonationOwnedIds(gym.id, 'member')) : []
+    const pendingReferralLeads = gym && (await gymHasFeature(gym.id, 'referrals')) ? await countPendingReferralLeads(gym.id) : null
 
     return (
         <MembersTable
@@ -130,6 +133,7 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
             totalCount={totalMembers || 0}
             demoIds={demoIds}
             readOnlyMode={impersonation ? 'operator' : 'tenant'}
+            pendingReferralLeads={pendingReferralLeads}
             initialFilters={{
                 q: params.q,
                 status: params.status,

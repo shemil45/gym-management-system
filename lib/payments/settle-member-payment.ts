@@ -145,23 +145,28 @@ function settledNotes(notes: string | null): string | null {
 /**
  * Pays the referrer bonus for a referred member's first settled payment.
  *
+ * Covers staff-recorded referrals (a member enrolled with a referrer named
+ * at the desk). Link-sourced leads are converted and credited by
+ * `convertReferralLead` at registration instead, and are never still
+ * pending once a member is attached.
+ *
  * Skipped entirely when the gym's `referrals` feature is off: the pending
- * referral row is left as it is rather than marked applied, so turning the
- * program back on later still honours it.
+ * referral row is left as it is rather than marked converted, so turning
+ * the program back on later still honours it.
  */
 export async function creditReferrers(gymId: string, referredId: string) {
     if (!(await gymHasFeature(gymId, 'referrals'))) return
 
     const db = getSupabaseAdmin()
-    const { data: applied } = await db
+    const { data: converted } = await db
         .from('referrals')
-        .update({ status: 'applied', applied_at: new Date().toISOString() })
+        .update({ status: 'converted', applied_at: new Date().toISOString() })
         .select('referrer_id')
         .eq('gym_id', gymId)
         .eq('referred_id', referredId)
         .eq('status', 'pending')
 
-    for (const referral of applied ?? []) {
+    for (const referral of converted ?? []) {
         const { data: referrer } = await db
             .from('members')
             .select('id, referral_coins_balance')

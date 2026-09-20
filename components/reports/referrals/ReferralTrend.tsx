@@ -9,7 +9,7 @@ import type { ValueFormat } from '@/lib/reports/chart-format'
 type Metric = 'created' | 'converted' | 'conversion'
 
 const METRICS: { id: Metric; label: string; format: ValueFormat }[] = [
-    { id: 'created', label: 'Referrals', format: 'number' },
+    { id: 'created', label: 'Started', format: 'number' },
     { id: 'converted', label: 'Conversions', format: 'number' },
     { id: 'conversion', label: 'Conversion rate', format: 'percent' },
 ]

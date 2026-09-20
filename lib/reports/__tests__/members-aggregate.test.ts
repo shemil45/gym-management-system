@@ -26,6 +26,8 @@ function member(o: Partial<ReportMemberRow> = {}): ReportMemberRow {
         referred_by: null,
         referrer_name: null,
         referral_coins_balance: 0,
+        referral_token_created_at: null,
+        referral_link_visits: 0,
         created_at: '2026-09-01T00:00:00Z',
         is_demo: false,
         ...o,

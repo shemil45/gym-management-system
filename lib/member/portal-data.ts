@@ -31,6 +31,7 @@ export interface MemberIdentity {
 }
 
 export interface GymIdentity {
+    id: string
     name: string
     city: string | null
     phone: string | null
@@ -487,6 +488,7 @@ export const getMemberPortalData = cache(async (): Promise<MemberPortalData | nu
             joinedAt: memberRow.created_at ?? null,
         },
         gym: {
+            id: context.gym.id,
             name: context.gym.name,
             city: null,
             phone: null,

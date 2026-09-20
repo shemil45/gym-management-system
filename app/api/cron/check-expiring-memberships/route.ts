@@ -8,6 +8,7 @@ import {
 } from '@/lib/notifications/service'
 import type { NotificationType } from '@/lib/notifications/templates'
 import { recordBackgroundJobRun, recordSystemEvent } from '@/lib/platform/auth'
+import { expireReferralLeads } from '@/lib/referrals/server'
 
 export const runtime = 'nodejs'
 const BUSINESS_TIME_ZONE = 'Asia/Kolkata'
@@ -130,6 +131,17 @@ export async function GET(request: Request) {
 
         const totalMembers = byGym.reduce((count, group) => count + group.totalMembers, 0)
 
+        // Referral leads past their 14 days are marked expired here, once a
+        // day. Reads already treat them as expired from `expires_at`; this
+        // keeps the stored status in step for reporting.
+        let expiredReferralLeads = 0
+        try {
+            expiredReferralLeads = await expireReferralLeads()
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Referral lead sweep failed.'
+            await recordSystemEvent('cron.check-expiring-memberships', 'warning', message)
+        }
+
         await recordBackgroundJobRun({
             jobName: 'cron.check-expiring-memberships',
             status: 'completed',
@@ -140,6 +152,7 @@ export async function GET(request: Request) {
                 sent: summary.sent,
                 skipped: summary.skipped,
                 failed: summary.failed,
+                expiredReferralLeads,
             },
         })
 
@@ -152,6 +165,7 @@ export async function GET(request: Request) {
             sent: summary.sent,
             skipped: summary.skipped,
             failed: summary.failed,
+            expiredReferralLeads,
             byGym,
             results,
         })
