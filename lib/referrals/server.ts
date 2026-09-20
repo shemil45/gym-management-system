@@ -205,10 +205,11 @@ type ExistingLead = {
  *  1. Same phone or email already belongs to a member of this gym: no lead;
  *     the visitor is told they are already a member of the gym.
  *  2. A *pending, unexpired* lead exists for the same phone or email in this
- *     gym: no lead; the visitor is told who already referred them. The first
- *     referral stands while it is open, so a lead cannot be hijacked by
- *     re-submitting under another link. Once it expires or is cancelled, a
- *     fresh submission starts over.
+ *     gym: no new lead; its expiry restarts at 14 days from now and the
+ *     visitor is told who already referred them. The first referrer stands
+ *     while it is open, so a lead cannot be hijacked by re-submitting under
+ *     another link. Once it expires or is cancelled, a fresh submission
+ *     starts over.
  *  3. Otherwise a new pending lead with a 14-day expiry from now.
  *
  * The partial unique indexes on (gym, phone) and (gym, email) for pending
@@ -243,7 +244,7 @@ export async function submitReferralLead(gymSlug: string, token: string, input: 
     const now = new Date()
     const existing = await findActiveLead(gym.id, form.phone, form.email)
 
-    if (existing) return { ok: false, kind: 'already-referred', referrerName: referrerNameOf(existing), expiresAt: existing.expires_at }
+    if (existing) return renewExistingLead(existing, gym.id, form.fullName, now)
 
     const expiresAt = leadExpiryFrom(now).toISOString()
     const payload: InsertTables<'referrals'> = {
@@ -266,7 +267,7 @@ export async function submitReferralLead(gymSlug: string, token: string, input: 
         // Unique violation: someone submitted the same phone/email between
         // our check and our insert. Report it as the existing referral.
         const raced = await findActiveLead(gym.id, form.phone, form.email)
-        if (raced) return { ok: false, kind: 'already-referred', referrerName: referrerNameOf(raced), expiresAt: raced.expires_at }
+        if (raced) return renewExistingLead(raced, gym.id, form.fullName, now)
         console.error('[referrals] Lead insert failed', { gymId: gym.id, error: insertError })
         return { ok: false, kind: 'error', message: 'Could not save your details right now. Please try again.' }
     }
@@ -290,6 +291,25 @@ async function findActiveLead(gymId: string, phone: string, email: string): Prom
     const rows = [...((byPhone.data ?? []) as unknown as ExistingLead[]), ...((byEmail.data ?? []) as unknown as ExistingLead[])]
         .filter((row) => effectiveReferralStatus(row) === 'pending')
     return rows[0] ?? null
+}
+
+/**
+ * A re-submission while the referral is still open restarts its 14 days
+ * from now and refreshes the name; the referrer and the original submission
+ * time are kept. The row is only touched while it is still pending.
+ */
+async function renewExistingLead(lead: ExistingLead, gymId: string, fullName: string, now: Date): Promise<SubmitLeadResult> {
+    const expiresAt = leadExpiryFrom(now).toISOString()
+    const { data, error } = await getSupabaseAdmin()
+        .from('referrals')
+        .update({ expires_at: expiresAt, referred_name: fullName })
+        .eq('id', lead.id)
+        .eq('gym_id', gymId)
+        .eq('status', 'pending')
+        .is('referred_id', null)
+        .select('id')
+    const renewed = !error && (data ?? []).length === 1
+    return { ok: false, kind: 'already-referred', referrerName: referrerNameOf(lead), expiresAt: renewed ? expiresAt : lead.expires_at }
 }
 
 function referrerNameOf(lead: ExistingLead): string {

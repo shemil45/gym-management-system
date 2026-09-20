@@ -98,9 +98,18 @@ describe('referral lead workflow (live)', () => {
     })
 
     it('17. a second submission for the same phone or email is refused, naming the referrer', async () => {
+        // Age the open lead so the renewal is observable.
+        await db.from('referrals').update({ expires_at: new Date(Date.now() + 3 * 86_400_000).toISOString() }).eq('id', leadId)
         const byPhone = await submitReferralLead(GYM_A_SLUG, token, { fullName: 'E2E Friend Again', phone: PHONE, email: `other-${STAMP}@example.test` })
         expect(byPhone).toMatchObject({ ok: false, kind: 'already-referred', referrerName: 'Vishnu Raj' })
-        expect(byPhone.ok === false && byPhone.kind === 'already-referred' ? byPhone.expiresAt : null).toBeTruthy()
+        const renewed = byPhone.ok === false && byPhone.kind === 'already-referred' ? byPhone.expiresAt : null
+        expect(renewed).toBeTruthy()
+        // Expiry restarted: 14 days from now, not the 3 that were left.
+        expect((new Date(renewed!).getTime() - Date.now()) / 86_400_000).toBeCloseTo(14, 1)
+        const { data: row } = await db.from('referrals').select('expires_at, referred_name, referrer_id').eq('id', leadId).single()
+        expect(row!.expires_at).toBe(renewed!.replace('Z', '+00:00'))
+        expect(row!.referred_name).toBe('E2E Friend Again')
+        expect(row!.referrer_id).toBe(REFERRER)
         const byEmail = await submitReferralLead(GYM_A_SLUG, token, { fullName: 'E2E Friend Again', phone: `+919${STAMP}0009`, email: EMAIL })
         expect(byEmail).toMatchObject({ ok: false, kind: 'already-referred', referrerName: 'Vishnu Raj' })
         const { data: rows } = await db.from('referrals').select('id').eq('gym_id', GYM_A).eq('status', 'pending').or(`referred_phone.eq.${PHONE},referred_email.eq.${EMAIL}`)
