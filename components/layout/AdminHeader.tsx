@@ -88,19 +88,6 @@ export default function AdminHeader({ user, onMenuClick }: AdminHeaderProps) {
                         }`}
                     />
 
-                    <Button
-                        type="button"
-                        onClick={() => void handleLogout()}
-                        className={`h-10 w-10 rounded-full p-0 ${
-                            isDark
-                                ? 'border border-[#2a2a2a] bg-[#1c1c1c] text-white'
-                                : 'border border-[#e7e9ee] bg-white text-[#45464d]'
-                        }`}
-                        aria-label="Log out"
-                    >
-                        <LogOut className="h-5 w-5" />
-                    </Button>
-
                 </div>
             </div>
 
