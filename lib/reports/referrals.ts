@@ -7,10 +7,13 @@ import { fetchMembers } from '@/lib/reports/members'
 import { fetchPaymentRows } from '@/lib/reports/payments'
 import type { ReferralsReportQuery } from '@/lib/reports/referrals-params'
 import {
-    leaderboard, outstandingBalance, overviewBuckets, overviewKpis, overviewTotals, referralList,
-    type LeaderRow, type ListRow, type ListStatus, type OverviewBucket, type OverviewKpis, type ReferralStatus,
+    conversionTiming, funnel, joinMix, joinMixBuckets, leaderboard, leaderboardTotals, outstandingBalance, overviewBuckets, overviewKpis,
+    overviewTotals, referralList, referredRevenue, referrerActivity,
+    type ConversionTiming, type Funnel, type JoinMix, type JoinMixBucket, type LeaderRow, type LeaderboardTotals, type ListRow,
+    type ListStatus, type OverviewBucket, type OverviewKpis, type ReferralStatus, type ReferredRevenue, type ReferrerSlice,
     type ReportReferralRow,
 } from '@/lib/reports/referrals-aggregate'
+import type { Comparison } from '@/lib/reports/comparison'
 
 const SELECT = [
     'id', 'referrer_id', 'referred_id', 'referral_code', 'status', 'created_at', 'applied_at',
@@ -92,31 +95,69 @@ export async function fetchReferrals(gymId: string, range: DateRange): Promise<R
     return [...byId.values()].map(toRow)
 }
 
+/**
+ * Everything the Overview shows, from the fetches it already made: the
+ * period's referrals and payments, the comparison period's (only when
+ * comparison is on), and the roster. `buckets`, `totals`, `kpis`, `previous`
+ * and `outstanding` are the original fields the table and CSV read; the rest
+ * is derived from the same rows. `bonus` is REFERRER_BONUS_COINS, carried so
+ * the UI can say how coins issued was derived.
+ */
 export type OverviewReport = {
     buckets: OverviewBucket[]
     totals: ReturnType<typeof overviewTotals>
     kpis: OverviewKpis
-    previous: OverviewKpis
+    previous: OverviewKpis | null
+    /** Actual: the sum of every member's current coin balance. */
     outstanding: number
+    compare: Comparison
+    comparisonBuckets: OverviewBucket[] | null
+    bonus: number
+    funnel: Funnel
+    timing: ConversionTiming
+    /** The period's referrers, same rows the Leaderboard tab shows. */
+    referrers: LeaderRow[]
+    activity: ReferrerSlice[]
+    referred: ReferredRevenue
+    previousReferred: ReferredRevenue | null
+    joinMix: JoinMix
+    previousJoinMix: JoinMix | null
+    joinMixBuckets: JoinMixBucket[]
 }
-export type LeaderboardReport = { rows: LeaderRow[] }
+export type LeaderboardReport = { rows: LeaderRow[]; totals: LeaderboardTotals; activity: ReferrerSlice[] }
 export type ListReport = { rows: ListRow[]; status: ListStatus }
 
 export async function getOverview(gymId: string, query: ReferralsReportQuery): Promise<OverviewReport> {
     const [currentReferrals, previousReferrals, currentPayments, previousPayments, members] = await Promise.all([
         fetchReferrals(gymId, query.range),
-        fetchReferrals(gymId, query.previous),
+        query.previous ? fetchReferrals(gymId, query.previous) : Promise.resolve(null),
         fetchPaymentRows(gymId, query.range),
-        fetchPaymentRows(gymId, query.previous),
+        query.previous ? fetchPaymentRows(gymId, query.previous) : Promise.resolve(null),
         fetchMembers(gymId),
     ])
     const buckets = overviewBuckets(currentReferrals, currentPayments, query.range, query.bucket, REFERRER_BONUS_COINS)
+    const totals = overviewTotals(buckets)
+    const prev = query.previous
+    const compared = previousReferrals !== null && previousPayments !== null && prev !== null
+    const referrers = leaderboard(currentReferrals, members, query.range, REFERRER_BONUS_COINS)
     return {
         buckets,
-        totals: overviewTotals(buckets),
+        totals,
         kpis: overviewKpis(currentReferrals, currentPayments, query.range, REFERRER_BONUS_COINS),
-        previous: overviewKpis(previousReferrals, previousPayments, query.previous, REFERRER_BONUS_COINS),
+        previous: compared ? overviewKpis(previousReferrals, previousPayments, prev, REFERRER_BONUS_COINS) : null,
         outstanding: outstandingBalance(members),
+        compare: query.compare,
+        comparisonBuckets: compared ? overviewBuckets(previousReferrals, previousPayments, prev, query.bucket, REFERRER_BONUS_COINS) : null,
+        bonus: REFERRER_BONUS_COINS,
+        funnel: funnel(totals, REFERRER_BONUS_COINS),
+        timing: conversionTiming(currentReferrals, query.range),
+        referrers,
+        activity: referrerActivity(referrers),
+        referred: referredRevenue(currentPayments, members),
+        previousReferred: compared ? referredRevenue(previousPayments, members) : null,
+        joinMix: joinMix(members, query.range),
+        previousJoinMix: compared ? joinMix(members, prev) : null,
+        joinMixBuckets: joinMixBuckets(members, query.range, query.bucket),
     }
 }
 
@@ -125,7 +166,8 @@ export async function getLeaderboard(gymId: string, query: ReferralsReportQuery)
         fetchReferrals(gymId, query.range),
         fetchMembers(gymId),
     ])
-    return { rows: leaderboard(referrals, members, query.range, REFERRER_BONUS_COINS) }
+    const rows = leaderboard(referrals, members, query.range, REFERRER_BONUS_COINS)
+    return { rows, totals: leaderboardTotals(rows), activity: referrerActivity(rows) }
 }
 
 export async function getReferralList(gymId: string, query: ReferralsReportQuery): Promise<ListReport> {

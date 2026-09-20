@@ -4,7 +4,7 @@ import type { OverviewReport, LeaderboardReport, ListReport } from '@/lib/report
 
 const round2 = (n: number | null) => (n === null ? null : Math.round(n * 100) / 100)
 
-export function overviewCsv(report: OverviewReport): string {
+export function overviewCsv(report: Pick<OverviewReport, 'buckets'>): string {
     return toCsv(
         ['Bucket start', 'Period', 'Created', 'Converted', 'Pending', 'Expired', 'Conversion %', 'Coins issued', 'Coins redeemed', 'Value'],
         report.buckets.map((b) => [
@@ -14,7 +14,7 @@ export function overviewCsv(report: OverviewReport): string {
     )
 }
 
-export function leaderboardCsv(report: LeaderboardReport): string {
+export function leaderboardCsv(report: Pick<LeaderboardReport, 'rows'>): string {
     return toCsv(
         ['Rank', 'Referrer', 'Referrer ID', 'Phone', 'Referrals', 'Converted', 'Conversion %', 'Coins earned', 'Balance'],
         report.rows.map((r, i) => [
@@ -24,7 +24,7 @@ export function leaderboardCsv(report: LeaderboardReport): string {
     )
 }
 
-export function listCsv(report: ListReport): string {
+export function listCsv(report: Pick<ListReport, 'rows'>): string {
     return toCsv(
         ['Date', 'Referrer', 'Referrer ID', 'Referred', 'Referred ID', 'Code', 'Status', 'Applied on', 'Days to convert'],
         report.rows.map((r) => [

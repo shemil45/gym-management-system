@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import { overviewCsv, leaderboardCsv, listCsv } from '@/lib/reports/referrals-csv'
-import type { OverviewReport, LeaderboardReport, ListReport } from '@/lib/reports/referrals'
 import type { ReportMemberRow } from '@/lib/reports/members-aggregate'
 
 function member(o: Partial<ReportMemberRow> = {}): ReportMemberRow {
@@ -27,14 +26,10 @@ function member(o: Partial<ReportMemberRow> = {}): ReportMemberRow {
 
 describe('overviewCsv', () => {
     it('emits headers and one row per bucket', () => {
-        const report: OverviewReport = {
+        const report: Parameters<typeof overviewCsv>[0] = {
             buckets: [
                 { start: '2026-01-01', label: 'Jan 2026', created: 4, converted: 2, pending: 1, expired: 1, conversion: 50, coinsIssued: 1000, coinsRedeemed: 300 },
             ],
-            totals: { created: 4, converted: 2, pending: 1, expired: 1, conversion: 50, coinsIssued: 1000, coinsRedeemed: 300 },
-            kpis: { referrals: 4, conversions: 2, coinsIssued: 1000, coinsRedeemed: 300 },
-            previous: { referrals: 0, conversions: 0, coinsIssued: 0, coinsRedeemed: 0 },
-            outstanding: 500,
         }
         const csv = overviewCsv(report)
         const lines = csv.replace('﻿', '').split('\r\n')
@@ -43,15 +38,11 @@ describe('overviewCsv', () => {
     })
 
     it('rounds conversion % to 2 dp and handles null', () => {
-        const report: OverviewReport = {
+        const report: Parameters<typeof overviewCsv>[0] = {
             buckets: [
                 { start: '2026-01-01', label: 'Jan 2026', created: 3, converted: 1, pending: 1, expired: 1, conversion: 33.33333, coinsIssued: 500, coinsRedeemed: 0 },
                 { start: '2026-02-01', label: 'Feb 2026', created: 0, converted: 0, pending: 0, expired: 0, conversion: null, coinsIssued: 0, coinsRedeemed: 0 },
             ],
-            totals: { created: 3, converted: 1, pending: 1, expired: 1, conversion: 33.33333, coinsIssued: 500, coinsRedeemed: 0 },
-            kpis: { referrals: 3, conversions: 1, coinsIssued: 500, coinsRedeemed: 0 },
-            previous: { referrals: 0, conversions: 0, coinsIssued: 0, coinsRedeemed: 0 },
-            outstanding: 0,
         }
         const csv = overviewCsv(report)
         const lines = csv.replace('﻿', '').split('\r\n')
@@ -62,7 +53,7 @@ describe('overviewCsv', () => {
 
 describe('leaderboardCsv', () => {
     it('emits rank + row fields', () => {
-        const report: LeaderboardReport = {
+        const report: Parameters<typeof leaderboardCsv>[0] = {
             rows: [
                 { member: member({ full_name: 'Alice', member_code: 'GYM001', phone: '9000000001', referral_coins_balance: 1500 }), referrals: 4, converted: 3, conversion: 75, coinsEarned: 1500, balance: 1500 },
                 { member: member({ full_name: 'Bob', member_code: 'GYM002', phone: '9000000002', referral_coins_balance: 0 }), referrals: 2, converted: 0, conversion: null, coinsEarned: 0, balance: 0 },
@@ -78,7 +69,7 @@ describe('leaderboardCsv', () => {
 
 describe('listCsv', () => {
     it('emits referral rows with days to convert', () => {
-        const report: ListReport = {
+        const report: Parameters<typeof listCsv>[0] = {
             rows: [
                 {
                     id: 'r1', referrer_id: 'm1', referred_id: 'm2', code: 'CODE1', status: 'applied',
@@ -95,7 +86,6 @@ describe('listCsv', () => {
                     daysToConvert: null,
                 },
             ],
-            status: 'all',
         }
         const csv = listCsv(report)
         const lines = csv.replace('﻿', '').split('\r\n')

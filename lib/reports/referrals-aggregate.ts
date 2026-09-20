@@ -174,3 +174,186 @@ export function referralList(referrals: ReportReferralRow[], range: DateRange, s
         }))
         .sort((a, b) => b.created_at.localeCompare(a.created_at))
 }
+
+// ═══ Analytics layer ═════════════════════════════════════════════════════════
+//
+// Computed from what the Overview already fetches: the period's referrals and
+// payments, and the full roster. Nothing here fetches, and nothing pretends
+// the data has a reward ledger — coins issued stay a derived quantity
+// (conversions × REFERRER_BONUS_COINS), coins redeemed are the actual
+// `referral_coins_used` on paid payments, and the outstanding balance is the
+// actual sum of member balances.
+
+// ─── Funnel ──────────────────────────────────────────────────────────────────
+
+export type Funnel = {
+    created: number
+    converted: number
+    /** Derived: converted × bonus. There is no per-reward transaction to count. */
+    coinsIssued: number
+    bonus: number
+}
+
+/** Created → Converted, from the same totals the Overview table shows. */
+export function funnel(totals: Pick<OverviewBucket, 'created' | 'converted'>, bonus: number): Funnel {
+    return { created: totals.created, converted: totals.converted, coinsIssued: totals.converted * bonus, bonus }
+}
+
+/** Coins issued in the period less coins redeemed in it — a net movement,
+ *  not the balance members hold (that is `outstandingBalance`). */
+export function netCoins(coinsIssued: number, coinsRedeemed: number): number {
+    return coinsIssued - coinsRedeemed
+}
+
+// ─── Conversion timing ───────────────────────────────────────────────────────
+
+export type TimingBucketId = 'same-day' | '1-3' | '4-7' | '8-30' | '30+'
+
+export const TIMING_BUCKETS: { id: TimingBucketId; label: string; min: number; max: number }[] = [
+    { id: 'same-day', label: 'Same day', min: 0, max: 0 },
+    { id: '1-3', label: '1–3 days', min: 1, max: 3 },
+    { id: '4-7', label: '4–7 days', min: 4, max: 7 },
+    { id: '8-30', label: '8–30 days', min: 8, max: 30 },
+    { id: '30+', label: 'Over 30 days', min: 31, max: Number.POSITIVE_INFINITY },
+]
+
+export type TimingBucket = { id: TimingBucketId; label: string; referrals: number; share: number }
+
+export type ConversionTiming = {
+    /** Referrals converted in the period with a usable pair of timestamps. */
+    converted: number
+    avgDays: number | null
+    medianDays: number | null
+    buckets: TimingBucket[]
+}
+
+/** Days between creation and application, exactly as the referral list computes it. */
+export function daysToConvert(referral: Pick<ReportReferralRow, 'created_at' | 'applied_at'>): number | null {
+    if (!referral.applied_at) return null
+    const days = daysBetweenInclusive({ from: istDate(referral.created_at), to: istDate(referral.applied_at) }) - 1
+    return days < 0 ? null : days
+}
+
+/**
+ * How long referrals converted in the period took, using the same
+ * days-to-convert the list column shows. Referrals without an `applied_at`,
+ * or applied before they were created, are left out rather than guessed.
+ */
+export function conversionTiming(referrals: ReportReferralRow[], range: DateRange): ConversionTiming {
+    const days = referrals
+        .filter((r) => r.applied_at !== null && inRange(istDate(r.applied_at), range))
+        .map(daysToConvert)
+        .filter((d): d is number => d !== null)
+        .sort((a, b) => a - b)
+    const converted = days.length
+    const buckets = TIMING_BUCKETS.map((b) => {
+        const count = days.filter((d) => d >= b.min && d <= b.max).length
+        return { id: b.id, label: b.label, referrals: count, share: converted ? (count / converted) * 100 : 0 }
+    })
+    if (converted === 0) return { converted, avgDays: null, medianDays: null, buckets }
+    const mid = Math.floor(converted / 2)
+    return {
+        converted,
+        avgDays: days.reduce((s, d) => s + d, 0) / converted,
+        medianDays: converted % 2 ? days[mid] : (days[mid - 1] + days[mid]) / 2,
+        buckets,
+    }
+}
+
+// ─── Referred-member revenue ─────────────────────────────────────────────────
+
+export type ReferredRevenue = {
+    /** Paid amount in the period from members who have a referrer on record. */
+    revenue: number
+    txns: number
+    /** Distinct referred members with a paid payment in the period. */
+    payingMembers: number
+    avgPerPayingMember: number
+    /** Every paid payment in the period, referred or not. */
+    collected: number
+    /** revenue ÷ collected, 0–100. */
+    shareOfCollected: number
+}
+
+/**
+ * Collections in the period from members whose record carries `referred_by`.
+ * This is revenue associated with referred members — what they paid while in
+ * the period — not revenue the referral caused; a referred member's third
+ * renewal counts the same as their first payment.
+ */
+export function referredRevenue(payments: ReportPaymentRow[], members: ReportMemberRow[]): ReferredRevenue {
+    const referred = new Set(members.filter((m) => m.referred_by !== null).map((m) => m.id))
+    const paid = payments.filter((p) => p.payment_status === 'paid')
+    const collected = paid.reduce((s, p) => s + p.amount, 0)
+    const rows = paid.filter((p) => referred.has(p.member_id))
+    const revenue = rows.reduce((s, p) => s + p.amount, 0)
+    const payingMembers = new Set(rows.map((p) => p.member_id)).size
+    return {
+        revenue,
+        txns: rows.length,
+        payingMembers,
+        avgPerPayingMember: payingMembers ? revenue / payingMembers : 0,
+        collected,
+        shareOfCollected: collected ? (revenue / collected) * 100 : 0,
+    }
+}
+
+// ─── Referral share of new joins ─────────────────────────────────────────────
+
+export type JoinMix = { joins: number; referred: number; share: number | null }
+
+/** Members who joined in the range, and how many of them carry a referrer —
+ *  the same join-date and source rule the Members report uses. */
+export function joinMix(members: ReportMemberRow[], range: DateRange): JoinMix {
+    const joined = members.filter((m) => inRange(istDate(m.created_at), range))
+    const referred = joined.filter((m) => m.referred_by !== null).length
+    return { joins: joined.length, referred, share: joined.length ? (referred / joined.length) * 100 : null }
+}
+
+export type JoinMixBucket = JoinMix & { start: string; label: string }
+
+export function joinMixBuckets(members: ReportMemberRow[], range: DateRange, bucket: Bucket): JoinMixBucket[] {
+    const acc = new Map<string, JoinMixBucket>()
+    for (let start = bucketStart(range.from, bucket); start <= range.to; start = nextBucketStart(start, bucket)) {
+        acc.set(start, { start, label: bucketLabel(start, bucket), joins: 0, referred: 0, share: null })
+    }
+    for (const m of members) {
+        const joined = istDate(m.created_at)
+        if (!inRange(joined, range)) continue
+        const target = acc.get(bucketStart(joined, bucket))
+        if (!target) continue
+        target.joins += 1
+        if (m.referred_by !== null) target.referred += 1
+    }
+    return [...acc.values()].map((b) => ({ ...b, share: b.joins ? (b.referred / b.joins) * 100 : null }))
+}
+
+// ─── Referrer activity ───────────────────────────────────────────────────────
+
+export type ReferrerSlice = { label: string; referrals: number; converted: number; conversion: number | null; isOther: boolean }
+
+/**
+ * The leaderboard rows as chart slices, the first `max` kept and the rest
+ * folded into one "Other" slice so the chart stays readable while the table
+ * below keeps every referrer. Same ordering as the leaderboard.
+ */
+export function referrerActivity(rows: LeaderRow[], max = 8): ReferrerSlice[] {
+    const head = rows.slice(0, max).map((r) => ({
+        label: r.member.full_name, referrals: r.referrals, converted: r.converted, conversion: r.conversion, isOther: false,
+    }))
+    const rest = rows.slice(max)
+    if (rest.length === 0) return head
+    const referrals = rest.reduce((s, r) => s + r.referrals, 0)
+    const converted = rest.reduce((s, r) => s + r.converted, 0)
+    return [...head, {
+        label: `Other (${rest.length})`, referrals, converted, conversion: referrals ? (converted / referrals) * 100 : null, isOther: true,
+    }]
+}
+
+export type LeaderboardTotals = { referrers: number; referrals: number; converted: number; conversion: number | null }
+
+export function leaderboardTotals(rows: LeaderRow[]): LeaderboardTotals {
+    const referrals = rows.reduce((s, r) => s + r.referrals, 0)
+    const converted = rows.reduce((s, r) => s + r.converted, 0)
+    return { referrers: rows.length, referrals, converted, conversion: referrals ? (converted / referrals) * 100 : null }
+}

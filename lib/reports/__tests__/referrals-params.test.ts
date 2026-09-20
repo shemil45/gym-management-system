@@ -73,4 +73,11 @@ describe('referralsExportFilename', () => {
         const q = parseReferralsParams({ tab: 'list', preset: 'custom', from: '2026-09-01', to: '2026-09-15' }, today)
         expect(referralsExportFilename(q)).toBe('referrals-list-2026-09-01-2026-09-15.csv')
     })
+    it('carries a non-default comparison on every tab and keeps the default out of the URL', () => {
+        expect(parseReferralsParams({}, today).compare).toBe('previous')
+        const none = parseReferralsParams({ tab: 'overview', compare: 'none' }, today)
+        expect(none.previous).toBeNull()
+        expect(referralsSearchParams(none).toString()).toBe('tab=overview&preset=year&compare=none')
+        expect(referralsSearchParams({ ...none, tab: 'list' }).toString()).toBe('tab=list&preset=year&compare=none')
+    })
 })

@@ -17,7 +17,8 @@ export async function GET(request: Request) {
     try {
         let csv: string
         switch (query.tab) {
-            case 'overview': csv = overviewCsv(await getOverview(gym.id, query)); break
+            // The CSV has no comparison columns, so skip the comparison fetches.
+            case 'overview': csv = overviewCsv(await getOverview(gym.id, { ...query, previous: null })); break
             case 'leaderboard': csv = leaderboardCsv(await getLeaderboard(gym.id, query)); break
             case 'list': csv = listCsv(await getReferralList(gym.id, query)); break
         }

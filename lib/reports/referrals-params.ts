@@ -1,4 +1,5 @@
-import { chooseBucket, isIsoDate, previousRange, rangeForPreset, type Bucket, type DateRange, type Preset } from '@/lib/reports/dates'
+import { chooseBucket, isIsoDate, rangeForPreset, type Bucket, type DateRange, type Preset } from '@/lib/reports/dates'
+import { COMPARISON_PARAM, DEFAULT_COMPARISON, comparisonRange, parseComparison, type Comparison } from '@/lib/reports/comparison'
 import { periodSearchParams } from '@/lib/reports/period-params'
 import type { RawParams } from '@/lib/reports/payments-params'
 
@@ -25,7 +26,10 @@ export type ReferralsReportQuery = {
     tab: ReferralsTab
     preset: Preset
     range: DateRange
-    previous: DateRange
+    /** What the Overview compares against. Ranges come from `comparisonRange`. */
+    compare: Comparison
+    /** The comparison window, or null when `compare` is `none`. */
+    previous: DateRange | null
     bucket: Bucket
     status: ListStatus
     today: string
@@ -55,12 +59,16 @@ export function parseReferralsParams(raw: RawParams, today: string): ReferralsRe
     const statusValue = first(raw.status)
     const status: ListStatus = tab === 'list' && statusValue && STATUSES.has(statusValue) ? (statusValue as ListStatus) : 'all'
 
-    return { tab, preset, range, previous: previousRange(range), bucket: chooseBucket(range), status, today }
+    const compare = parseComparison(raw[COMPARISON_PARAM])
+    return { tab, preset, range, compare, previous: comparisonRange(range, compare), bucket: chooseBucket(range), status, today }
 }
 
 export function referralsSearchParams(q: ReferralsReportQuery): URLSearchParams {
     const params = periodSearchParams(q)
     if (q.tab === 'list' && q.status !== 'all') params.set('status', q.status)
+    // Carried on every tab so it survives a tab switch; the default stays out
+    // of the URL so existing links keep their shape.
+    if (q.compare !== DEFAULT_COMPARISON) params.set(COMPARISON_PARAM, q.compare)
     return params
 }
 
