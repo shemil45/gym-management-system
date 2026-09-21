@@ -73,9 +73,12 @@ leads), so reusing either one is caught. In order:
    fresh submission starts a new lead.
 3. Otherwise → new pending lead, 14 days from now.
 
-Staff-side: `createMember` still rejects a duplicate email within the gym,
-so a lead for an address that became a member in the meantime cannot create
-a second member; the lead stays pending for staff to cancel.
+Staff-side: when staff register someone through the plain Add Member form
+(not via Complete Registration), `createMember` looks up an open link lead
+by phone (either stored spelling) or email and converts it, crediting the
+lead's referrer, with a toast saying so. If staff also picked a *different*
+"Referred by" member, the save is refused so one join never credits two
+people. A duplicate email within the gym is still rejected outright.
 
 ## Tenant isolation
 

@@ -14,7 +14,7 @@ import { canAddMember } from '@/lib/billing/entitlements'
 import { assertActiveSubscription } from '@/lib/billing/gate'
 import { gymHasFeature } from '@/lib/gym/features'
 import { creditReferrers } from '@/lib/payments/settle-member-payment'
-import { checkLeadConvertible, convertReferralLead, creditReferrerBonus } from '@/lib/referrals/server'
+import { checkLeadConvertible, convertReferralLead, creditReferrerBonus, findActiveLeadForRegistration } from '@/lib/referrals/server'
 import {
     checkMutationAllowed,
     getActiveImpersonation,
@@ -160,8 +160,32 @@ export async function createMember(formData: FormData) {
         // converted by this registration. The id is re-validated against the
         // viewer's gym here and again, conditionally, at the moment of
         // conversion; nothing about the lead is trusted from the form.
-        const leadId = referralsEnabled ? (formData.get('referral_lead_id') as string | null)?.trim() || null : null
+        let leadId = referralsEnabled ? (formData.get('referral_lead_id') as string | null)?.trim() || null : null
         let referrerId: string | null = null
+        let matchedLeadNote: string | undefined
+
+        // Plain registration of someone who already submitted a referral
+        // link: pick the open lead up by phone or email so it is converted
+        // here instead of sitting pending until it expires. A referrer named
+        // at the desk that disagrees with the lead is refused rather than
+        // crediting two people for one join.
+        if (referralsEnabled && !leadId) {
+            const matched = await findActiveLeadForRegistration(viewer.gym.id, phone, email)
+            if (matched) {
+                if (rawCode) {
+                    const pickedResult = await supabase.from('members').select('id, full_name').eq('member_id', rawCode).eq('gym_id', viewer.gym.id).maybeSingle()
+                    const picked = (pickedResult as unknown as QueryResult<{ id: string; full_name: string } | null>).data
+                    if (picked && picked.id !== matched.referrerId) {
+                        return {
+                            error: `${fullName} already has a pending referral from ${matched.referrerName}. Remove the "Referred by" selection to complete that referral, or cancel it under Referral leads first.`,
+                        }
+                    }
+                }
+                leadId = matched.id
+                matchedLeadNote = `Matched the pending referral from ${matched.referrerName}; they will be credited.`
+            }
+        }
+
         if (leadId) {
             const lead = await checkLeadConvertible(viewer.gym.id, leadId)
             if (!lead.ok) {
@@ -448,6 +472,7 @@ export async function createMember(formData: FormData) {
             memberId: member.id,
             ...(notificationWarning ? { notificationWarning } : {}),
             ...(referralWarning ? { referralWarning } : {}),
+            ...(matchedLeadNote && !referralWarning ? { referralNote: matchedLeadNote } : {}),
         }
     } catch (err: unknown) {
         if (createdMemberId) {
@@ -654,6 +679,35 @@ export async function deleteMember(memberId: string) {
         const message = err instanceof Error ? err.message : 'Failed to delete member'
         return { error: message }
     }
+}
+
+export type LeadMatch = {
+    id: string
+    referrerName: string
+    fullName: string
+    email: string | null
+    expiresAt: string | null
+}
+
+/**
+ * Live check while staff type a phone into Add Member: is there an open
+ * referral lead for it? Scoped to the viewer's gym; only fires for a full
+ * 10-digit number so partial input never queries.
+ */
+export async function lookupLeadByPhone(phone: string): Promise<LeadMatch | null> {
+    if (typeof phone !== 'string') return null
+    const digits = phone.replace(/\D/g, '')
+    const local = digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits
+    if (!/^[6-9]\d{9}$/.test(local)) return null
+
+    const viewer = await getCurrentGymContext()
+    if (!viewer.user || !viewer.isStaff || !viewer.gym) return null
+    if (!(await gymHasFeature(viewer.gym.id, 'referrals'))) return null
+
+    const lead = await findActiveLeadForRegistration(viewer.gym.id, `+91${local}`, '')
+    return lead
+        ? { id: lead.id, referrerName: lead.referrerName, fullName: lead.referredName, email: lead.referredEmail, expiresAt: lead.expiresAt }
+        : null
 }
 
 export type ReferrerMatch = {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { todayInKolkata } from '@/lib/reports/dates'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select'
 import { Loader2, Upload, ImageIcon, Camera, Gift, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
-import { createMember } from '@/app/admin/members/actions'
+import { createMember, lookupLeadByPhone, type LeadMatch } from '@/app/admin/members/actions'
 import ReferrerPicker from '@/components/forms/ReferrerPicker'
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
 import { createImagePreviewUrl, removeUploadedAvatar, uploadCompressedAvatar } from '@/lib/utils/client-image-upload'
@@ -50,6 +50,21 @@ interface AddMemberFormProps {
 
 export default function AddMemberForm({ plans, gymSettings, referralsEnabled, lead = null }: AddMemberFormProps) {
     const activeLead = lead && lead.status === 'pending' ? lead : null
+    // A lead detected from the phone number as it is typed. Same effect as
+    // arriving from Complete Registration: the save converts it.
+    const [detectedLead, setDetectedLead] = useState<LeadMatch | null>(null)
+    const [checkingLead, setCheckingLead] = useState(false)
+    // Set when the lead's name/email differ from what staff already typed;
+    // staff must choose to keep theirs or take the lead's before saving.
+    const [leadConflict, setLeadConflict] = useState<{ name: boolean; email: boolean } | null>(null)
+    const [fullName, setFullName] = useState(activeLead?.fullName ?? '')
+    const [email, setEmail] = useState(activeLead?.email ?? '')
+    // Read by the async phone lookup so it compares against the latest
+    // typed values without re-running on every name/email keystroke.
+    const fullNameRef = useRef(fullName)
+    const emailRef = useRef(email)
+    const updateFullName = (value: string) => { fullNameRef.current = value; setFullName(value) }
+    const updateEmail = (value: string) => { emailRef.current = value; setEmail(value) }
     const router = useRouter()
     const { isDark } = useAdminTheme()
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -59,6 +74,8 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
     const [selectedPlan, setSelectedPlan] = useState('')
     const [paymentMethod, setPaymentMethod] = useState('')
     const [phone, setPhone] = useState(activeLead?.phone || '+91')
+    const phoneLocal = phone.replace(/\D/g, '').slice(2)
+    const phoneValid = /^[6-9]\d{9}$/.test(phoneLocal)
     const [gender, setGender] = useState<'male' | 'female' | 'other'>('male')
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
     const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
@@ -105,7 +122,63 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
         const digits = rawValue.replace(/\D/g, '')
         const localNumber = digits.startsWith('91') ? digits.slice(2) : digits
         setPhone(`+91${localNumber.slice(0, 10)}`)
+        // Any edit invalidates a previous match; the effect below re-checks.
+        if (!/^[6-9]\d{9}$/.test(localNumber.slice(0, 10))) {
+            setDetectedLead(null)
+            setLeadConflict(null)
+        }
     }
+
+    // Look the phone up once it is a full number.
+    useEffect(() => {
+        if (activeLead || !referralsEnabled) return
+        const local = phone.replace(/\D/g, '').slice(2)
+        if (!/^[6-9]\d{9}$/.test(local)) return
+        let cancelled = false
+        const timer = setTimeout(async () => {
+            setCheckingLead(true)
+            try {
+                const match = await lookupLeadByPhone(phone)
+                if (cancelled) return
+                setCheckingLead(false)
+                setDetectedLead(match)
+                setLeadConflict(null)
+                if (match) {
+                    // Fill what the lead already told us. Where staff already
+                    // typed something different, flag it instead of
+                    // overwriting; the save waits for their decision.
+                    const typedName = fullNameRef.current.trim()
+                    const typedEmail = emailRef.current.trim().toLowerCase()
+                    const leadEmail = (match.email ?? '').trim().toLowerCase()
+                    const nameDiffers = typedName !== '' && typedName.toLowerCase() !== match.fullName.trim().toLowerCase()
+                    const emailDiffers = typedEmail !== '' && leadEmail !== '' && typedEmail !== leadEmail
+                    if (!typedName) updateFullName(match.fullName)
+                    if (!typedEmail) updateEmail(match.email ?? '')
+                    if (nameDiffers || emailDiffers) setLeadConflict({ name: nameDiffers, email: emailDiffers })
+                }
+            } catch {
+                if (!cancelled) {
+                    setCheckingLead(false)
+                    setDetectedLead(null)
+                }
+            }
+        }, 300)
+        return () => {
+            cancelled = true
+            clearTimeout(timer)
+        }
+    }, [phone, activeLead, referralsEnabled])
+
+    // Inline status under the phone field: validity, then the referral check.
+    const phoneHint = (() => {
+        if (phoneLocal.length === 0) return { tone: 'muted', text: 'Enter a 10-digit mobile number.' } as const
+        if (!phoneValid) return { tone: 'warn', text: `Enter a valid 10-digit mobile number (${phoneLocal.length}/10).` } as const
+        if (activeLead) return { tone: 'ok', text: 'Valid number.' } as const
+        if (!referralsEnabled) return { tone: 'ok', text: 'Valid number.' } as const
+        if (checkingLead) return { tone: 'muted', text: 'Valid number · checking for a referral…' } as const
+        if (detectedLead) return { tone: 'ok', text: `Valid number · pending referral from ${detectedLead.referrerName}` } as const
+        return { tone: 'ok', text: 'Valid number · no pending referral' } as const
+    })()
 
     const planAmountNumber = Number(paymentAmount) || 0
     const admissionFeeNumber = admissionFeeWaived ? 0 : (Number(admissionFee) || 0)
@@ -116,6 +189,7 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
         if (!selectedPlan) { toast.error('Please select a membership plan'); return }
         if (!paymentMethod) { toast.error('Please select a payment method'); return }
         if (photoError) { toast.error(photoError); return }
+        if (leadConflict) { toast.error('Some details differ from the referral. Resolve the highlighted fields first.'); return }
 
         setLoading(true)
         setLoadingMessage('Saving Member...')
@@ -161,6 +235,9 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
                     toast.warning(result.referralWarning, {
                         duration: 7000,
                     })
+                }
+                if (result.referralNote) {
+                    toast.info(result.referralNote, { duration: 7000 })
                 }
                 router.push(`/admin/members/${result.memberId}`)
             }
@@ -212,6 +289,7 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
 
             <form onSubmit={handleSubmit}>
                 {activeLead ? <input type="hidden" name="referral_lead_id" value={activeLead.id} /> : null}
+                {!activeLead && detectedLead ? <input type="hidden" name="referral_lead_id" value={detectedLead.id} /> : null}
                 {/* Single white card */}
                 <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-6 space-y-6">
 
@@ -291,11 +369,25 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
                                 id="full_name"
                                 name="full_name"
                                 placeholder="Enter full name"
-                                defaultValue={activeLead?.fullName ?? ''}
+                                value={fullName}
+                                onChange={(e) => updateFullName(e.target.value)}
                                 required
                                 disabled={loading}
-                                className="h-10 border-gray-300 text-sm"
+                                aria-invalid={Boolean(leadConflict?.name)}
+                                className={`h-10 text-sm ${leadConflict?.name ? 'border-amber-400' : 'border-gray-300'}`}
                             />
+                            {leadConflict?.name && detectedLead ? (
+                                <LeadFieldConflict
+                                    label="Name"
+                                    entered={fullName}
+                                    referral={detectedLead.fullName}
+                                    onKeep={() => setLeadConflict((c) => (c && c.email ? { ...c, name: false } : null))}
+                                    onUse={() => {
+                                        updateFullName(detectedLead.fullName)
+                                        setLeadConflict((c) => (c && c.email ? { ...c, name: false } : null))
+                                    }}
+                                />
+                            ) : null}
                         </div>
 
                         {/* Email */}
@@ -308,12 +400,27 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
                                 name="email"
                                 type="email"
                                 placeholder="email@example.com"
-                                defaultValue={activeLead?.email ?? ''}
+                                value={email}
+                                onChange={(e) => updateEmail(e.target.value)}
                                 required
                                 disabled={loading}
-                                className="h-10 border-gray-300 text-sm"
+                                aria-invalid={Boolean(leadConflict?.email)}
+                                className={`h-10 text-sm ${leadConflict?.email ? 'border-amber-400' : 'border-gray-300'}`}
                             />
-                            <p className="text-xs text-gray-400">This email will be used as the member&apos;s username.</p>
+                            {leadConflict?.email && detectedLead ? (
+                                <LeadFieldConflict
+                                    label="Email"
+                                    entered={email}
+                                    referral={detectedLead.email ?? ''}
+                                    onKeep={() => setLeadConflict((c) => (c && c.name ? { ...c, email: false } : null))}
+                                    onUse={() => {
+                                        updateEmail(detectedLead.email ?? '')
+                                        setLeadConflict((c) => (c && c.name ? { ...c, email: false } : null))
+                                    }}
+                                />
+                            ) : (
+                                <p className="text-xs text-gray-400">This email will be used as the member&apos;s username.</p>
+                            )}
                         </div>
 
                         {/* Phone */}
@@ -329,8 +436,19 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
                                 value={phone}
                                 onChange={handlePhoneChange}
                                 disabled={loading}
-                                className="h-10 border-gray-300 text-sm"
+                                aria-describedby="phone-hint"
+                                aria-invalid={phoneLocal.length > 0 && !phoneValid}
+                                className={`h-10 text-sm ${phoneLocal.length > 0 && !phoneValid ? 'border-amber-400' : phoneValid ? 'border-emerald-400' : 'border-gray-300'}`}
                             />
+                            <p
+                                id="phone-hint"
+                                aria-live="polite"
+                                className={`text-xs ${
+                                    phoneHint.tone === 'warn' ? 'text-amber-600' : phoneHint.tone === 'ok' ? 'text-emerald-600' : 'text-gray-400'
+                                }`}
+                            >
+                                {phoneHint.text}
+                            </p>
                         </div>
 
                         {/* Date of Birth */}
@@ -383,7 +501,25 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
                         </div>
 
                         {/* Referrer: search-and-confirm, never free text */}
-                        {referralsEnabled && !activeLead ? <ReferrerPicker disabled={loading} /> : null}
+                        {referralsEnabled && !activeLead && detectedLead ? (
+                            <div className="space-y-1.5 md:col-span-2">
+                                <Label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                                    <Gift className="h-3.5 w-3.5 text-emerald-600" />
+                                    Referred By
+                                </Label>
+                                <div className="flex items-start gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900">
+                                    <Gift className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                                    <div className="min-w-0">
+                                        <p className="font-semibold">Referral detected — referred by {detectedLead.referrerName}</p>
+                                        <p className="mt-0.5 text-xs opacity-80">
+                                            This number has a pending referral{detectedLead.expiresAt ? ` (valid until ${new Date(detectedLead.expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })})` : ''}. Saving converts it and credits {detectedLead.referrerName}.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : referralsEnabled && !activeLead ? (
+                            <ReferrerPicker disabled={loading} />
+                        ) : null}
                     </div>
 
                     {/* ── Emergency Contact ── */}
@@ -575,6 +711,30 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
                     </div>
                 </div>
             </form>
+        </div>
+    )
+}
+
+/** Per-field "differs from the referral" notice with Keep / Use actions. */
+function LeadFieldConflict({
+    label, entered, referral, onKeep, onUse,
+}: { label: string; entered: string; referral: string; onKeep: () => void; onUse: () => void }) {
+    return (
+        <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <p className="flex items-start gap-1.5">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span>
+                    {label} differs from the referral: <span className="font-medium">{referral}</span> was submitted, you entered <span className="font-medium">{entered}</span>.
+                </span>
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2 pl-5">
+                <button type="button" onClick={onKeep} className="h-7 rounded-md border border-amber-300 bg-white px-2.5 font-semibold text-amber-900 hover:bg-amber-100">
+                    Keep mine
+                </button>
+                <button type="button" onClick={onUse} className="h-7 rounded-md bg-amber-600 px-2.5 font-semibold text-white hover:bg-amber-700">
+                    Use referral value
+                </button>
+            </div>
         </div>
     )
 }
