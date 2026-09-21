@@ -162,6 +162,9 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
                         duration: 7000,
                     })
                 }
+                if (result.referralNote) {
+                    toast.info(result.referralNote, { duration: 7000 })
+                }
                 router.push(`/admin/members/${result.memberId}`)
             }
         } catch (error) {
