@@ -681,6 +681,35 @@ export async function deleteMember(memberId: string) {
     }
 }
 
+export type LeadMatch = {
+    id: string
+    referrerName: string
+    fullName: string
+    email: string | null
+    expiresAt: string | null
+}
+
+/**
+ * Live check while staff type a phone into Add Member: is there an open
+ * referral lead for it? Scoped to the viewer's gym; only fires for a full
+ * 10-digit number so partial input never queries.
+ */
+export async function lookupLeadByPhone(phone: string): Promise<LeadMatch | null> {
+    if (typeof phone !== 'string') return null
+    const digits = phone.replace(/\D/g, '')
+    const local = digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits
+    if (!/^[6-9]\d{9}$/.test(local)) return null
+
+    const viewer = await getCurrentGymContext()
+    if (!viewer.user || !viewer.isStaff || !viewer.gym) return null
+    if (!(await gymHasFeature(viewer.gym.id, 'referrals'))) return null
+
+    const lead = await findActiveLeadForRegistration(viewer.gym.id, `+91${local}`, '')
+    return lead
+        ? { id: lead.id, referrerName: lead.referrerName, fullName: lead.referredName, email: lead.referredEmail, expiresAt: lead.expiresAt }
+        : null
+}
+
 export type ReferrerMatch = {
     id: string
     memberId: string

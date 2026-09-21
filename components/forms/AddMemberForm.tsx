@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { todayInKolkata } from '@/lib/reports/dates'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select'
 import { Loader2, Upload, ImageIcon, Camera, Gift, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
-import { createMember } from '@/app/admin/members/actions'
+import { createMember, lookupLeadByPhone, type LeadMatch } from '@/app/admin/members/actions'
 import ReferrerPicker from '@/components/forms/ReferrerPicker'
 import { MAX_UPLOAD_SIZE_BYTES, MAX_UPLOAD_SIZE_LABEL, UPLOAD_FAILURE_MESSAGE } from '@/lib/constants/uploads'
 import { createImagePreviewUrl, removeUploadedAvatar, uploadCompressedAvatar } from '@/lib/utils/client-image-upload'
@@ -50,6 +50,11 @@ interface AddMemberFormProps {
 
 export default function AddMemberForm({ plans, gymSettings, referralsEnabled, lead = null }: AddMemberFormProps) {
     const activeLead = lead && lead.status === 'pending' ? lead : null
+    // A lead detected from the phone number as it is typed. Same effect as
+    // arriving from Complete Registration: the save converts it.
+    const [detectedLead, setDetectedLead] = useState<LeadMatch | null>(null)
+    const [fullName, setFullName] = useState(activeLead?.fullName ?? '')
+    const [email, setEmail] = useState(activeLead?.email ?? '')
     const router = useRouter()
     const { isDark } = useAdminTheme()
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -105,7 +110,36 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
         const digits = rawValue.replace(/\D/g, '')
         const localNumber = digits.startsWith('91') ? digits.slice(2) : digits
         setPhone(`+91${localNumber.slice(0, 10)}`)
+        // Any edit invalidates a previous match; the effect below re-checks.
+        if (!/^[6-9]\d{9}$/.test(localNumber.slice(0, 10))) setDetectedLead(null)
     }
+
+    // Look the phone up once it is a full number.
+    useEffect(() => {
+        if (activeLead || !referralsEnabled) return
+        const local = phone.replace(/\D/g, '').slice(2)
+        if (!/^[6-9]\d{9}$/.test(local)) return
+        let cancelled = false
+        const timer = setTimeout(async () => {
+            try {
+                const match = await lookupLeadByPhone(phone)
+                if (cancelled) return
+                setDetectedLead(match)
+                if (match) {
+                    // Fill what the lead already told us, without overwriting
+                    // anything staff have typed.
+                    setFullName((current) => current.trim() ? current : match.fullName)
+                    setEmail((current) => current.trim() ? current : match.email ?? '')
+                }
+            } catch {
+                if (!cancelled) setDetectedLead(null)
+            }
+        }, 300)
+        return () => {
+            cancelled = true
+            clearTimeout(timer)
+        }
+    }, [phone, activeLead, referralsEnabled])
 
     const planAmountNumber = Number(paymentAmount) || 0
     const admissionFeeNumber = admissionFeeWaived ? 0 : (Number(admissionFee) || 0)
@@ -215,6 +249,7 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
 
             <form onSubmit={handleSubmit}>
                 {activeLead ? <input type="hidden" name="referral_lead_id" value={activeLead.id} /> : null}
+                {!activeLead && detectedLead ? <input type="hidden" name="referral_lead_id" value={detectedLead.id} /> : null}
                 {/* Single white card */}
                 <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-6 space-y-6">
 
@@ -294,7 +329,8 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
                                 id="full_name"
                                 name="full_name"
                                 placeholder="Enter full name"
-                                defaultValue={activeLead?.fullName ?? ''}
+                                value={fullName}
+                                onChange={(e) => setFullName(e.target.value)}
                                 required
                                 disabled={loading}
                                 className="h-10 border-gray-300 text-sm"
@@ -311,7 +347,8 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
                                 name="email"
                                 type="email"
                                 placeholder="email@example.com"
-                                defaultValue={activeLead?.email ?? ''}
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                                 required
                                 disabled={loading}
                                 className="h-10 border-gray-300 text-sm"
@@ -386,7 +423,25 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
                         </div>
 
                         {/* Referrer: search-and-confirm, never free text */}
-                        {referralsEnabled && !activeLead ? <ReferrerPicker disabled={loading} /> : null}
+                        {referralsEnabled && !activeLead && detectedLead ? (
+                            <div className="space-y-1.5 md:col-span-2">
+                                <Label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                                    <Gift className="h-3.5 w-3.5 text-emerald-600" />
+                                    Referred By
+                                </Label>
+                                <div className="flex items-start gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900">
+                                    <Gift className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                                    <div className="min-w-0">
+                                        <p className="font-semibold">Referral detected — referred by {detectedLead.referrerName}</p>
+                                        <p className="mt-0.5 text-xs opacity-80">
+                                            This number has a pending referral{detectedLead.expiresAt ? ` (valid until ${new Date(detectedLead.expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })})` : ''}. Saving converts it and credits {detectedLead.referrerName}.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : referralsEnabled && !activeLead ? (
+                            <ReferrerPicker disabled={loading} />
+                        ) : null}
                     </div>
 
                     {/* ── Emergency Contact ── */}

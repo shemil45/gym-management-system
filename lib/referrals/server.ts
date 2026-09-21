@@ -195,6 +195,7 @@ type ExistingLead = {
     referrer_id: string
     referred_phone: string | null
     referred_email: string | null
+    referred_name: string | null
     referrer: { full_name: string } | { full_name: string }[] | null
 }
 
@@ -276,7 +277,7 @@ export async function submitReferralLead(gymSlug: string, token: string, input: 
     return { ok: true, outcome: 'created', expiresAt }
 }
 
-export type MatchedLead = { id: string; referrerId: string; referrerName: string }
+export type MatchedLead = { id: string; referrerId: string; referrerName: string; referredName: string; referredEmail: string | null; expiresAt: string | null }
 
 /**
  * The open link lead, if any, for a person staff are registering from the
@@ -289,7 +290,7 @@ export async function findActiveLeadForRegistration(gymId: string, phone: string
     const candidates = local.length === 10 ? [`+91${local}`, local] : [phone]
     for (const candidate of candidates) {
         const lead = await findActiveLead(gymId, candidate, email)
-        if (lead) return { id: lead.id, referrerId: lead.referrer_id, referrerName: referrerNameOf(lead) }
+        if (lead) return { id: lead.id, referrerId: lead.referrer_id, referrerName: referrerNameOf(lead), referredName: lead.referred_name ?? '', referredEmail: lead.referred_email, expiresAt: lead.expires_at }
     }
     return null
 }
@@ -298,7 +299,7 @@ async function findActiveLead(gymId: string, phone: string, email: string): Prom
     const db = getSupabaseAdmin()
     const base = () => db
         .from('referrals')
-        .select('id, status, expires_at, referred_id, referrer_id, referred_phone, referred_email, referrer:members!referrals_referrer_id_fkey(full_name)')
+        .select('id, status, expires_at, referred_id, referrer_id, referred_phone, referred_email, referred_name, referrer:members!referrals_referrer_id_fkey(full_name)')
         .eq('gym_id', gymId)
         .eq('status', 'pending')
         .is('referred_id', null)
