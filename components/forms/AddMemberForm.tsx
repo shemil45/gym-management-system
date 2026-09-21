@@ -54,8 +54,17 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
     // arriving from Complete Registration: the save converts it.
     const [detectedLead, setDetectedLead] = useState<LeadMatch | null>(null)
     const [checkingLead, setCheckingLead] = useState(false)
+    // Set when the lead's name/email differ from what staff already typed;
+    // staff must choose to keep theirs or take the lead's before saving.
+    const [leadConflict, setLeadConflict] = useState<{ name: boolean; email: boolean } | null>(null)
     const [fullName, setFullName] = useState(activeLead?.fullName ?? '')
     const [email, setEmail] = useState(activeLead?.email ?? '')
+    // Read by the async phone lookup so it compares against the latest
+    // typed values without re-running on every name/email keystroke.
+    const fullNameRef = useRef(fullName)
+    const emailRef = useRef(email)
+    const updateFullName = (value: string) => { fullNameRef.current = value; setFullName(value) }
+    const updateEmail = (value: string) => { emailRef.current = value; setEmail(value) }
     const router = useRouter()
     const { isDark } = useAdminTheme()
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -114,7 +123,10 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
         const localNumber = digits.startsWith('91') ? digits.slice(2) : digits
         setPhone(`+91${localNumber.slice(0, 10)}`)
         // Any edit invalidates a previous match; the effect below re-checks.
-        if (!/^[6-9]\d{9}$/.test(localNumber.slice(0, 10))) setDetectedLead(null)
+        if (!/^[6-9]\d{9}$/.test(localNumber.slice(0, 10))) {
+            setDetectedLead(null)
+            setLeadConflict(null)
+        }
     }
 
     // Look the phone up once it is a full number.
@@ -130,11 +142,19 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
                 if (cancelled) return
                 setCheckingLead(false)
                 setDetectedLead(match)
+                setLeadConflict(null)
                 if (match) {
-                    // Fill what the lead already told us, without overwriting
-                    // anything staff have typed.
-                    setFullName((current) => current.trim() ? current : match.fullName)
-                    setEmail((current) => current.trim() ? current : match.email ?? '')
+                    // Fill what the lead already told us. Where staff already
+                    // typed something different, flag it instead of
+                    // overwriting; the save waits for their decision.
+                    const typedName = fullNameRef.current.trim()
+                    const typedEmail = emailRef.current.trim().toLowerCase()
+                    const leadEmail = (match.email ?? '').trim().toLowerCase()
+                    const nameDiffers = typedName !== '' && typedName.toLowerCase() !== match.fullName.trim().toLowerCase()
+                    const emailDiffers = typedEmail !== '' && leadEmail !== '' && typedEmail !== leadEmail
+                    if (!typedName) updateFullName(match.fullName)
+                    if (!typedEmail) updateEmail(match.email ?? '')
+                    if (nameDiffers || emailDiffers) setLeadConflict({ name: nameDiffers, email: emailDiffers })
                 }
             } catch {
                 if (!cancelled) {
@@ -169,6 +189,7 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
         if (!selectedPlan) { toast.error('Please select a membership plan'); return }
         if (!paymentMethod) { toast.error('Please select a payment method'); return }
         if (photoError) { toast.error(photoError); return }
+        if (leadConflict) { toast.error('The details differ from the referral. Choose Keep mine or Use referral details first.'); return }
 
         setLoading(true)
         setLoadingMessage('Saving Member...')
@@ -349,7 +370,7 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
                                 name="full_name"
                                 placeholder="Enter full name"
                                 value={fullName}
-                                onChange={(e) => setFullName(e.target.value)}
+                                onChange={(e) => updateFullName(e.target.value)}
                                 required
                                 disabled={loading}
                                 className="h-10 border-gray-300 text-sm"
@@ -367,7 +388,7 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
                                 type="email"
                                 placeholder="email@example.com"
                                 value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                onChange={(e) => updateEmail(e.target.value)}
                                 required
                                 disabled={loading}
                                 className="h-10 border-gray-300 text-sm"
@@ -468,6 +489,45 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
                                         </p>
                                     </div>
                                 </div>
+                                {leadConflict ? (
+                                    <div role="alert" className="flex flex-col gap-2.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+                                        <div className="flex items-start gap-2">
+                                            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                                            <div className="min-w-0">
+                                                <p className="font-semibold">Details differ from the referral</p>
+                                                <ul className="mt-1 space-y-0.5 text-xs">
+                                                    {leadConflict.name ? (
+                                                        <li>Name — referral: <span className="font-medium">{detectedLead.fullName}</span> · entered: <span className="font-medium">{fullName}</span></li>
+                                                    ) : null}
+                                                    {leadConflict.email ? (
+                                                        <li>Email — referral: <span className="font-medium">{detectedLead.email}</span> · entered: <span className="font-medium">{email}</span></li>
+                                                    ) : null}
+                                                </ul>
+                                                <p className="mt-1 text-xs opacity-80">Choose which to save. The referral is converted either way.</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 pl-6">
+                                            <button
+                                                type="button"
+                                                onClick={() => setLeadConflict(null)}
+                                                className="h-8 rounded-md border border-amber-300 bg-white px-3 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+                                            >
+                                                Keep mine
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (leadConflict.name) updateFullName(detectedLead.fullName)
+                                                    if (leadConflict.email) updateEmail(detectedLead.email ?? '')
+                                                    setLeadConflict(null)
+                                                }}
+                                                className="h-8 rounded-md bg-amber-600 px-3 text-xs font-semibold text-white hover:bg-amber-700"
+                                            >
+                                                Use referral details
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : null}
                             </div>
                         ) : referralsEnabled && !activeLead ? (
                             <ReferrerPicker disabled={loading} />
