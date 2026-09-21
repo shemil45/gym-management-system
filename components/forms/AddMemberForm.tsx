@@ -53,6 +53,7 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
     // A lead detected from the phone number as it is typed. Same effect as
     // arriving from Complete Registration: the save converts it.
     const [detectedLead, setDetectedLead] = useState<LeadMatch | null>(null)
+    const [checkingLead, setCheckingLead] = useState(false)
     const [fullName, setFullName] = useState(activeLead?.fullName ?? '')
     const [email, setEmail] = useState(activeLead?.email ?? '')
     const router = useRouter()
@@ -64,6 +65,8 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
     const [selectedPlan, setSelectedPlan] = useState('')
     const [paymentMethod, setPaymentMethod] = useState('')
     const [phone, setPhone] = useState(activeLead?.phone || '+91')
+    const phoneLocal = phone.replace(/\D/g, '').slice(2)
+    const phoneValid = /^[6-9]\d{9}$/.test(phoneLocal)
     const [gender, setGender] = useState<'male' | 'female' | 'other'>('male')
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
     const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
@@ -121,9 +124,11 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
         if (!/^[6-9]\d{9}$/.test(local)) return
         let cancelled = false
         const timer = setTimeout(async () => {
+            setCheckingLead(true)
             try {
                 const match = await lookupLeadByPhone(phone)
                 if (cancelled) return
+                setCheckingLead(false)
                 setDetectedLead(match)
                 if (match) {
                     // Fill what the lead already told us, without overwriting
@@ -132,7 +137,10 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
                     setEmail((current) => current.trim() ? current : match.email ?? '')
                 }
             } catch {
-                if (!cancelled) setDetectedLead(null)
+                if (!cancelled) {
+                    setCheckingLead(false)
+                    setDetectedLead(null)
+                }
             }
         }, 300)
         return () => {
@@ -140,6 +148,17 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
             clearTimeout(timer)
         }
     }, [phone, activeLead, referralsEnabled])
+
+    // Inline status under the phone field: validity, then the referral check.
+    const phoneHint = (() => {
+        if (phoneLocal.length === 0) return { tone: 'muted', text: 'Enter a 10-digit mobile number.' } as const
+        if (!phoneValid) return { tone: 'warn', text: `Enter a valid 10-digit mobile number (${phoneLocal.length}/10).` } as const
+        if (activeLead) return { tone: 'ok', text: 'Valid number.' } as const
+        if (!referralsEnabled) return { tone: 'ok', text: 'Valid number.' } as const
+        if (checkingLead) return { tone: 'muted', text: 'Valid number · checking for a referral…' } as const
+        if (detectedLead) return { tone: 'ok', text: `Valid number · pending referral from ${detectedLead.referrerName}` } as const
+        return { tone: 'ok', text: 'Valid number · no pending referral' } as const
+    })()
 
     const planAmountNumber = Number(paymentAmount) || 0
     const admissionFeeNumber = admissionFeeWaived ? 0 : (Number(admissionFee) || 0)
@@ -369,8 +388,19 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
                                 value={phone}
                                 onChange={handlePhoneChange}
                                 disabled={loading}
-                                className="h-10 border-gray-300 text-sm"
+                                aria-describedby="phone-hint"
+                                aria-invalid={phoneLocal.length > 0 && !phoneValid}
+                                className={`h-10 text-sm ${phoneLocal.length > 0 && !phoneValid ? 'border-amber-400' : phoneValid ? 'border-emerald-400' : 'border-gray-300'}`}
                             />
+                            <p
+                                id="phone-hint"
+                                aria-live="polite"
+                                className={`text-xs ${
+                                    phoneHint.tone === 'warn' ? 'text-amber-600' : phoneHint.tone === 'ok' ? 'text-emerald-600' : 'text-gray-400'
+                                }`}
+                            >
+                                {phoneHint.text}
+                            </p>
                         </div>
 
                         {/* Date of Birth */}
