@@ -189,7 +189,7 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
         if (!selectedPlan) { toast.error('Please select a membership plan'); return }
         if (!paymentMethod) { toast.error('Please select a payment method'); return }
         if (photoError) { toast.error(photoError); return }
-        if (leadConflict) { toast.error('The details differ from the referral. Choose Keep mine or Use referral details first.'); return }
+        if (leadConflict) { toast.error('Some details differ from the referral. Resolve the highlighted fields first.'); return }
 
         setLoading(true)
         setLoadingMessage('Saving Member...')
@@ -373,8 +373,21 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
                                 onChange={(e) => updateFullName(e.target.value)}
                                 required
                                 disabled={loading}
-                                className="h-10 border-gray-300 text-sm"
+                                aria-invalid={Boolean(leadConflict?.name)}
+                                className={`h-10 text-sm ${leadConflict?.name ? 'border-amber-400' : 'border-gray-300'}`}
                             />
+                            {leadConflict?.name && detectedLead ? (
+                                <LeadFieldConflict
+                                    label="Name"
+                                    entered={fullName}
+                                    referral={detectedLead.fullName}
+                                    onKeep={() => setLeadConflict((c) => (c && c.email ? { ...c, name: false } : null))}
+                                    onUse={() => {
+                                        updateFullName(detectedLead.fullName)
+                                        setLeadConflict((c) => (c && c.email ? { ...c, name: false } : null))
+                                    }}
+                                />
+                            ) : null}
                         </div>
 
                         {/* Email */}
@@ -391,9 +404,23 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
                                 onChange={(e) => updateEmail(e.target.value)}
                                 required
                                 disabled={loading}
-                                className="h-10 border-gray-300 text-sm"
+                                aria-invalid={Boolean(leadConflict?.email)}
+                                className={`h-10 text-sm ${leadConflict?.email ? 'border-amber-400' : 'border-gray-300'}`}
                             />
-                            <p className="text-xs text-gray-400">This email will be used as the member&apos;s username.</p>
+                            {leadConflict?.email && detectedLead ? (
+                                <LeadFieldConflict
+                                    label="Email"
+                                    entered={email}
+                                    referral={detectedLead.email ?? ''}
+                                    onKeep={() => setLeadConflict((c) => (c && c.name ? { ...c, email: false } : null))}
+                                    onUse={() => {
+                                        updateEmail(detectedLead.email ?? '')
+                                        setLeadConflict((c) => (c && c.name ? { ...c, email: false } : null))
+                                    }}
+                                />
+                            ) : (
+                                <p className="text-xs text-gray-400">This email will be used as the member&apos;s username.</p>
+                            )}
                         </div>
 
                         {/* Phone */}
@@ -489,45 +516,6 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
                                         </p>
                                     </div>
                                 </div>
-                                {leadConflict ? (
-                                    <div role="alert" className="flex flex-col gap-2.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
-                                        <div className="flex items-start gap-2">
-                                            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                                            <div className="min-w-0">
-                                                <p className="font-semibold">Details differ from the referral</p>
-                                                <ul className="mt-1 space-y-0.5 text-xs">
-                                                    {leadConflict.name ? (
-                                                        <li>Name — referral: <span className="font-medium">{detectedLead.fullName}</span> · entered: <span className="font-medium">{fullName}</span></li>
-                                                    ) : null}
-                                                    {leadConflict.email ? (
-                                                        <li>Email — referral: <span className="font-medium">{detectedLead.email}</span> · entered: <span className="font-medium">{email}</span></li>
-                                                    ) : null}
-                                                </ul>
-                                                <p className="mt-1 text-xs opacity-80">Choose which to save. The referral is converted either way.</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex flex-wrap gap-2 pl-6">
-                                            <button
-                                                type="button"
-                                                onClick={() => setLeadConflict(null)}
-                                                className="h-8 rounded-md border border-amber-300 bg-white px-3 text-xs font-semibold text-amber-900 hover:bg-amber-100"
-                                            >
-                                                Keep mine
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    if (leadConflict.name) updateFullName(detectedLead.fullName)
-                                                    if (leadConflict.email) updateEmail(detectedLead.email ?? '')
-                                                    setLeadConflict(null)
-                                                }}
-                                                className="h-8 rounded-md bg-amber-600 px-3 text-xs font-semibold text-white hover:bg-amber-700"
-                                            >
-                                                Use referral details
-                                            </button>
-                                        </div>
-                                    </div>
-                                ) : null}
                             </div>
                         ) : referralsEnabled && !activeLead ? (
                             <ReferrerPicker disabled={loading} />
@@ -723,6 +711,30 @@ export default function AddMemberForm({ plans, gymSettings, referralsEnabled, le
                     </div>
                 </div>
             </form>
+        </div>
+    )
+}
+
+/** Per-field "differs from the referral" notice with Keep / Use actions. */
+function LeadFieldConflict({
+    label, entered, referral, onKeep, onUse,
+}: { label: string; entered: string; referral: string; onKeep: () => void; onUse: () => void }) {
+    return (
+        <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <p className="flex items-start gap-1.5">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span>
+                    {label} differs from the referral: <span className="font-medium">{referral}</span> was submitted, you entered <span className="font-medium">{entered}</span>.
+                </span>
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2 pl-5">
+                <button type="button" onClick={onKeep} className="h-7 rounded-md border border-amber-300 bg-white px-2.5 font-semibold text-amber-900 hover:bg-amber-100">
+                    Keep mine
+                </button>
+                <button type="button" onClick={onUse} className="h-7 rounded-md bg-amber-600 px-2.5 font-semibold text-white hover:bg-amber-700">
+                    Use referral value
+                </button>
+            </div>
         </div>
     )
 }
