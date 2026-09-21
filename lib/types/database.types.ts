@@ -85,6 +85,8 @@ export interface Database {
                     notify_payment_confirmation_enabled: boolean
                     notify_renewal_confirmation_enabled: boolean
                     notify_welcome_message_enabled: boolean
+                    referrals_enabled: boolean
+                    referral_bonus_coins: number
                     payment_method_cash_enabled: boolean
                     payment_method_upi_enabled: boolean
                     payment_method_card_enabled: boolean
@@ -139,6 +141,8 @@ export interface Database {
                     notify_payment_confirmation_enabled?: boolean
                     notify_renewal_confirmation_enabled?: boolean
                     notify_welcome_message_enabled?: boolean
+                    referrals_enabled?: boolean
+                    referral_bonus_coins?: number
                     payment_method_cash_enabled?: boolean
                     payment_method_upi_enabled?: boolean
                     payment_method_card_enabled?: boolean
@@ -193,6 +197,8 @@ export interface Database {
                     notify_payment_confirmation_enabled?: boolean
                     notify_renewal_confirmation_enabled?: boolean
                     notify_welcome_message_enabled?: boolean
+                    referrals_enabled?: boolean
+                    referral_bonus_coins?: number
                     payment_method_cash_enabled?: boolean
                     payment_method_upi_enabled?: boolean
                     payment_method_card_enabled?: boolean

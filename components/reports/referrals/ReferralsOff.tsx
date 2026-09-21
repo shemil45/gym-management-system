@@ -10,7 +10,7 @@ export default function ReferralsOff() {
                 <div className="min-w-0 space-y-1">
                     <h1 className="text-base font-semibold text-gray-900 dark:text-white">Referrals aren&apos;t enabled for this gym</h1>
                     <p className="text-sm text-pretty text-gray-600 dark:text-neutral-400">
-                        Turn on referrals in the platform portal to track them here.
+                        Turn on referrals under Settings → Referrals to track them here. If the option is missing there, the programme is not included in your plan.
                     </p>
                 </div>
             </div>

@@ -12,6 +12,7 @@ import {
     UserCheck,
     Users,
     Wallet,
+    Gift,
 } from 'lucide-react'
 import { useAdminTheme } from '@/components/layout/AdminThemeContext'
 
@@ -88,6 +89,12 @@ const CATEGORIES: SettingsCategory[] = [
                 description: 'Reminders and alerts sent to members and staff.',
                 href: '/admin/settings/notifications',
                 icon: <Bell className="h-4 w-4" />,
+            },
+            {
+                title: 'Referrals',
+                description: 'Turn the referral programme on or off and set the reward per referral.',
+                href: '/admin/settings/referrals',
+                icon: <Gift className="h-4 w-4" />,
             },
         ],
     },

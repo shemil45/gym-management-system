@@ -37,7 +37,15 @@ type PendingRow = {
     notes: string | null
 }
 
-export const REFERRER_BONUS_COINS = 500
+/** Fallback when a gym row has no bonus (pre-migration rows only). */
+export const DEFAULT_REFERRER_BONUS_COINS = 100
+
+/** Coins a converted referral is worth at this gym; set under Settings → Referrals. */
+export async function getReferralBonusCoins(gymId: string): Promise<number> {
+    const { data } = await getSupabaseAdmin().from('gyms').select('referral_bonus_coins').eq('id', gymId).maybeSingle()
+    const value = (data as { referral_bonus_coins: number | null } | null)?.referral_bonus_coins
+    return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : DEFAULT_REFERRER_BONUS_COINS
+}
 
 export async function settleMemberPayment(input: {
     razorpayOrderId: string
@@ -158,6 +166,7 @@ export async function creditReferrers(gymId: string, referredId: string) {
     if (!(await gymHasFeature(gymId, 'referrals'))) return
 
     const db = getSupabaseAdmin()
+    const bonus = await getReferralBonusCoins(gymId)
     const { data: converted } = await db
         .from('referrals')
         .update({ status: 'converted', applied_at: new Date().toISOString() })
@@ -176,7 +185,7 @@ export async function creditReferrers(gymId: string, referredId: string) {
             await db
                 .from('members')
                 .update({
-                    referral_coins_balance: (referrer.referral_coins_balance || 0) + REFERRER_BONUS_COINS,
+                    referral_coins_balance: (referrer.referral_coins_balance || 0) + bonus,
                 })
                 .eq('id', referrer.id)
         }

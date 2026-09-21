@@ -242,7 +242,7 @@ export function referralList(referrals: ReportReferralRow[], range: DateRange, s
 // Computed from what the Overview already fetches: the period's referrals and
 // payments, and the full roster. Nothing here fetches, and nothing pretends
 // the data has a reward ledger — coins issued stay a derived quantity
-// (conversions × REFERRER_BONUS_COINS), coins redeemed are the actual
+// (conversions × the gym's bonus setting), coins redeemed are the actual
 // `referral_coins_used` on paid payments, and the outstanding balance is the
 // actual sum of member balances.
 

@@ -2,7 +2,7 @@ import 'server-only'
 
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { addDaysIso, type DateRange } from '@/lib/reports/dates'
-import { REFERRER_BONUS_COINS } from '@/lib/payments/settle-member-payment'
+import { getReferralBonusCoins } from '@/lib/payments/settle-member-payment'
 import { fetchMembers } from '@/lib/reports/members'
 import { fetchPaymentRows } from '@/lib/reports/payments'
 import type { ReferralsReportQuery } from '@/lib/reports/referrals-params'
@@ -111,7 +111,7 @@ export async function fetchReferrals(gymId: string, range: DateRange): Promise<R
  * period's referrals and payments, the comparison period's (only when
  * comparison is on), and the roster. `buckets`, `totals`, `kpis`, `previous`
  * and `outstanding` are the original fields the table and CSV read; the rest
- * is derived from the same rows. `bonus` is REFERRER_BONUS_COINS, carried so
+ * is derived from the same rows. `bonus` is the gym's current setting, carried so
  * the UI can say how coins issued was derived.
  */
 export type OverviewReport = {
@@ -140,12 +140,13 @@ export type LeaderboardReport = { rows: LeaderRow[]; totals: LeaderboardTotals; 
 export type ListReport = { rows: ListRow[]; status: ListStatus }
 
 export async function getOverview(gymId: string, query: ReferralsReportQuery): Promise<OverviewReport> {
-    const [currentReferrals, previousReferrals, currentPayments, previousPayments, members] = await Promise.all([
+    const [currentReferrals, previousReferrals, currentPayments, previousPayments, members, REFERRER_BONUS_COINS] = await Promise.all([
         fetchReferrals(gymId, query.range),
         query.previous ? fetchReferrals(gymId, query.previous) : Promise.resolve(null),
         fetchPaymentRows(gymId, query.range),
         query.previous ? fetchPaymentRows(gymId, query.previous) : Promise.resolve(null),
         fetchMembers(gymId),
+        getReferralBonusCoins(gymId),
     ])
     const buckets = overviewBuckets(currentReferrals, currentPayments, query.range, query.bucket, REFERRER_BONUS_COINS)
     const totals = overviewTotals(buckets)
@@ -176,9 +177,10 @@ export async function getOverview(gymId: string, query: ReferralsReportQuery): P
 }
 
 export async function getLeaderboard(gymId: string, query: ReferralsReportQuery): Promise<LeaderboardReport> {
-    const [referrals, members] = await Promise.all([
+    const [referrals, members, REFERRER_BONUS_COINS] = await Promise.all([
         fetchReferrals(gymId, query.range),
         fetchMembers(gymId),
+        getReferralBonusCoins(gymId),
     ])
     const rows = leaderboard(referrals, members, query.range, REFERRER_BONUS_COINS)
     return { rows, totals: leaderboardTotals(rows), activity: referrerActivity(rows) }

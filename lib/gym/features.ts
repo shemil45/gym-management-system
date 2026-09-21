@@ -38,13 +38,15 @@ export type GymFeatureState = {
     onboardingComplete: boolean
     /** True when a feature is off solely because onboarding is incomplete. */
     gatedByOnboarding: string[]
+    /** Referrals as the plan/platform/onboarding resolve them, before the gym's own toggle. */
+    referralsAvailable: boolean
 }
 
 export const getGymFeatureState = cache(async (gymId: string): Promise<GymFeatureState> => {
     const db = getSupabaseAdmin()
 
     const [gymResult, flagsResult, overridesResult, subscriptionResult] = await Promise.all([
-        db.from('gyms').select('onboarding_status').eq('id', gymId).maybeSingle(),
+        db.from('gyms').select('onboarding_status, referrals_enabled').eq('id', gymId).maybeSingle(),
         db.from('platform_feature_flags').select('id, key, is_enabled'),
         db.from('gym_feature_overrides').select('feature_flag_id, is_enabled').eq('gym_id', gymId),
         db
@@ -54,7 +56,7 @@ export const getGymFeatureState = cache(async (gymId: string): Promise<GymFeatur
             .maybeSingle(),
     ])
 
-    const gym = gymResult.data as { onboarding_status: string } | null
+    const gym = gymResult.data as { onboarding_status: string; referrals_enabled: boolean | null } | null
     const flags = (flagsResult.data ?? []) as Array<{ id: string; key: string; is_enabled: boolean }>
     const overrides = (overridesResult.data ?? []) as Array<{
         feature_flag_id: string
@@ -93,7 +95,12 @@ export const getGymFeatureState = cache(async (gymId: string): Promise<GymFeatur
         features[flag.key] = ungated
     }
 
-    return { features, onboardingComplete, gatedByOnboarding }
+    // The gym can switch its own referral programme off. This only ever
+    // narrows: a gym whose plan lacks referrals cannot turn them on here.
+    const referralsAvailable = features.referrals === true
+    if (referralsAvailable && gym?.referrals_enabled === false) features.referrals = false
+
+    return { features, onboardingComplete, gatedByOnboarding, referralsAvailable }
 })
 
 /** Convenience for a single check at a call site. */

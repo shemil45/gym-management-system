@@ -4,7 +4,7 @@ import { randomBytes } from 'node:crypto'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { gymHasFeature } from '@/lib/gym/features'
 import { sendWhatsAppMessage } from '@/lib/whatsapp'
-import { REFERRER_BONUS_COINS } from '@/lib/payments/settle-member-payment'
+import { getReferralBonusCoins } from '@/lib/payments/settle-member-payment'
 import type { InsertTables, QueryResult, Tables } from '@/lib/types'
 import {
     effectiveReferralStatus,
@@ -492,10 +492,11 @@ export async function convertReferralLead(gymId: string, leadId: string, memberR
 export async function creditReferrerBonus(gymId: string, referrerId: string): Promise<void> {
     if (!(await gymHasFeature(gymId, 'referrals'))) return
     const db = getSupabaseAdmin()
+    const bonus = await getReferralBonusCoins(gymId)
     const { data } = await db.from('members').select('referral_coins_balance').eq('id', referrerId).eq('gym_id', gymId).maybeSingle()
     const balance = (data as { referral_coins_balance: number } | null)?.referral_coins_balance
     if (balance === undefined) return
-    await db.from('members').update({ referral_coins_balance: (balance || 0) + REFERRER_BONUS_COINS }).eq('id', referrerId).eq('gym_id', gymId)
+    await db.from('members').update({ referral_coins_balance: (balance || 0) + bonus }).eq('id', referrerId).eq('gym_id', gymId)
 }
 
 export type CancelLeadResult = { ok: true } | { ok: false; reason: 'not-found' | 'not-pending' }
