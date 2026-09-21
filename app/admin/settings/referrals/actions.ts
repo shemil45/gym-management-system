@@ -6,7 +6,7 @@ import type { UpdateTables } from '@/lib/types'
 import { getCurrentGymContext } from '@/lib/auth/gym-context'
 import { getActiveImpersonation, IMPERSONATION_READONLY_MESSAGE } from '@/lib/platform/impersonation-ledger'
 
-export const MAX_REFERRAL_BONUS_COINS = 100000
+const MAX_REFERRAL_BONUS_COINS = 100000
 
 function getErrorMessage(error: unknown, fallback: string) {
     return error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
